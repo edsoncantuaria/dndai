@@ -51,7 +51,8 @@ Recomendações:
 2. `AI_FAILOVER_CHAIN` só OpenRouter (sem Gemini).
 3. Modelo principal estável quando Llama/Qwen estiverem em 429 upstream (ex.: `openai/gpt-oss-120b:free`).
 4. Para sessão longa: **≥ $10 créditos** no OpenRouter (1000 req/dia) ou modelo pago.
-5. Chaves no `.env` para o **servidor**; no Docker passar `OPENROUTER_KEY1..3` (ver `docker-compose.dev.yml`).
+5. Chaves no `.env` para o **servidor**; no Docker passar `OPENROUTER_KEY1..4` (ver `docker-compose.dev.yml`).
+6. Plano de migração: [TODO-OSS-120B.md](../TODO-OSS-120B.md) · métricas: `GET /api/metrics/openrouter` ou `npm run ai:oss-metrics`.
 
 ## Rotação: modelo vs chave
 

@@ -1,3 +1,6 @@
+/**
+ * @deprecated Cliente Gemini — gameplay usa `ai-oss/`. Mantido para scripts/TTS legado.
+ */
 import { GoogleGenAI, type Content } from '@google/genai';
 import { MODEL } from './constants.js';
 import { resolveDefaultFailoverChain } from './providerFactory.js';

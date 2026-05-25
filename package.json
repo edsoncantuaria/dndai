@@ -18,7 +18,7 @@
     "srd:down": "docker compose -f docker-compose.srd.yml down",
     "dev:infra": "sh scripts/dev-infra.sh",
     "dev:docker": "docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile dev up",
-    "compose:infra": "docker compose up -d mysql redis srd-db srd-cache srd-api minio piper",
+    "compose:infra": "docker compose up -d mysql redis srd-db srd-cache srd-api minio piper qdrant",
     "compose:down": "docker compose down",
     "compose:app": "docker compose --profile full up -d --build",
     "docker:up": "docker compose --profile full up -d --build",

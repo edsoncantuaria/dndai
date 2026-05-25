@@ -9,6 +9,7 @@ if (env.QDRANT_ENABLED) {
         url: env.QDRANT_URL,
         apiKey: env.QDRANT_API_KEY,
         timeout: 10_000,
+        checkCompatibility: false,
     });
 } else {
     console.warn('[QDRANT] Disabled via configuration. Semantic memory features will be skipped.');

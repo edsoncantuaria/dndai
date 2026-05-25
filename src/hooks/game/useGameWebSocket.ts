@@ -196,6 +196,17 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
             setIsLoading(true);
         };
 
+        const handleNarrationStream = (payload?: {
+            actionId?: string;
+            kind?: string;
+            text?: string;
+        }) => {
+            if (payload?.kind === 'preview' && payload.text?.trim()) {
+                const snippet = payload.text.trim().slice(-160);
+                setActionPhaseLabel(snippet.length > 12 ? snippet : 'O Mestre está narrando...');
+            }
+        };
+
         const handleNarrationComplete = (payload?: { actionId?: string }) => {
             if (payload?.actionId) {
                 clearPendingAction(payload.actionId);
@@ -234,6 +245,7 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
         addEventListener('stopLoading', handleStopLoading);
         addEventListener('timeout', handleActionTimeout);
         addEventListener('narrationLoading', handleNarrationLoading);
+        addEventListener('narrationStream', handleNarrationStream);
         addEventListener('narrationComplete', handleNarrationComplete);
         addEventListener('actionAck', handleActionAck);
         addEventListener('actionResolution', handleActionResolution);
@@ -246,6 +258,7 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
             removeEventListener('stopLoading', handleStopLoading);
             removeEventListener('timeout', handleActionTimeout);
             removeEventListener('narrationLoading', handleNarrationLoading);
+            removeEventListener('narrationStream', handleNarrationStream);
             removeEventListener('narrationComplete', handleNarrationComplete);
             removeEventListener('actionAck', handleActionAck);
             removeEventListener('actionResolution', handleActionResolution);

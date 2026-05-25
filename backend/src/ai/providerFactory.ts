@@ -1,4 +1,8 @@
+/**
+ * @deprecated Legado — seleção Gemini/OpenRouter. Novo código: `ai-oss/providers/`.
+ */
 import { GoogleGenAI } from '@google/genai';
+import { OSS_120B_MODEL } from '../ai-oss/constants.js';
 import { createModelAdapter as createGeminiModelAdapter } from './client.js';
 import { createOpenRouterAdapter, normalizeOpenRouterModelId } from './providers/openRouterAdapter.js';
 import type { ModelAdapter } from './providers/types.js';
@@ -44,7 +48,7 @@ export function resolveDefaultFailoverChain(): string[] {
         return ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'];
     }
     if (openRouterOnly) {
-        return [...OPENROUTER_DEFAULT_FAILOVER_CHAIN];
+        return [OSS_120B_MODEL];
     }
     return [...OPENROUTER_DEFAULT_FAILOVER_CHAIN, ...GEMINI_FAILOVER_TAIL];
 }
@@ -60,9 +64,17 @@ export function createGameplayModelAdapter(userApiKey: string, modelName: string
     if (provider === 'openrouter') {
         return createOpenRouterAdapter(userApiKey, normalizeOpenRouterModelId(modelName));
     }
+    const geminiDisabled = ['1', 'true', 'yes', 'on'].includes(
+        (process.env.AI_OPENROUTER_ONLY ?? '').trim().toLowerCase(),
+    );
+    if (geminiDisabled) {
+        throw new Error(
+            `Modelo "${modelName}" requer Gemini, desativado (AI_OPENROUTER_ONLY). Use ${OSS_120B_MODEL}.`,
+        );
+    }
     const geminiKey = resolveGeminiFallbackApiKey(userApiKey);
     if (!geminiKey) {
-        throw new Error('Chave Gemini ausente para fallback. Defina GEMINI_API_KEY no servidor ou use modelo OpenRouter.');
+        throw new Error('Chave Gemini ausente. Use modelo OpenRouter ou defina OPENROUTER_KEY1..N.');
     }
     const genAI = new GoogleGenAI({ apiKey: geminiKey });
     return createGeminiModelAdapter(genAI, modelName);

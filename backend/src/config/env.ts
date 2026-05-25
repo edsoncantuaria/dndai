@@ -26,7 +26,7 @@ export const env: EnvShape = {
     QDRANT_URL: process.env.QDRANT_URL || 'http://localhost:6333',
     QDRANT_API_KEY: process.env.QDRANT_API_KEY || undefined,
     QDRANT_ENABLED: toBoolean(process.env.QDRANT_ENABLED, false),
-    QDRANT_VECTOR_SIZE: Number(process.env.QDRANT_VECTOR_SIZE) || 3072,
+    QDRANT_VECTOR_SIZE: Number(process.env.QDRANT_VECTOR_SIZE) || 2048,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '',
     AI_DEBUG_LOGS: toBoolean(process.env.AI_DEBUG_LOGS, false),
     CHARACTER_CACHE_ENABLED: toBoolean(process.env.CHARACTER_CACHE_ENABLED, false),

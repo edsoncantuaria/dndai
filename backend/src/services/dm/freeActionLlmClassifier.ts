@@ -16,6 +16,7 @@ needsRoll=true só se a ação exige teste de perícia com incerteza e consequê
 skillIndex deve ser índice SRD (ex: stealth, perception, athletics).`;
 
 /**
+ * @deprecated Desligado em produção OSS (`DM_LLM_CLASSIFY=false`). Consome cota free extra.
  * Classificação leve via LLM quando heurística PT não detecta perícia.
  */
 export async function classifyFreeActionWithLlm(

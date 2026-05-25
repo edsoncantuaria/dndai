@@ -1,5 +1,10 @@
+/**
+ * @deprecated Resumos via Gemini — migrar para `ai-oss/memory/` (TODO-OSS-120B Fase 2).
+ */
 // backend/src/services/storyService.ts
 import { GoogleGenAI } from "@google/genai";
+import { generateOssPlainText } from '../ai-oss/providers/ossPlainText.js';
+import { getOpenRouterManager } from '../ai-oss/providers/OpenRouterManager.js';
 import { AppDataSource } from '../database/data-source.js';
 import redisClient from '../database/redis-client.js';
 import { TimelineEvent as TimelineEventEntity } from '../entities/TimelineEvent.js';
@@ -26,6 +31,12 @@ const TIMELINE_META_KEY_PREFIX = (sessaoId: number) => `session:${sessaoId}:time
 const SUMMARY_KEY_PREFIX = (sessaoId: number) => `session:${sessaoId}:story_summary`;
 const SUMMARY_META_KEY_PREFIX = (sessaoId: number) => `session:${sessaoId}:story_summary_meta`;
 const STORY_MODEL = 'models/gemini-2.5-flash-lite';
+
+const useOssForStory = (): boolean =>
+    ['1', 'true', 'yes', 'on'].includes(
+        (process.env.AI_OPENROUTER_ONLY ?? 'true').trim().toLowerCase(),
+    ) ||
+    !(process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY ?? '').trim();
 
 const MAX_TIMELINE_ENTRIES = 200;
 const SUMMARY_MIN_BATCH = 5;
@@ -360,7 +371,6 @@ const generateStorySummary = async (
     if (!apiKey || timeline.length === 0) return null;
 
     try {
-        const genAI = new GoogleGenAI({ apiKey });
         const recentEvents = timeline.slice(-SUMMARY_WINDOW);
         const eventsText = recentEvents
             .map(event => `- Turno ${event.turn}: ${event.summary}${event.notes ? ` (${event.notes})` : ''}`)
@@ -381,9 +391,21 @@ Regras:
 - Não inclua texto fora do resumo.
 `;
 
+        if (useOssForStory()) {
+            const resolvedKey = getOpenRouterManager().resolveApiKey(apiKey);
+            return await generateOssPlainText({
+                apiKey: resolvedKey,
+                userPrompt: prompt,
+                systemPrompt: 'Cronista de RPG. Responda só com o resumo em prosa.',
+                temperature: 0.4,
+                maxOutputTokens: 512,
+            });
+        }
+
+        const genAI = new GoogleGenAI({ apiKey });
         const result = await genAI.models.generateContent({
             model: STORY_MODEL,
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
             config: {
                 temperature: 0.4,
                 topP: 0.9,
@@ -452,7 +474,6 @@ export const generateLevelUpRecap = async (
     if (!eventsText.trim()) return null;
 
     try {
-        const genAI = new GoogleGenAI({ apiKey });
         const prompt = `
 Você é o cronista épico da sessão ${sessaoId}. Responda em português do Brasil a pergunta "Como chegamos aqui?" em 2 a 3 frases, destacando os principais eventos que levaram o herói ao novo nível.
 
@@ -465,9 +486,20 @@ Regras:
 - Evite listas e menções ao próprio pedido.
 `;
 
+        if (useOssForStory()) {
+            const resolvedKey = getOpenRouterManager().resolveApiKey(apiKey);
+            return await generateOssPlainText({
+                apiKey: resolvedKey,
+                userPrompt: prompt,
+                temperature: 0.45,
+                maxOutputTokens: 320,
+            });
+        }
+
+        const genAI = new GoogleGenAI({ apiKey });
         const result = await genAI.models.generateContent({
             model: STORY_MODEL,
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
             config: {
                 temperature: 0.45,
                 topP: 0.9,

@@ -26,8 +26,14 @@ export const GEMINI_GAME_MODELS = [
     "gemini-2.5-pro",
 ] as const;
 
+/** Modelos expostos no gameplay — OSS primeiro; Gemini oculto do fluxo principal. */
+export const GAMEPLAY_MODELS = [
+    'openai/gpt-oss-120b:free',
+    ...OPENROUTER_MODELS.filter(m => m !== 'openai/gpt-oss-120b:free'),
+] as const;
+
 export const AVAILABLE_MODELS = [
-    ...OPENROUTER_MODELS,
+    ...GAMEPLAY_MODELS,
     ...GEMINI_GAME_MODELS,
     "gemini-2.5-pro-preview-06-05",
     "gemini-2.5-flash-preview-09-2025",
@@ -109,7 +115,7 @@ export const defaultGenerationConfig: GenerationConfig = {
 };
 
 const defaultSettings = {
-    model: OPENROUTER_MODELS[0],
+    model: 'openai/gpt-oss-120b:free',
     ttsModel: AVAILABLE_TTS_MODELS[0],
     ttsVoice: AVAILABLE_TTS_VOICES[0],
     apiKey: '',

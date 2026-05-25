@@ -13,6 +13,8 @@ export type RunNarrationAiPhasesParams = {
     apiKey: string;
     sessionId: string;
     scenarioLabel?: string;
+    actionId?: string;
+    stateVersion?: number;
 };
 
 /** Orquestra fases narrativa + estado (Gemini) — extraído do miolo de processPlayerTurn. */
@@ -28,6 +30,8 @@ export async function runNarrationAiPhases(
         apiKey,
         sessionId,
         scenarioLabel,
+        actionId,
+        stateVersion,
     } = params;
 
     const narrativeHint = await buildFeedbackHint(sessionId, scenarioLabel, 'narrative');
@@ -44,5 +48,7 @@ export async function runNarrationAiPhases(
         narrativeHint: narrativeHint ?? undefined,
         stateHint: stateHint ?? undefined,
         pipelineMode: resolvePipelineMode(),
+        actionId,
+        stateVersion,
     });
 }

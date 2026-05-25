@@ -1,6 +1,6 @@
 /**
- * Fachada pública do cliente Gemini para o pipeline de jogo (Fase 11).
- * Implementação permanece em aiService até migração completa de runGameUpdate.
+ * @deprecated Fachada legada — use `ai-oss/orchestration/narrationPipeline.ts` com AI_ENGINE=oss.
+ * Implementação ainda em aiService.ts até Fase 2 (TODO-OSS-120B.md).
  */
 export {
     getGameUpdate,

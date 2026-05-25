@@ -1,5 +1,7 @@
 import type { GameMasterFlowInput, GameMasterResponse } from '../schemas/gameSchemas.js';
 import { getGameUpdate, type GameUpdateWarning } from '../ai/gameUpdate.js';
+import { runOssNarration, ensureOssModel } from '../ai-oss/orchestration/narrationPipeline.js';
+import { isOssEngineEnabled } from '../ai-oss/core/engineSwitch.js';
 import { validateByPhaseFocus } from '../ai/responseValidator.js';
 import { generateFallbackResponse } from '../services/gameOrchestrator.js';
 import type { GenerationConfig } from '../schemas/validationSchemas.js';
@@ -31,6 +33,8 @@ export interface PhaseOrchestratorInput {
     sessionId?: string;
     narrativeHint?: string;
     pipelineMode?: AiPipelineMode;
+    actionId?: string;
+    stateVersion?: number;
 }
 
 async function requestPhaseResponse(
@@ -54,18 +58,31 @@ async function requestPhaseResponse(
     while (retryCount < MAX_VALIDATION_ATTEMPTS) {
         calls += 1;
         const phaseStarted = Date.now();
-        const { response: candidate, rawText: currentRaw, warnings: callWarnings = [] } = await getGameUpdate(
-            {
-                ...ctx.baseInput,
-                ...extraInput,
-                suppressRollRequest,
-                responseFocus: 'narrative',
-                validationFeedback,
-            },
-            ctx.modelToUse,
-            ctx.generationConfig,
-            ctx.apiKey,
-        );
+        const flowInput: GameMasterFlowInput = {
+            ...ctx.baseInput,
+            ...extraInput,
+            suppressRollRequest,
+            responseFocus: 'narrative',
+            validationFeedback,
+        };
+        const model = ensureOssModel(ctx.modelToUse);
+        const { response: candidate, rawText: currentRaw, warnings: callWarnings = [] } =
+            isOssEngineEnabled()
+                ? await runOssNarration({
+                      input: flowInput,
+                      apiKey: ctx.apiKey,
+                      model,
+                      generationConfig: ctx.generationConfig,
+                      actionId: ctx.actionId,
+                      traceId: ctx.actionId,
+                      stateVersion: ctx.stateVersion,
+                  })
+                : await getGameUpdate(
+                      flowInput,
+                      model,
+                      ctx.generationConfig,
+                      ctx.apiKey,
+                  );
         lastWarnings = callWarnings;
 
         rawText = currentRaw;

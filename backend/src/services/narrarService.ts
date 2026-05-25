@@ -37,6 +37,8 @@ import { recordUnexpectedAiRoll } from './rollMetricsService.js';
 import { runNarrationAiPhases } from '../narration/turnProcessor.js';
 import { isMotorOwnedPipeline, stripMotorOwnedFields } from '../narration/motorStateBridge.js';
 import { validateByPhaseFocus } from '../ai/responseValidator.js';
+import { ensureOssModel } from '../ai-oss/orchestration/narrationPipeline.js';
+import { hasResolvableOpenRouterKey } from '../ai-oss/core/apiKeyResolve.js';
 import { buildNarrationContext } from '../narration/contextBuilder.js';
 import { persistNarrationTurn } from '../narration/persistence.js';
 import { buildWorldStateSnapshot } from '../narration/worldStateSnapshot.js';
@@ -874,14 +876,16 @@ export const processPlayerTurn = async (
         }
     }
 
-    if (!apiKey) {
-        throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
+    if (!hasResolvableOpenRouterKey(apiKey)) {
+        throw createError(
+            400,
+            'Chave OpenRouter ausente. Adicione OPENROUTER_KEY1..N no servidor ou configure nas Configurações.',
+        );
     }
-    
-    const modelToUse =
-        user?.settings?.model ||
-        process.env.AI_DEFAULT_MODEL?.trim() ||
-        'meta-llama/llama-3.3-70b-instruct:free';
+
+    const modelToUse = ensureOssModel(
+        user?.settings?.model || process.env.AI_DEFAULT_MODEL?.trim() || undefined,
+    );
     const generationConfig = user?.settings?.generationConfig || {};
     
     const recentLogs = isTestRun ? [] : await AppDataSource.getRepository(SessionLog).find({
@@ -1010,6 +1014,16 @@ export const processPlayerTurn = async (
         response.systemLog = response.systemLog ? `${response.systemLog}\n${note}` : note;
     };
 
+    let stateVersionForPrompt = 0;
+    if (!isTestRun && sessao?.id) {
+        try {
+            const { loadStateVersion } = await import('./stateVersionService.js');
+            stateVersionForPrompt = await loadStateVersion(sessao.id);
+        } catch (versionErr) {
+            console.warn('[narrarService] stateVersion indisponível para cache de prompt:', versionErr);
+        }
+    }
+
     const orchestrated = await runNarrationAiPhases({
         baseInput: gameMasterFlowInput,
         playerAction,
@@ -1019,6 +1033,8 @@ export const processPlayerTurn = async (
         apiKey,
         sessionId: sessionKey,
         scenarioLabel: gameMasterFlowInput.scenarioLabel,
+        actionId,
+        stateVersion: stateVersionForPrompt,
     });
 
     const narrativePhase = orchestrated.narrativePhase;

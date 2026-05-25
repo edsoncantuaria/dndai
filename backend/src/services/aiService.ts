@@ -1,3 +1,7 @@
+/**
+ * @deprecated Pipeline legado (Gemini-first). Gameplay migra para `backend/src/ai-oss/`.
+ * Mantido até Fase 2 de TODO-OSS-120B.md. Não adicionar features Gemini no hot path.
+ */
 // backend/src/services/aiService.ts
 import { GoogleGenAI, type Content } from "@google/genai";
 import { randomUUID } from 'crypto';

@@ -23,6 +23,12 @@ import { sanitizeRollValues, computeRawRollFromValues, buildRollResolutionPrompt
 import { logAppliedDelta } from '../services/deltaLogger.js';
 import { recordDamage, recordHealing, recordSpellSlotUse, recordRestMetric } from '../services/deltaMetricsService.js';
 import { beginActionPhase, advanceActionPhase, clearActionPhase, type ActionPhase } from '../services/actionPhaseService.js';
+import { hasResolvableOpenRouterKey } from '../ai-oss/core/apiKeyResolve.js';
+import { isOssStreamEnabled } from '../ai-oss/core/streamSwitch.js';
+import {
+    clearNarrationStreamSink,
+    registerNarrationStreamSink,
+} from '../ai-oss/orchestration/narrationStream.js';
 import {
     computeIntentHash,
     registerActionIntentTelemetry,
@@ -402,6 +408,7 @@ export function configureWebSocket(httpServer: Server) {
                     let resolvedActionId: string | undefined;
                     let currentSessionId: number | undefined;
                     let phaseLockAcquired = false;
+                    let unregisterStream: (() => void) | undefined;
                     const recordPhase = async (phase: ActionPhase) => {
                         if (!ws.userId || !currentSessionId || !resolvedActionId) return;
                         if (phase === 'RECEIVED') {
@@ -442,8 +449,11 @@ export function configureWebSocket(httpServer: Server) {
                         } = processPayload;
                         currentSessionId = sessionId;
                         const hasIntent = Boolean(intent && typeof intent === 'object');
-                        if (!hasIntent && (!prompt || !apiKey)) {
-                            throw createError(400, 'Prompt e apiKey são obrigatórios quando não há intent estruturado.');
+                        if (!hasIntent && (!prompt || !hasResolvableOpenRouterKey(apiKey))) {
+                            throw createError(
+                                400,
+                                'Prompt e chave OpenRouter são obrigatórios quando não há intent estruturado.',
+                            );
                         }
                         const pendingRoll = await getPendingRollRequest(sessionId);
                         if (pendingRoll) {
@@ -534,6 +544,16 @@ export function configureWebSocket(httpServer: Server) {
                         await recordPhase('AI_SYNTHESIS');
                         ws.send(JSON.stringify({ type: 'narrationLoading', payload: { actionId: resolvedActionId } }));
                         activeActions.add(resolvedActionId);
+                        if (isOssStreamEnabled() && resolvedActionId) {
+                            unregisterStream = registerNarrationStreamSink(resolvedActionId, evt => {
+                                ws.send(
+                                    JSON.stringify({
+                                        type: 'narrationStream',
+                                        payload: { actionId: resolvedActionId, ...evt },
+                                    }),
+                                );
+                            });
+                        }
                         const { processFreeActionWithDmFlow } = await import(
                             '../services/dm/dmTurnOrchestrator.js'
                         );
@@ -593,6 +613,8 @@ export function configureWebSocket(httpServer: Server) {
                         }));
                     } finally {
                         if (resolvedActionId) {
+                            unregisterStream?.();
+                            clearNarrationStreamSink(resolvedActionId);
                             emitActionRelease(ws, resolvedActionId);
                             activeActions.delete(resolvedActionId);
                             logActionFlow('processAction:finalized', {

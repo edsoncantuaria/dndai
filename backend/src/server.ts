@@ -1,6 +1,10 @@
 // backend/src/server.ts
 import 'reflect-metadata';
-import 'dotenv/config';
+import { config as loadEnv } from 'dotenv';
+import { resolve } from 'path';
+
+loadEnv({ path: resolve(process.cwd(), '../.env') });
+loadEnv({ path: resolve(process.cwd(), '.env') });
 import express from 'express';
 import cors from 'cors';
 import http from 'http'; // Importar o módulo http
@@ -29,6 +33,7 @@ import cacheRoutes from './routes/cacheRoutes.js';
 import logsRoutes from './routes/logsRoutes.js';
 import regionRoutes from './routes/regionRoutes.js';
 import metricsRoutes from './routes/metricsRoutes.js';
+import { getOpenRouterMetricsHandler } from './controllers/metricsController.js';
 import ttsRoutes from './routes/ttsRoutes.js';
 import rollRequestRoutes from './routes/rollRequestRoutes.js';
 import imageRoutes from './routes/imageRoutes.js';
@@ -82,6 +87,7 @@ app.use('/api/cache', cacheRoutes);
 app.use('/api/logs', logsRoutes);
 app.use('/api/regions', regionRoutes);
 app.use('/metrics', metricsRoutes);
+app.get('/api/admin/ai-metrics', getOpenRouterMetricsHandler);
 app.use('/api/tts', ttsRoutes);
 app.use('/api/roll-requests', rollRequestRoutes);
 app.use('/api/images', imageRoutes);
