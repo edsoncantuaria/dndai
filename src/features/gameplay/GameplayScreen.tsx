@@ -247,7 +247,7 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
                   <LoadingOracle label={loadingState.shortLabel ?? actionPhaseLabel ?? undefined} />
                 </div>
               ) : null}
-              <div className="gameplay-narrative-scroll min-h-0 flex-1 overflow-y-auto px-2 py-3 md:px-4">
+              <div className="gameplay-narrative-scroll min-h-0 flex-1 overflow-y-auto px-2 py-3 pb-28 max-md:pb-36 md:px-4 md:pb-3">
                 <GameplayNarrativeLog />
               </div>
             </div>

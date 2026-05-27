@@ -164,6 +164,8 @@ export interface SkillCheckIntentPayload {
     dc?: number;
     difficulty?: SkillDifficulty;
     proficiency?: boolean;
+    /** Quando a perícia citada foi corrigida pela intenção (motor/DM). */
+    resolutionNote?: string;
 }
 
 export interface SpellAttackIntentPayload {

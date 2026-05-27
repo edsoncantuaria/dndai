@@ -27,8 +27,8 @@ sequenceDiagram
 | Variável | Padrão | Descrição |
 |----------|--------|-----------|
 | `DM_AUTO_ROLL` | **`false`** | Se `true`, servidor rola sozinho (sem 3D) |
-| `DM_CLASSIFY_FREE_ACTION` | `true` | Heurística PT em ação livre |
-| `DM_LLM_CLASSIFY` | `true` | LLM classifica se heurística falhar |
+| `DM_CLASSIFY_FREE_ACTION` | `true` | Heurística PT + **intenção D&D 5e** (`skillActionSemantics`) |
+| `DM_LLM_CLASSIFY` | `true` | LLM classifica se heurística falhar (também passa pelo reconciliador) |
 | `DM_CLASSIFY_MODEL` | (opcional) | Modelo só para classificar |
 
 ## Elenco e mundo

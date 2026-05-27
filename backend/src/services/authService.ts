@@ -13,6 +13,8 @@ const defaultSettings = {
     aiProvider: "openrouter",
     ttsModel: "gemini-2.5-flash-preview-tts",
     ttsVoice: "Charon",
+    narrationVoice: "faber",
+    narrationSpeed: "lento",
     generationConfig: {
         temperature: 0.9,
         topP: 0.9,

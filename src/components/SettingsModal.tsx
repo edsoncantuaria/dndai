@@ -2,7 +2,7 @@
 'use client';
 
 import React, { ChangeEvent, useMemo, useState } from 'react';
-import { useSettingsContext, AVAILABLE_MODELS, AVAILABLE_TTS_MODELS, GenerationConfig, AVAILABLE_TTS_VOICES, ThemePreset } from '../contexts/SettingsContext';
+import { useSettingsContext, ThemePreset } from '../contexts/SettingsContext';
 import { Info, KeyRound, Volume2, VolumeX, FlaskConical, RefreshCw, Eraser, Palette, Sparkles, Accessibility, Undo2, AudioWaveform, Loader2, Shield, Dice5, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -12,6 +12,7 @@ import { apiClient } from '@/services/apiClient';
 import { generateSceneImage as requestSceneImage } from '@/services/imageService';
 import { isUiV2Enabled } from '@/lib/uiV2';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { NARRATION_SPEEDS, PIPER_VOICES } from '@/lib/narrationTts';
 
 const IMAGE_FEATURE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_IMAGE_GENERATION === 'true';
 
@@ -23,7 +24,7 @@ interface SettingsModalProps {
 }
 
 interface SliderProps {
-    id: keyof GenerationConfig | 'volume';
+    id: string;
     label: string;
     tooltip: string;
     value: number;
@@ -61,12 +62,24 @@ const Slider: React.FC<SliderProps> = ({ id, label, tooltip, value, min, max, st
 );
 
 const AudioControls: React.FC = () => {
-    const { volume, setVolume, isMuted, setIsMuted, playMenuMusic, setPlayMenuMusic, playAmbientMusic, setPlayAmbientMusic } = useSettingsContext();
+    const {
+        volume,
+        setVolume,
+        isMuted,
+        setIsMuted,
+        playMenuMusic,
+        setPlayMenuMusic,
+        playAmbientMusic,
+        setPlayAmbientMusic,
+        narrationVoice,
+        setNarrationVoice,
+        narrationSpeed,
+        setNarrationSpeed,
+    } = useSettingsContext();
     const { autoSpeak, setAutoSpeak } = useNarrationSpeech();
-
     return (
          <div className="space-y-4 pt-6 border-t border-white/10">
-            <h3 className="text-lg font-semibold text-stone-100">Áudio</h3>
+            <h3 className="text-lg font-semibold text-stone-100">Áudio e narração</h3>
             <div className="flex items-center gap-3">
                  <button onClick={() => setIsMuted(m => !m)} className="text-stone-200 hover:text-white p-2 rounded-full bg-black/40 border border-white/10 hover:border-amber-400/40 transition-colors">
                     {isMuted ? <VolumeX size={20}/> : <Volume2 size={20} />}
@@ -131,6 +144,48 @@ const AudioControls: React.FC = () => {
                     >
                         Ouvir última narração
                     </button>
+                </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                    <label htmlFor="narration-voice" className="mb-2 block text-sm font-semibold text-stone-200">
+                        Voz do narrador (Piper)
+                    </label>
+                    <select
+                        id="narration-voice"
+                        value={narrationVoice}
+                        onChange={e => setNarrationVoice(e.target.value as typeof narrationVoice)}
+                        className="w-full rounded-2xl border border-white/10 bg-black/40 p-3 text-sm text-stone-100 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/60"
+                    >
+                        {PIPER_VOICES.map(v => (
+                            <option key={v.id} value={v.id}>
+                                {v.label}
+                            </option>
+                        ))}
+                    </select>
+                    <p className="mt-1 text-xs text-stone-500">
+                        {PIPER_VOICES.find(v => v.id === narrationVoice)?.description}
+                    </p>
+                </div>
+                <div>
+                    <label htmlFor="narration-speed" className="mb-2 block text-sm font-semibold text-stone-200">
+                        Velocidade da fala
+                    </label>
+                    <select
+                        id="narration-speed"
+                        value={narrationSpeed}
+                        onChange={e => setNarrationSpeed(e.target.value as typeof narrationSpeed)}
+                        className="w-full rounded-2xl border border-white/10 bg-black/40 p-3 text-sm text-stone-100 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/60"
+                    >
+                        {NARRATION_SPEEDS.map(s => (
+                            <option key={s.id} value={s.id}>
+                                {s.label}
+                            </option>
+                        ))}
+                    </select>
+                    <p className="mt-1 text-xs text-stone-500">
+                        {NARRATION_SPEEDS.find(s => s.id === narrationSpeed)?.description}
+                    </p>
                 </div>
             </div>
         </div>
@@ -402,13 +457,7 @@ const CacheManagement: React.FC = () => {
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     const { isMdUp } = useBreakpoint();
     const useSheetLayout = isUiV2Enabled();
-    const { 
-        model, setModel, 
-        ttsModel, setTtsModel, 
-        ttsVoice, setTtsVoice, 
-        generationConfig, setGenerationConfig,
-        useAiHomebrew, setUseAiHomebrew
-    } = useSettingsContext();
+    const { useAiHomebrew, setUseAiHomebrew } = useSettingsContext();
     const { toast } = useToast();
     const [imageTestPrompt, setImageTestPrompt] = useState('Retrate a cena atual como uma ilustração dramática.');
     const [imageTestLoading, setImageTestLoading] = useState(false);
@@ -416,14 +465,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     
     if (!isOpen) return null;
     
-    const handleConfigChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const { id, value } = e.target;
-        setGenerationConfig(prev => ({
-            ...prev,
-            [id]: Number(value),
-        }));
-    };
-
     const handleSaveAndClose = () => {
         onClose();
     }
@@ -547,100 +588,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                         </div>
                     </div>
 
-
-                    <div className="space-y-4 pt-4 border-t border-stone-700/50">
-                        <h3 className="text-lg font-semibold text-stone-300">Modelos de IA</h3>
-                         <div>
-                            <label htmlFor="ai-model-select" className="block text-stone-300 font-semibold mb-2">
-                                Modelo do Mestre
-                            </label>
-                            <select
-                                id="ai-model-select"
-                                value={model}
-                                onChange={(e) => setModel(e.target.value)}
-                                className="w-full bg-black/40 border border-white/10 rounded-2xl p-3 text-stone-100 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
-                            >
-                                {AVAILABLE_MODELS.map(modelName => (
-                                    <option key={modelName} value={modelName}>
-                                        {modelName}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        
-                        <div>
-                            <label htmlFor="tts-model-select" className="block text-stone-300 font-semibold mb-2">
-                                Modelo de Voz (TTS)
-                            </label>
-                            <select
-                                id="tts-model-select"
-                                value={ttsModel}
-                                onChange={(e) => setTtsModel(e.target.value)}
-                                className="w-full bg-black/40 border border-white/10 rounded-2xl p-3 text-stone-100 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
-                            >
-                                {AVAILABLE_TTS_MODELS.map(modelName => (
-                                    <option key={modelName} value={modelName}>
-                                        {modelName}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                         <div>
-                            <label htmlFor="tts-voice-select" className="block text-stone-300 font-semibold mb-2">
-                                Voz do Narrador (TTS)
-                            </label>
-                            <select
-                                id="tts-voice-select"
-                                value={ttsVoice}
-                                onChange={(e) => setTtsVoice(e.target.value)}
-                                className="w-full bg-black/40 border border-white/10 rounded-2xl p-3 text-stone-100 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
-                            >
-                                {AVAILABLE_TTS_VOICES.map(voiceName => (
-                                    <option key={voiceName} value={voiceName}>
-                                        {voiceName}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-
-                    <div className="space-y-4 pt-4 border-t border-stone-700/50">
-                         <h3 className="text-lg font-semibold text-stone-300">Parâmetros da IA</h3>
-                        <Slider 
-                            id="temperature"
-                            label="Temperatura"
-                            tooltip="A 'Inspiração' do Mestre. Valores altos o tornam mais criativo e imprevisível. Valores baixos o mantêm mais focado e direto."
-                            value={generationConfig.temperature}
-                            min={0} max={1} step={0.05}
-                            onChange={handleConfigChange}
-                        />
-                         <Slider 
-                            id="topP"
-                            label="Top-P"
-                            tooltip="A 'Confiança' do Mestre. Um valor alto permite que ele considere palavras mais ousadas e incomuns. Um valor baixo o limita às palavras mais seguras e prováveis."
-                            value={generationConfig.topP}
-                            min={0} max={1} step={0.05}
-                            onChange={handleConfigChange}
-                        />
-                         <Slider 
-                            id="topK"
-                            label="Top-K"
-                            tooltip="O 'Foco' do Mestre. Limita o número de palavras que ele considera a cada passo. Um valor baixo o torna mais repetitivo e previsível; um valor alto aumenta a variedade."
-                            value={generationConfig.topK}
-                            min={1} max={100} step={1}
-                            onChange={handleConfigChange}
-                        />
-                        <div className="rounded-2xl border border-white/10 bg-black/30 p-4 space-y-2">
-                            <p className="text-sm font-semibold text-stone-100">Tamanho da Resposta (Automático)</p>
-                            <p className="text-xs text-stone-400 leading-relaxed">
-                                O sistema ajusta dinamicamente o limite de tokens de saída com base no tamanho do prompt e no modelo escolhido.
-                                Dessa forma você evita desperdício de créditos e garante respostas completas sem precisar configurar nada.
-                            </p>
-                        </div>
-                    </div>
-                    
                     <CacheManagement />
 
 

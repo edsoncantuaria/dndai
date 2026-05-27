@@ -46,6 +46,8 @@ export const SettingsSchema = z.object({
     model: z.string(),
     ttsModel: z.string(),
     ttsVoice: z.string(),
+    narrationVoice: z.enum(['faber', 'razo', 'miro', 'dii']).optional(),
+    narrationSpeed: z.enum(['rapido', 'normal', 'lento', 'pausado']).optional(),
     apiKey: z.string().optional(),
     generationConfig: GenerationConfigSchema,
     volume: z.number().min(0).max(1),

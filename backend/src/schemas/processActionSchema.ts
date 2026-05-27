@@ -22,6 +22,8 @@ export const ProcessActionSchema = z.object({
     actionId: z.string().optional(),
     clientInstanceId: z.string().trim().min(8).max(64).optional(),
     actionCursor: z.number().int().nonnegative().optional(),
+    narrationVoice: z.enum(['faber', 'razo', 'miro', 'dii']).optional(),
+    narrationSpeed: z.enum(['rapido', 'normal', 'lento', 'pausado']).optional(),
 });
 
 export type ProcessActionPayload = z.infer<typeof ProcessActionSchema>;

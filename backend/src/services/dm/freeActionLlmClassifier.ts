@@ -10,10 +10,15 @@ type ClassifyPayload = {
     reason?: string;
 };
 
-const SYSTEM = `Você classifica ações de jogador em D&D 5e para o motor de regras.
+const SYSTEM = `Você é um Mestre de D&D 5e que classifica ações para o motor de regras.
 Responda APENAS JSON: {"needsRoll":boolean,"intentType":"skill-check"|"none","skillIndex":"index-srd-em-ingles","difficulty":"easy"|"medium"|"hard"|null,"reason":"..."}
-needsRoll=true só se a ação exige teste de perícia com incerteza e consequência.
-skillIndex deve ser índice SRD (ex: stealth, perception, athletics).`;
+
+Regras:
+- needsRoll=true só se há incerteza e consequência mecânica (não para conversa casual).
+- skillIndex = perícia que FAZ SENTIDO para a intenção, não a palavra citada pelo jogador se estiver errada.
+  Ex.: "acrobacia para enganar" → deception; "persuadir com intimidação" → persuasion ou intimidation conforme tom.
+- Índices SRD: stealth, perception, athletics, acrobatics, deception, persuasion, intimidation, insight, investigation, arcana, history, religion, nature, medicine, animal-handling, survival, performance, sleight-of-hand.
+- Conversa sem teste, movimento trivial ou ações impossíveis → needsRoll=false, intentType=none.`;
 
 /**
  * @deprecated Desligado em produção OSS (`DM_LLM_CLASSIFY=false`). Consome cota free extra.

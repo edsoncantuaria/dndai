@@ -15,6 +15,7 @@ services:
     volumes:
       - ./backend/src:/app/src
       - ./backend/data:/app/data
+      - ./backend/logs:/app/logs
     environment:
       NODE_ENV: development
       PORT: 8071
@@ -39,7 +40,8 @@ services:
       OSS_MAX_API_ATTEMPTS: ${OSS_MAX_API_ATTEMPTS:-2}
       OSS_PROMPT_CACHE: ${OSS_PROMPT_CACHE:-true}
       OSS_STREAM_NARRATION: ${OSS_STREAM_NARRATION:-false}
-      OSS_TRACE_LOG: ${OSS_TRACE_LOG:-false}
+      OSS_TRACE_LOG: ${OSS_TRACE_LOG:-true}
+      OSS_PROMPT_LOG: ${OSS_PROMPT_LOG:-true}
       OSS_JSON_ONLY_REPAIR: ${OSS_JSON_ONLY_REPAIR:-true}
       AI_EMBEDDING_PROVIDER: ${AI_EMBEDDING_PROVIDER:-openrouter}
       OPENROUTER_EMBEDDING_MODEL: ${OPENROUTER_EMBEDDING_MODEL:-nvidia/llama-nemotron-embed-vl-1b-v2:free}

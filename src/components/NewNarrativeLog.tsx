@@ -4,8 +4,10 @@ import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react'
 import { useGameStateContext } from '../contexts/GameStateContext';
 import { Button } from './ui/button';
 import type { LogEntry as LogEntryType, ImageLogEntryContent } from '../types';
-import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Volume2, Loader2, Image as ImageIcon, RefreshCcw } from 'lucide-react';
+import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Volume2, VolumeX, Loader2, Image as ImageIcon, RefreshCcw } from 'lucide-react';
 import { useNarrationSpeech } from '@/hooks/useNarrationSpeech';
+import { useSettingsContext } from '@/contexts/SettingsContext';
+import { getPlaybackRateForSpeed, buildNarrationTtsCacheKey } from '@/lib/narrationTts';
 import { useToast } from '@/hooks/use-toast';
 import {
     generateNarrationAudio,
@@ -48,8 +50,18 @@ const extractEntryText = (value: any): string | null => {
 
 const NARRATABLE_TYPES: LogEntryType['type'][] = ['narration', 'system', 'combat', 'insight', 'roll'];
 
+/** Pausa antes da primeira narração ao abrir/entrar na sessão (ms). */
+const AUTO_SPEAK_ENTER_DELAY_MS = 3000;
+
 const isNarratableEntry = (entry?: LogEntryType | null) =>
     Boolean(entry && NARRATABLE_TYPES.includes(entry.type));
+
+const getLastNarratableEntry = (entries: LogEntryType[]): LogEntryType | null => {
+    for (let i = entries.length - 1; i >= 0; i--) {
+        if (isNarratableEntry(entries[i])) return entries[i];
+    }
+    return null;
+};
 
 const getEntryAudioUrl = (entry: LogEntryType, cache?: Record<string, string>): string | undefined => {
     if (entry.audioUrl) return entry.audioUrl;
@@ -73,11 +85,12 @@ const NarrationEntry: React.FC<{
   onPlayAudio?: (entry: LogEntryType) => void;
   onGenerateAudio?: (entry: LogEntryType) => void;
   isGenerating?: boolean;
+  isPlaying?: boolean;
   prefix?: React.ReactNode;
   textClassName?: string;
   /** Evita card duplo quando já está dentro de NarrativeBeatCard. */
   bare?: boolean;
-}> = ({ entry, onPlayAudio, onGenerateAudio, isGenerating, prefix, textClassName, bare = false }) => {
+}> = ({ entry, onPlayAudio, onGenerateAudio, isGenerating, isPlaying = false, prefix, textClassName, bare = false }) => {
     const variant = useNarrativeLogVariant();
     const isV2 = variant === 'v2';
     const textContent = extractEntryText(entry.content);
@@ -88,16 +101,25 @@ const NarrationEntry: React.FC<{
     const ttsBtn = hasAudio ? (
       <button
         type="button"
-        onClick={() => void onPlayAudio?.(entry)}
+        onClick={e => {
+          e.stopPropagation();
+          e.preventDefault();
+          void onPlayAudio?.(entry);
+        }}
         className={clsx(
           'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition',
-          isV2
-            ? 'border-dnd-gold/30 text-dnd-gold hover:bg-dnd-gold/15'
-            : 'border-white/15 text-stone-200 hover:text-amber-200 hover:border-amber-300/60'
+          isPlaying
+            ? isV2
+              ? 'border-dnd-ember/50 bg-dnd-ember/20 text-dnd-ember'
+              : 'border-amber-400/60 bg-amber-500/20 text-amber-200'
+            : isV2
+              ? 'border-dnd-gold/30 text-dnd-gold hover:bg-dnd-gold/15'
+              : 'border-white/15 text-stone-200 hover:text-amber-200 hover:border-amber-300/60'
         )}
-        title="Ouvir esta narração"
+        title={isPlaying ? 'Parar esta narração' : 'Ouvir esta narração'}
+        aria-pressed={isPlaying}
       >
-        <Volume2 className="h-4 w-4" />
+        {isPlaying ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
       </button>
     ) : onGenerateAudio ? (
       <button
@@ -145,6 +167,7 @@ const BeatNarrationEntry: React.FC<{
   onPlayAudio?: (entry: LogEntryType) => void;
   onGenerateAudio?: (entry: LogEntryType) => void;
   isGenerating?: boolean;
+  isPlaying?: boolean;
   prefix?: React.ReactNode;
   textClassName?: string;
 }> = (props) => {
@@ -156,6 +179,7 @@ const BeatNarrationEntry: React.FC<{
         onPlayAudio={props.onPlayAudio}
         onGenerateAudio={props.onGenerateAudio}
         isGenerating={props.isGenerating}
+        isPlaying={props.isPlaying}
         prefix={props.prefix}
         textClassName={props.textClassName}
       />
@@ -169,6 +193,7 @@ const BeatNarrationEntry: React.FC<{
         onPlayAudio={props.onPlayAudio}
         onGenerateAudio={props.onGenerateAudio}
         isGenerating={props.isGenerating}
+        isPlaying={props.isPlaying}
         prefix={props.prefix}
         textClassName={props.textClassName}
       />
@@ -486,6 +511,7 @@ const LogEntry = React.memo(function LogEntry({
     onGenerateImage,
     onRefreshImage,
     isImageLoading,
+    playingEntryId,
 }: {
     entry: LogEntryType;
     onPlayAudio?: (entry: LogEntryType) => void;
@@ -494,6 +520,7 @@ const LogEntry = React.memo(function LogEntry({
     onGenerateImage?: (entry: LogEntryType) => void;
     onRefreshImage?: (entry: LogEntryType) => void;
     isImageLoading?: boolean;
+    playingEntryId?: string | null;
 }) {
     const isV2 = useNarrativeLogVariant() === 'v2';
     let contentComponent;
@@ -511,6 +538,7 @@ const LogEntry = React.memo(function LogEntry({
                     onPlayAudio={onPlayAudio}
                     onGenerateAudio={onGenerateAudio}
                     isGenerating={isGenerating}
+                    isPlaying={playingEntryId === entry.id}
                 />
             );
             break;
@@ -546,6 +574,7 @@ const LogEntry = React.memo(function LogEntry({
                     onPlayAudio={onPlayAudio}
                     onGenerateAudio={onGenerateAudio}
                     isGenerating={isGenerating}
+                    isPlaying={playingEntryId === entry.id}
                     prefix={<Sparkles className="h-4 w-4 text-dnd-gold/90" />}
                     textClassName="text-dnd-gold/90 italic"
                 />
@@ -559,6 +588,7 @@ const LogEntry = React.memo(function LogEntry({
                     onPlayAudio={onPlayAudio}
                     onGenerateAudio={onGenerateAudio}
                     isGenerating={isGenerating}
+                    isPlaying={playingEntryId === entry.id}
                     prefix={<Swords className="h-4 w-4 text-dnd-ember" />}
                     textClassName="text-dnd-parchment font-semibold"
                 />
@@ -572,6 +602,7 @@ const LogEntry = React.memo(function LogEntry({
                     onPlayAudio={onPlayAudio}
                     onGenerateAudio={onGenerateAudio}
                     isGenerating={isGenerating}
+                    isPlaying={playingEntryId === entry.id}
                     prefix={<BrainCircuit className="h-4 w-4 text-purple-300" />}
                     textClassName="text-purple-200/90 italic"
                 />
@@ -699,16 +730,43 @@ export type NewNarrativeLogProps = {
 };
 
 const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' }) => {
-    const { log, setLog } = useGameStateContext();
+    const { log, setLog, sessionId } = useGameStateContext();
     const logEndRef = useRef<HTMLDivElement>(null);
     const lastSpokenIdRef = useRef<string | null>(null);
+    const needsEnterDelayRef = useRef(true);
     const audioElementRef = useRef<HTMLAudioElement | null>(null);
+    const suppressAutoSpeakRef = useRef(false);
     const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+    const [playingEntryId, setPlayingEntryId] = useState<string | null>(null);
     const [generatingEntries, setGeneratingEntries] = useState<Record<string, boolean>>({});
     const [imageLoadingEntries, setImageLoadingEntries] = useState<Record<string, boolean>>({});
-    const [audioUrlCache, setAudioUrlCache] = useState<Record<string, string>>({});
+    const [audioUrlCache, setAudioUrlCache] = useState<Record<string, string[]>>({});
     const { autoSpeak } = useNarrationSpeech();
     const { toast } = useToast();
+    const { volume, isMuted, narrationVoice, narrationSpeed } = useSettingsContext();
+    const narrationPlaybackRate = useMemo(
+        () => getPlaybackRateForSpeed(narrationSpeed),
+        [narrationSpeed],
+    );
+
+    const applyNarrationAudioPrefs = useCallback(
+        (audio: HTMLAudioElement) => {
+            audio.playbackRate = narrationPlaybackRate;
+            audio.volume = isMuted ? 0 : volume;
+        },
+        [narrationPlaybackRate, isMuted, volume],
+    );
+
+    useEffect(() => {
+        if (audioElementRef.current) {
+            applyNarrationAudioPrefs(audioElementRef.current);
+        }
+    }, [applyNarrationAudioPrefs]);
+
+    const getEntryTtsCacheKey = useCallback(
+        (entryId: string) => buildNarrationTtsCacheKey(entryId, narrationVoice, narrationSpeed),
+        [narrationVoice, narrationSpeed],
+    );
 
     const setEntryGenerating = useCallback((entryId: string, value: boolean) => {
         setGeneratingEntries(prev => {
@@ -764,10 +822,33 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
                     return { ...logEntry, audioUrl, audioKey: audioKey ?? logEntry.audioKey, content: nextContent };
                 })
             );
-            setAudioUrlCache(prev => ({ ...prev, [entryId]: audioUrl }));
+            setAudioUrlCache(prev => ({ ...prev, [getEntryTtsCacheKey(entryId)]: [audioUrl] }));
         },
-        [setLog]
+        [setLog, getEntryTtsCacheKey],
     );
+
+    const splitNarrationByPunctuation = useCallback((text: string) => {
+        const chunks = String(text)
+            .replace(/\s+/g, ' ')
+            .trim()
+            .match(/[^,.!?…]+[,.!?…]?/g);
+
+        const items = (chunks ?? [text])
+            .map(s => s.trim())
+            .filter(Boolean)
+            .map(segment => {
+                const last = segment.slice(-1);
+                const pauseMs =
+                    last === ','
+                        ? 360
+                        : last === '.' || last === '!' || last === '?' || last === '…'
+                          ? 650
+                          : 0;
+                return { segment, pauseMs };
+            });
+
+        return items.length ? items : [{ segment: text, pauseMs: 0 }];
+    }, []);
 
     const requestEntryAudio = useCallback(
         async (entry: LogEntryType, { silent = false }: { silent?: boolean } = {}) => {
@@ -786,21 +867,36 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
                 setEntryGenerating(entry.id, true);
             }
             try {
-                const { audioUrl, audioKey } = await generateNarrationAudio(textContent);
-                if (!audioUrl || !audioKey) {
-                    throw new Error('Resposta sem URL de áudio');
+                const parts = splitNarrationByPunctuation(textContent);
+                const urls: string[] = [];
+                let firstKey: string | undefined;
+
+                for (const part of parts) {
+                    const { audioUrl, audioKey } = await generateNarrationAudio(part.segment, {
+                        narrationVoice,
+                        narrationSpeed,
+                    });
+                    if (!audioUrl || !audioKey) {
+                        throw new Error('Resposta sem URL de áudio');
+                    }
+                    if (!firstKey) firstKey = audioKey;
+                    urls.push(audioUrl);
                 }
-                updateEntryAudio(entry.id, audioUrl, textContent, audioKey);
-                (entry as any).audioUrl = audioUrl;
-                (entry as any).audioKey = audioKey;
+
+                // Compat: mantém audioUrl/audioKey no log, mas o player usa a fila (cache).
+                updateEntryAudio(entry.id, urls[0]!, textContent, firstKey);
+                setAudioUrlCache(prev => ({ ...prev, [getEntryTtsCacheKey(entry.id)]: urls }));
+
+                (entry as any).audioUrl = urls[0];
+                (entry as any).audioKey = firstKey;
                 if (entry.content && typeof entry.content === 'object') {
-                    (entry.content as any).audioUrl = audioUrl;
-                    (entry.content as any).audioKey = audioKey;
+                    (entry.content as any).audioUrl = urls[0];
+                    (entry.content as any).audioKey = firstKey;
                 }
                 if (!silent) {
                     toast({ description: 'Áudio gerado com sucesso.' });
                 }
-                return audioUrl;
+                return urls;
             } catch (error) {
                 console.error('[NewNarrativeLog] Falha ao gerar áudio de narração:', error);
                 if (!silent) {
@@ -816,58 +912,49 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
                 }
             }
         },
-        [toast, setEntryGenerating, updateEntryAudio]
+        [toast, setEntryGenerating, updateEntryAudio, narrationVoice, narrationSpeed, splitNarrationByPunctuation, getEntryTtsCacheKey]
     );
 
     const resolveEntryPlaybackUrl = useCallback(
         (entry: LogEntryType) => {
+            const cacheKey = getEntryTtsCacheKey(entry.id);
+            const cached = audioUrlCache[cacheKey];
+            if (cached?.length) return cached.map(withPlaybackAuthToken);
             const audioKey = getEntryAudioKey(entry);
-            const cached = audioUrlCache[entry.id];
-            if (cached) return withPlaybackAuthToken(cached);
             const resolved = resolveNarrationPlaybackUrl(audioKey, getEntryAudioUrl(entry));
             if (resolved && entry.id) {
-                setAudioUrlCache(prev => ({ ...prev, [entry.id]: resolved }));
+                setAudioUrlCache(prev => ({ ...prev, [cacheKey]: [resolved] }));
             }
-            return resolved;
+            return resolved ? [resolved] : null;
         },
-        [audioUrlCache],
+        [audioUrlCache, getEntryTtsCacheKey],
     );
 
     const ensurePlayableAudio = useCallback(
         async (entry: LogEntryType, opts: { silent?: boolean } = {}) => {
-            const audioKey = getEntryAudioKey(entry);
+            const cacheKey = getEntryTtsCacheKey(entry.id);
+            const cached = audioUrlCache[cacheKey];
+            if (cached?.length) return cached.map(withPlaybackAuthToken);
+
+            const regeneratedUrls = await requestEntryAudio(entry, { silent: opts.silent ?? true });
+            if (regeneratedUrls?.length) return regeneratedUrls.map(withPlaybackAuthToken);
+
             const existingUrl = getEntryAudioUrl(entry, audioUrlCache);
-
-            if (audioKey) {
-                const playback = resolveEntryPlaybackUrl(entry);
-                if (playback) return playback;
-            }
-
-            if (existingUrl?.includes('/tts/audio?')) {
-                return withPlaybackAuthToken(existingUrl);
-            }
-
-            // Sem audioKey / URL legada MinIO: re-sintetiza
-            const regeneratedUrl = await requestEntryAudio(entry, { silent: opts.silent ?? true });
-            if (regeneratedUrl) return regeneratedUrl;
-
-            return existingUrl ? withPlaybackAuthToken(existingUrl) : null;
+            return existingUrl ? [withPlaybackAuthToken(existingUrl)] : null;
         },
-        [resolveEntryPlaybackUrl, requestEntryAudio]
+        [audioUrlCache, getEntryTtsCacheKey, requestEntryAudio],
     );
 
     const ensureAudioForEntries = useCallback(
         async (entries: LogEntryType[]) => {
             for (const entry of entries) {
                 if (!entry?.id || !isNarratableEntry(entry)) continue;
-                const audioKey = getEntryAudioKey(entry);
-                if (audioKey && resolveNarrationPlaybackUrl(audioKey)) continue;
-                if (!audioKey) {
-                    await requestEntryAudio(entry, { silent: true });
-                }
+                const cacheKey = getEntryTtsCacheKey(entry.id);
+                if (audioUrlCache[cacheKey]?.length) continue;
+                await requestEntryAudio(entry, { silent: true });
             }
         },
-        [requestEntryAudio]
+        [audioUrlCache, getEntryTtsCacheKey, requestEntryAudio],
     );
 
     const announceSpeechState = useCallback((active: boolean) => {
@@ -879,35 +966,49 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
     const stopAudioPlayback = useCallback(() => {
         if (audioElementRef.current) {
             audioElementRef.current.pause();
+            audioElementRef.current.onended = null;
+            audioElementRef.current.onerror = null;
             audioElementRef.current.src = '';
             audioElementRef.current = null;
         }
         setIsAudioPlaying(false);
+        setPlayingEntryId(null);
         announceSpeechState(false);
     }, [announceSpeechState]);
 
     useEffect(() => () => stopAudioPlayback(), [stopAudioPlayback]);
 
+    useEffect(() => {
+        needsEnterDelayRef.current = true;
+        lastSpokenIdRef.current = null;
+    }, [sessionId]);
+
     type AudioQueueOptions = {
         onAutoPlayBlocked?: () => void;
     };
 
+    type QueueItem = { url: string; delayMs?: number };
+
     const playAudioQueue = useCallback(
-        (urls: string[], options?: AudioQueueOptions) => {
-            if (!urls.length) return false;
+        (items: Array<string | QueueItem>, options?: AudioQueueOptions) => {
+            if (!items.length) return false;
             stopAudioPlayback();
 
             const audio = new Audio();
+            applyNarrationAudioPrefs(audio);
             audioElementRef.current = audio;
             let index = 0;
 
             const playNext = () => {
                 if (!audioElementRef.current) return;
-                if (index >= urls.length) {
+                if (index >= items.length) {
                     stopAudioPlayback();
                     return;
                 }
-                const nextUrl = urls[index++];
+                const next = items[index++];
+                const nextUrl = typeof next === 'string' ? next : next.url;
+                const defaultGapMs = index < items.length ? 420 : 0;
+                const delayMs = typeof next === 'string' ? defaultGapMs : next.delayMs ?? defaultGapMs;
                 audioElementRef.current.src = nextUrl;
                 audioElementRef.current
                     .play()
@@ -924,6 +1025,13 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
                             playNext();
                         }
                     });
+
+                // Pausa extra entre trechos (pontuação).
+                if (delayMs > 0) {
+                    audioElementRef.current.onended = () => setTimeout(() => playNext(), delayMs);
+                } else {
+                    audioElementRef.current.onended = () => playNext();
+                }
             };
 
             audio.onended = () => playNext();
@@ -932,7 +1040,7 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
             playNext();
             return true;
         },
-        [stopAudioPlayback, announceSpeechState]
+        [stopAudioPlayback, announceSpeechState, applyNarrationAudioPrefs]
     );
 
     const currentBlock = useMemo(() => {
@@ -947,27 +1055,106 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
         return log.slice(lastActionIndex + 1).filter(entry => entry && entry.type !== 'action') as LogEntryType[];
     }, [log]);
 
+    const playSingleEntryAudio = useCallback(
+        async (entry: LogEntryType) => {
+            if (!entry?.id || !isNarratableEntry(entry)) return;
+
+            if (playingEntryId === entry.id && audioElementRef.current && !audioElementRef.current.paused) {
+                stopAudioPlayback();
+                suppressAutoSpeakRef.current = false;
+                return;
+            }
+
+            const audioUrls = await ensurePlayableAudio(entry, { silent: false });
+            if (!audioUrls?.length) {
+                toast({
+                    variant: 'destructive',
+                    description: 'Não foi possível carregar o áudio desta narração.',
+                });
+                return;
+            }
+
+            suppressAutoSpeakRef.current = true;
+            if (audioElementRef.current) {
+                audioElementRef.current.pause();
+                audioElementRef.current.onended = null;
+                audioElementRef.current.onerror = null;
+                audioElementRef.current.src = '';
+                audioElementRef.current = null;
+            }
+
+            const audio = new Audio(audioUrls[0]!);
+            applyNarrationAudioPrefs(audio);
+            audioElementRef.current = audio;
+            setPlayingEntryId(entry.id);
+            lastSpokenIdRef.current = entry.id;
+
+            audio.onended = () => {
+                stopAudioPlayback();
+                suppressAutoSpeakRef.current = false;
+            };
+            audio.onerror = () => {
+                console.warn('[NewNarrativeLog] Erro ao reproduzir narração:', audioUrls[0]);
+                stopAudioPlayback();
+                suppressAutoSpeakRef.current = false;
+                toast({
+                    variant: 'destructive',
+                    description: 'Falha ao reproduzir o áudio desta narração.',
+                });
+            };
+
+            try {
+                // Se vier mais de um trecho, toca como fila (com pausas).
+                if (audioUrls.length > 1) {
+                    stopAudioPlayback();
+                    playAudioQueue(
+                        audioUrls.map((url, idx) => ({ url, delayMs: idx === audioUrls.length - 1 ? 0 : 420 })),
+                    );
+                    return;
+                }
+                await audio.play();
+                setIsAudioPlaying(true);
+                announceSpeechState(true);
+            } catch (error) {
+                console.warn('[NewNarrativeLog] play() bloqueado ou falhou:', error);
+                stopAudioPlayback();
+                suppressAutoSpeakRef.current = false;
+                toast({
+                    variant: 'destructive',
+                    description: 'O navegador bloqueou a reprodução. Tente clicar de novo.',
+                });
+            }
+        },
+        [playingEntryId, ensurePlayableAudio, stopAudioPlayback, announceSpeechState, toast, applyNarrationAudioPrefs, playAudioQueue],
+    );
+
     useEffect(() => {
-        if (!autoSpeak || !currentBlock.length) return;
+        if (!autoSpeak || !currentBlock.length || suppressAutoSpeakRef.current) return;
         const controller = { cancelled: false };
 
         (async () => {
-            const lastEntryId = currentBlock[currentBlock.length - 1]?.id;
-            if (!lastEntryId || lastSpokenIdRef.current === lastEntryId) return;
-            await ensureAudioForEntries(currentBlock);
-            if (controller.cancelled) return;
-            const urls: string[] = [];
-            for (const entry of currentBlock) {
-                const url = await ensurePlayableAudio(entry);
+            const lastEntry = getLastNarratableEntry(currentBlock);
+            if (!lastEntry?.id || lastSpokenIdRef.current === lastEntry.id) return;
+
+            if (needsEnterDelayRef.current) {
+                await new Promise<void>(resolve => {
+                    setTimeout(resolve, AUTO_SPEAK_ENTER_DELAY_MS);
+                });
+                needsEnterDelayRef.current = false;
                 if (controller.cancelled) return;
-                if (url) urls.push(url);
             }
-            if (urls.length) {
-                const started = playAudioQueue(urls);
-                if (started) {
-                    lastSpokenIdRef.current = lastEntryId;
-                }
+
+            await ensureAudioForEntries([lastEntry]);
+            if (controller.cancelled) return;
+            const urls = await ensurePlayableAudio(lastEntry);
+            if (controller.cancelled || !urls?.length) return;
+
+            const started = playAudioQueue(urls);
+            if (started) {
+                lastSpokenIdRef.current = lastEntry.id;
+                setPlayingEntryId(lastEntry.id);
             }
+            suppressAutoSpeakRef.current = false;
         })();
 
         return () => {
@@ -980,39 +1167,26 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
     }, [log]);
 
     const handlePlayEntry = useCallback(
-        async (entry: LogEntryType) => {
-            const audioUrl = await ensurePlayableAudio(entry, { silent: false });
-            if (!audioUrl) {
-                toast({
-                    variant: 'destructive',
-                    description: 'Não foi possível carregar o áudio desta narração.',
-                });
-                return;
-            }
-            playAudioQueue([audioUrl]);
-            lastSpokenIdRef.current = entry.id;
-        },
-        [ensurePlayableAudio, playAudioQueue, toast]
+        (entry: LogEntryType) => playSingleEntryAudio(entry),
+        [playSingleEntryAudio],
     );
 
     const handlePlayCurrentBlock = useCallback(async () => {
-        if (!currentBlock.length) return;
-        await ensureAudioForEntries(currentBlock);
-        const urls: string[] = [];
-        for (const entry of currentBlock) {
-            const url = await ensurePlayableAudio(entry);
-            if (url) urls.push(url);
-        }
-        if (urls.length) {
+        const lastEntry = getLastNarratableEntry(currentBlock);
+        if (!lastEntry?.id) return;
+        suppressAutoSpeakRef.current = true;
+        await ensureAudioForEntries([lastEntry]);
+        const urls = await ensurePlayableAudio(lastEntry);
+        if (urls?.length) {
             playAudioQueue(urls);
+            lastSpokenIdRef.current = lastEntry.id;
+            setPlayingEntryId(lastEntry.id);
         }
-        const lastEntryId = currentBlock[currentBlock.length - 1]?.id;
-        if (lastEntryId) {
-            lastSpokenIdRef.current = lastEntryId;
-        }
+        suppressAutoSpeakRef.current = false;
     }, [currentBlock, ensureAudioForEntries, ensurePlayableAudio, playAudioQueue]);
 
     const handleStopNarration = useCallback(() => {
+        suppressAutoSpeakRef.current = false;
         stopAudioPlayback();
     }, [stopAudioPlayback]);
 
@@ -1153,11 +1327,10 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
               <LogEntry
                 key={entry.id}
                 entry={entry}
-                onPlayAudio={(item) => {
-                  void handlePlayEntry(item);
-                }}
+                onPlayAudio={handlePlayEntry}
                 onGenerateAudio={handleGenerateAudio}
                 isGenerating={Boolean(generatingEntries[entry.id])}
+                playingEntryId={playingEntryId}
                 onGenerateImage={IMAGE_FEATURE_ENABLED ? handleGenerateImageEntry : undefined}
                 onRefreshImage={IMAGE_FEATURE_ENABLED ? handleRefreshImageEntry : undefined}
                 isImageLoading={IMAGE_FEATURE_ENABLED ? Boolean(imageLoadingEntries[entry.id]) : false}

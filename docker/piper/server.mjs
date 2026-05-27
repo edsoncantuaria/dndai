@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * API HTTP mínima para o Piper (uso em Docker).
- * POST /synthesize { "text": "..." } → audio/wav
+ * POST /synthesize { "text": "...", "voice": "faber", "lengthScale": 2.5 } → audio/wav
  */
 import http from 'node:http';
 import { spawn } from 'node:child_process';
@@ -11,10 +11,18 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const PORT = Number(process.env.PORT ?? 5500);
-const PIPER_BIN = process.env.PIPER_BIN ?? '/opt/piper/piper';
-const PIPER_MODEL = process.env.PIPER_MODEL ?? '';
+const PIPER_BIN = process.env.PIPER_BIN ?? '/opt/piper/piper/piper';
+const DEFAULT_VOICE = process.env.PIPER_DEFAULT_VOICE ?? 'faber';
 const MAX_CHARS = Number(process.env.PIPER_MAX_CHARACTERS ?? 600);
-const LENGTH_SCALE = Number(process.env.PIPER_LENGTH_SCALE ?? 1.15);
+/** Fallback global quando o cliente não envia lengthScale. */
+const DEFAULT_LENGTH_SCALE = Number(process.env.PIPER_LENGTH_SCALE ?? 2.5);
+
+const VOICES = {
+  faber: '/models/pt_BR-faber-medium.onnx',
+  razo: '/models/pt-BR-razo-medium.onnx',
+  miro: '/models/miro_pt-BR.onnx',
+  dii: '/models/dii_pt-BR.onnx',
+};
 
 const sanitizeText = (text) => {
   const trimmed = String(text ?? '').replace(/\s+/g, ' ').trim();
@@ -25,12 +33,21 @@ const sanitizeText = (text) => {
   return trimmed;
 };
 
-const runPiper = (text, outputFile) =>
+const resolveVoiceModel = (voiceId) => {
+  const key = String(voiceId ?? DEFAULT_VOICE).toLowerCase();
+  return VOICES[key] ?? VOICES[DEFAULT_VOICE] ?? VOICES.faber;
+};
+
+const resolveLengthScale = (bodyScale) => {
+  const n = Number(bodyScale);
+  if (!Number.isNaN(n) && n > 0) return n;
+  if (!Number.isNaN(DEFAULT_LENGTH_SCALE) && DEFAULT_LENGTH_SCALE > 0) return DEFAULT_LENGTH_SCALE;
+  return 2.5;
+};
+
+const runPiper = (text, outputFile, modelPath, lengthScale) =>
   new Promise((resolve, reject) => {
-    const args = ['--model', PIPER_MODEL, '--output_file', outputFile];
-    if (!Number.isNaN(LENGTH_SCALE) && LENGTH_SCALE > 0) {
-      args.push('--length_scale', String(LENGTH_SCALE));
-    }
+    const args = ['--model', modelPath, '--output_file', outputFile, '--length_scale', String(lengthScale)];
     const child = spawn(PIPER_BIN, args, { stdio: ['pipe', 'inherit', 'inherit'] });
     child.stdin.write(text);
     child.stdin.end();
@@ -62,13 +79,13 @@ const readJsonBody = (req) =>
 const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && req.url === '/health') {
-      if (!PIPER_MODEL) {
+      if (!VOICES.faber) {
         res.writeHead(503, { 'Content-Type': 'text/plain' });
         res.end('PIPER_MODEL not configured');
         return;
       }
-      res.writeHead(200, { 'Content-Type': 'text/plain' });
-      res.end('ok');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, voices: Object.keys(VOICES) }));
       return;
     }
 
@@ -80,11 +97,17 @@ const server = http.createServer(async (req, res) => {
         res.end('text required');
         return;
       }
+      const modelPath = resolveVoiceModel(body.voice);
+      const lengthScale = resolveLengthScale(body.lengthScale);
       const outputFile = path.join(tmpdir(), `piper-${randomUUID()}.wav`);
-      await runPiper(text, outputFile);
+      await runPiper(text, outputFile, modelPath, lengthScale);
       const buffer = await readFile(outputFile);
       await unlink(outputFile).catch(() => {});
-      res.writeHead(200, { 'Content-Type': 'audio/wav' });
+      res.writeHead(200, {
+        'Content-Type': 'audio/wav',
+        'X-Piper-Voice': String(body.voice ?? DEFAULT_VOICE),
+        'X-Piper-Length-Scale': String(lengthScale),
+      });
       res.end(buffer);
       return;
     }
@@ -99,5 +122,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[piper-http] listening on :${PORT} model=${PIPER_MODEL}`);
+  console.log(`[piper-http] listening on :${PORT} voices=${Object.keys(VOICES).join(',')}`);
 });

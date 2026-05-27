@@ -1,14 +1,24 @@
+import { normalizeOssNarrationPayload } from '../parser/localFieldRepair.js';
 import {
     OssNarrationResponseSchema,
     type OssNarrationResponse,
 } from '../schemas/narration.schema.js';
+import type { ActionDomain } from '../actions/registry.js';
 
-export function validateOssNarration(data: unknown): {
+export function validateOssNarration(
+    data: unknown,
+    opts: { domain?: ActionDomain; combatActive?: boolean } = {},
+): {
     valid: boolean;
     data?: OssNarrationResponse;
     issues: string[];
 } {
-    const check = OssNarrationResponseSchema.safeParse(data);
+    const normalized = normalizeOssNarrationPayload(data, {
+        domain: opts.domain,
+        combatActive: opts.combatActive,
+    });
+    const candidate = normalized ?? data;
+    const check = OssNarrationResponseSchema.safeParse(candidate);
     if (!check.success) {
         return {
             valid: false,

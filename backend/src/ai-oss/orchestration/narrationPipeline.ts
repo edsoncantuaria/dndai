@@ -43,6 +43,7 @@ import {
     recordLocalRepairSuccess,
     recordOssGenerationAttempt,
 } from '../telemetry/requestMetrics.js';
+import { logOssPromptBundle } from '../telemetry/ossPromptLog.js';
 
 type GenerationConfig = z.infer<typeof GenerationConfigSchema>;
 
@@ -123,18 +124,25 @@ function validateOssPayload(
     issues: string[];
     ossData?: OssNarrationResponse;
 } {
+    const domain = opts.combatActive ? 'combat' : 'exploration';
     let working = data;
-    let ossCheck = validateOssNarration(working);
+    let ossCheck = validateOssNarration(working, {
+        combatActive: opts.combatActive,
+        domain,
+    });
     if (!ossCheck.valid) {
         const local = tryLocalOssFieldRepair(working, {
             combatActive: opts.combatActive,
             playerAction: opts.playerAction,
-            domain: opts.combatActive ? 'combat' : 'exploration',
+            domain,
         });
         if (local) {
             recordLocalRepairSuccess();
             working = local;
-            ossCheck = validateOssNarration(local);
+            ossCheck = validateOssNarration(local, {
+                combatActive: opts.combatActive,
+                domain,
+            });
         }
     }
     if (!ossCheck.valid || !ossCheck.data) {
@@ -244,6 +252,17 @@ async function runOssNarrationCore(params: OssNarrationParams): Promise<GameUpda
         if (validationFeedback) {
             userText += `\n\nCORRECAO: ${validationFeedback}\nReescreva só o JSON.`;
         }
+
+        logOssPromptBundle({
+            actionId: traceId,
+            sessionId: params.input.sessionId,
+            model,
+            phase: activePhase,
+            playerAction: params.input.playerAction,
+            systemInstruction,
+            userPrompt: userText,
+            combatActive,
+        });
 
         apiCalls += 1;
         ossTraceLog(traceId, 'generation_attempt', { attempt: apiCalls, stream: useStream });

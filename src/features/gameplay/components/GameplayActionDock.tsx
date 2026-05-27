@@ -125,7 +125,7 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
 
   if (combatState.isActive && !isPlayerTurn) {
     return (
-      <div className="border-t border-dnd-gold/15 dnd-surface-glass px-4 py-3 pb-[calc(0.75rem+var(--dnd-safe-bottom))]">
+      <div className="pointer-events-auto mx-3 mb-2 max-w-lg rounded-2xl border border-dnd-gold/15 dnd-surface-glass px-4 py-3 max-md:mb-16 md:mx-auto md:mb-0 md:max-w-none md:rounded-none md:border-x-0 md:border-b-0 md:px-4 md:pb-[calc(0.75rem+var(--dnd-safe-bottom))]">
         <p className="mb-3 text-center font-narrative text-sm italic text-dnd-parchment-muted">
           Aguardando turno dos outros combatentes…
         </p>
@@ -138,7 +138,7 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
 
   if (playerRollRequest) {
     return (
-      <div className="border-t border-dnd-gold/15 dnd-surface-glass px-4 py-4 pb-[calc(1rem+var(--dnd-safe-bottom))]">
+      <div className="pointer-events-auto mx-3 mb-2 max-w-lg rounded-2xl border border-dnd-gold/15 dnd-surface-glass px-4 py-4 max-md:mb-16 md:mx-auto md:mb-0 md:max-w-none md:rounded-none md:border-x-0 md:border-b-0 md:px-4 md:pb-[calc(1rem+var(--dnd-safe-bottom))]">
         <div className="flex items-center justify-center gap-2 font-ui text-sm text-dnd-gold">
           <Dice5 className="h-5 w-5" />
           Aguardando sua rolagem de dados…
@@ -149,7 +149,7 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
 
   if (pendingLootOffer) {
     return (
-      <div className="border-t border-dnd-gold/15 dnd-surface-glass px-4 py-3 pb-[calc(0.75rem+var(--dnd-safe-bottom))]">
+      <div className="pointer-events-auto mx-3 mb-2 max-w-lg rounded-2xl border border-dnd-gold/15 dnd-surface-glass px-4 py-3 max-md:mb-16 md:mx-auto md:mb-0 md:max-w-none md:rounded-none md:border-x-0 md:border-b-0 md:px-4 md:pb-[calc(0.75rem+var(--dnd-safe-bottom))]">
         <p className="font-display text-center text-dnd-gold">Tesouro encontrado</p>
         <DndButton variant="ember" className="mt-3 w-full" disabled={isLoading} onClick={() => takeLoot(true)}>
           Recolher tudo
@@ -161,7 +161,7 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
   if (pendingHitDiceRequest && character) {
     const maxDice = Math.min(pendingHitDiceRequest.maxDice || 0, character.hitDice.current || 0);
     return (
-      <div className="border-t border-dnd-gold/15 dnd-surface-glass px-4 py-3 pb-[calc(0.75rem+var(--dnd-safe-bottom))]">
+      <div className="pointer-events-auto mx-3 mb-2 max-w-lg rounded-2xl border border-dnd-gold/15 dnd-surface-glass px-4 py-3 max-md:mb-16 md:mx-auto md:mb-0 md:max-w-none md:rounded-none md:border-x-0 md:border-b-0 md:px-4 md:pb-[calc(0.75rem+var(--dnd-safe-bottom))]">
         <p className="font-ui text-sm text-dnd-parchment">Gastar dados de vida (máx. {maxDice})</p>
         <div className="mt-3 flex gap-2">
           <DndButton variant="ember" className="flex-1" disabled={isLoading || maxDice < 1} onClick={() => spendHitDice(1)}>
@@ -177,57 +177,66 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
 
   if (isLoading && !actionPhaseLabel) {
     return (
-      <div className="border-t border-dnd-gold/15 dnd-surface-glass">
+      <div className="pointer-events-auto mx-3 mb-2 max-w-lg overflow-hidden rounded-2xl border border-dnd-gold/15 dnd-surface-glass max-md:mb-16 md:mx-auto md:mb-0 md:max-w-none md:rounded-none md:border-x-0 md:border-b-0 md:pb-[calc(0.75rem+var(--dnd-safe-bottom))]">
         <LoadingOracle label={loadingState.shortLabel ?? 'O mestre pensa…'} />
       </div>
     );
   }
 
-  return (
-    <div className="flex flex-col">
-      {loadingState.banner && !isActionLocked ? (
-        <p className="px-3 py-1 text-center font-ui text-xs text-dnd-parchment-muted">{loadingState.banner}</p>
-      ) : null}
-      {showStructuredTools && contextual.showSrdTools ? (
-        <div className="max-h-48 space-y-2 overflow-y-auto border-b border-dnd-gold/10 px-3 py-2">
-          <StructuredAttackPanel variant="v2" />
-          <StructuredSkillPanel variant="v2" />
-          <StructuredSpellPanel variant="v2" />
-          <StructuredRestPanel variant="v2" />
-        </div>
-      ) : null}
-      {showContextRow ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 px-3 pt-1">
-          <div className="flex flex-wrap gap-1">
-            {contextual.showReopenShop ? (
-              <DndButton variant="ghost" size="sm" disabled={isActionLocked} onClick={handleReopenShop}>
-                {contextual.shopLabel}
-              </DndButton>
-            ) : null}
-            {contextual.showQuestComplete && setPendingStructuredIntent ? (
-              <DndButton variant="ghost" size="sm" disabled={isActionLocked} onClick={handleQuestComplete}>
-                Concluir missão
-              </DndButton>
+  const actionPanelHeader =
+    showContextRow || (showStructuredTools && contextual.showSrdTools) ? (
+      <>
+        {showContextRow ? (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap gap-1">
+              {contextual.showReopenShop ? (
+                <DndButton variant="ghost" size="sm" disabled={isActionLocked} onClick={handleReopenShop}>
+                  {contextual.shopLabel}
+                </DndButton>
+              ) : null}
+              {contextual.showQuestComplete && setPendingStructuredIntent ? (
+                <DndButton variant="ghost" size="sm" disabled={isActionLocked} onClick={handleQuestComplete}>
+                  Concluir missão
+                </DndButton>
+              ) : null}
+            </div>
+            {contextual.showSrdTools ? (
+              <button
+                type="button"
+                className="ml-auto font-ui text-[10px] uppercase tracking-wider text-dnd-parchment-muted hover:text-dnd-gold"
+                onClick={() => setShowStructuredTools((v) => !v)}
+              >
+                {showStructuredTools ? 'Ocultar SRD' : 'Ferramentas SRD'}
+              </button>
             ) : null}
           </div>
-          {contextual.showSrdTools ? (
-            <button
-              type="button"
-              className="ml-auto font-ui text-[10px] uppercase tracking-wider text-dnd-parchment-muted hover:text-dnd-gold"
-              onClick={() => setShowStructuredTools((v) => !v)}
-            >
-              {showStructuredTools ? 'Ocultar SRD' : 'Ferramentas SRD'}
-            </button>
-          ) : null}
-        </div>
+        ) : null}
+        {showStructuredTools && contextual.showSrdTools ? (
+          <div className="max-h-40 space-y-2 overflow-y-auto">
+            <StructuredAttackPanel variant="v2" />
+            <StructuredSkillPanel variant="v2" />
+            <StructuredSpellPanel variant="v2" />
+            <StructuredRestPanel variant="v2" />
+          </div>
+        ) : null}
+      </>
+    ) : null;
+
+  return (
+    <>
+      {loadingState.banner && !isActionLocked ? (
+        <p className="pointer-events-auto mx-auto mb-2 max-w-md rounded-lg border border-dnd-gold/15 bg-dnd-obsidian/90 px-3 py-1 text-center font-ui text-xs text-dnd-parchment-muted backdrop-blur-sm">
+          {loadingState.banner}
+        </p>
       ) : null}
       <ActionBar
         options={optionTexts}
         disabled={isActionLocked}
         statusLabel={isActionLocked ? loadingState.shortLabel ?? actionPhaseLabel ?? undefined : undefined}
+        panelHeader={actionPanelHeader}
         onSelect={handleSelect}
         onFreeAction={onFreeAction}
       />
-    </div>
+    </>
   );
 }

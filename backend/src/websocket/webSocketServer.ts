@@ -446,6 +446,8 @@ export function configureWebSocket(httpServer: Server) {
                             intent,
                             actionId,
                             clientStateVersion,
+                            narrationVoice,
+                            narrationSpeed,
                         } = processPayload;
                         currentSessionId = sessionId;
                         const hasIntent = Boolean(intent && typeof intent === 'object');
@@ -565,6 +567,7 @@ export function configureWebSocket(httpServer: Server) {
                             combatState,
                             useAiHomebrew,
                             actionId: resolvedActionId,
+                            narrationTts: { narrationVoice, narrationSpeed },
                         });
                         logActionFlow('processAction:aiResponse', {
                             sessionId,
@@ -642,7 +645,7 @@ export function configureWebSocket(httpServer: Server) {
                 
                 case 'submitRollResult':
                     try {
-                        const { sessionId, requestId, rolls, apiKey, combatState, useAiHomebrew, clientStateVersion } = data.payload;
+                        const { sessionId, requestId, rolls, apiKey, combatState, useAiHomebrew, clientStateVersion, narrationVoice, narrationSpeed } = data.payload;
                         if (!sessionId || !requestId || !hasResolvableOpenRouterKey(apiKey)) {
                             throw createError(400, 'Dados insuficientes para enviar o resultado da rolagem.');
                         }
@@ -826,6 +829,7 @@ export function configureWebSocket(httpServer: Server) {
                                 combatState,
                                 useAiHomebrew,
                                 resolutionResult,
+                                narrationTts: { narrationVoice, narrationSpeed },
                             });
                             if (!resolutionResult?.nextRollRequest) {
                                 await clearPendingRollRequest(sessionId);

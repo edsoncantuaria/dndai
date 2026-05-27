@@ -19,6 +19,8 @@ export interface UseGameActionsOptions {
     character: Character | null;
     model: string;
     useAiHomebrew: boolean;
+    narrationVoice: string;
+    narrationSpeed: string;
     getApiKey: () => string | undefined;
     logState: LogSlice;
     interactionState: InteractionSlice;
@@ -41,6 +43,8 @@ export function useGameActions(options: UseGameActionsOptions) {
         character,
         model,
         useAiHomebrew,
+        narrationVoice,
+        narrationSpeed,
         getApiKey,
         logState,
         interactionState,
@@ -105,6 +109,8 @@ export function useGameActions(options: UseGameActionsOptions) {
                 combatState: interactionState.combatState,
                 useAiHomebrew,
                 model: modelOverride || model,
+                narrationVoice,
+                narrationSpeed,
                 intent: intentPayload,
                 actionId,
                 clientStateVersion: clientStateVersionRef.current,
@@ -138,6 +144,8 @@ export function useGameActions(options: UseGameActionsOptions) {
             logState,
             model,
             useAiHomebrew,
+            narrationVoice,
+            narrationSpeed,
             toast,
             loadGameSession,
             setApiError,
@@ -170,10 +178,12 @@ export function useGameActions(options: UseGameActionsOptions) {
                 apiKey: getApiKey() ?? '',
                 combatState: interactionState.combatState,
                 useAiHomebrew,
+                narrationVoice,
+                narrationSpeed,
                 clientStateVersion: clientStateVersionRef.current,
             });
         },
-        [sessionId, getApiKey, interactionState.combatState, useAiHomebrew, setApiError, clientStateVersionRef],
+        [sessionId, getApiKey, interactionState.combatState, useAiHomebrew, narrationVoice, narrationSpeed, setApiError, clientStateVersionRef],
     );
 
     const handleApplyLevelUp = useCallback(

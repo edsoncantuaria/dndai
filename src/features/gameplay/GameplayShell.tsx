@@ -66,9 +66,14 @@ export function GameplayShell({
           <NewCombatTracker />
         </div>
       ) : null}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{narrative}</div>
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">{narrative}</div>
       <div
-        className="shrink-0 transition-[padding] duration-150 ease-out"
+        className={cn(
+          // Mobile: dock sobreposto (FAB + cards flutuantes)
+          'pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col items-stretch justify-end transition-[padding] duration-150 ease-out',
+          // Desktop: comportamento antigo (dock no fluxo normal)
+          'md:pointer-events-auto md:static md:z-auto md:block md:transition-none'
+        )}
         style={{
           paddingBottom:
             keyboardInset > 0

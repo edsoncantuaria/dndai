@@ -14,7 +14,7 @@ import { useGameActions } from './game/useGameActions';
 
 export const useNewGameState = () => {
     const { user } = useAuth();
-    const { apiKey, model, useAiHomebrew } = useSettingsContext();
+    const { apiKey, model, useAiHomebrew, narrationVoice, narrationSpeed } = useSettingsContext();
     const { toast } = useToast();
 
     const [character, setCharacter] = useState<Character | null>(null);
@@ -92,6 +92,8 @@ export const useNewGameState = () => {
         character,
         model,
         useAiHomebrew,
+        narrationVoice,
+        narrationSpeed,
         getApiKey,
         logState,
         interactionState,

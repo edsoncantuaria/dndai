@@ -23,7 +23,7 @@ export function detectPromptPhase(input: {
 
 const PHASE_HINTS: Record<PromptPhase, string> = {
     exploration:
-        'Fase=exploração: descreva ambiente, pistas e tensão; 3–5 ações de investigação/movimento.',
+        'Fase=exploração: cena vívida (lugar, clima, pessoas), 1 complicação ou oportunidade; 4 actionOptions específicas ao local (não genéricas).',
     combat:
         'Fase=combate: ritmo rápido, consequências visíveis; sem resolver dados.',
     social:

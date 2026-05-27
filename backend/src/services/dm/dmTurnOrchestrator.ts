@@ -16,6 +16,8 @@ import { computeRawRollFromValues } from '../../websocket/utils.js';
 import { getCastSummaryForSession } from '../sessionCastService.js';
 import { inferSkillCheckFromFreeText } from './freeActionClassifier.js';
 import { classifyFreeActionWithLlm } from './freeActionLlmClassifier.js';
+import { resolveSkillForPlayerAction } from './skillActionSemantics.js';
+import { listNormalizedSkills } from '../../rules/skills.js';
 
 /** Padrão: jogador rola no dado 3D (cliente). Auto-roll só se DM_AUTO_ROLL=true. */
 export const isDmAutoRollEnabled = (): boolean =>
@@ -74,6 +76,8 @@ export async function issuePendingRollToPlayer(params: {
     intentPayload?: unknown;
     metadata?: Record<string, unknown>;
     playerAction?: string;
+    /** Aviso quando perícia foi corrigida pela intenção (ex.: Acrobacia → Enganação). */
+    skillResolutionNote?: string;
 }): Promise<GameMasterResponse> {
     const requestId = params.rollRequest.requestId ?? uuidv4();
     const roll = { ...params.rollRequest, requestId };
@@ -94,17 +98,24 @@ export async function issuePendingRollToPlayer(params: {
         },
     );
 
+    const correctionLine = params.skillResolutionNote?.trim();
+    const logContent = correctionLine
+        ? `Rolagem necessária: ${roll.reason}. ${correctionLine} Use os dados 3D quando estiver pronto.`
+        : `Rolagem necessária: ${roll.reason}. Use os dados 3D quando estiver pronto.`;
+
     return {
         logEntries: [
             {
                 id: uuidv4(),
                 type: 'system',
-                content: `Rolagem necessária: ${roll.reason}. Use os dados 3D quando estiver pronto.`,
+                content: logContent,
             },
         ],
         actionOptions: [],
         playerRollRequest: roll,
-        systemLog: '[DM] Aguardando rolagem do jogador (dados 3D).',
+        systemLog: correctionLine
+            ? `[DM] Aguardando rolagem (dados 3D). ${correctionLine}`
+            : '[DM] Aguardando rolagem do jogador (dados 3D).',
     };
 }
 
@@ -120,6 +131,7 @@ export type NarrateAfterPlayerRollParams = {
     actionId?: string;
     resolutionResult?: RollResolutionResult | null;
     extraMotorHints?: string[];
+    narrationTts?: NarrationTtsSettings | null;
 };
 
 /** Jogador já rolou no 3D; motor já aplicou efeitos — só narrar desfecho. */
@@ -183,6 +195,7 @@ export async function narrateAfterPlayerRoll(
         useAiHomebrew,
         [legacyRollLine, ...motorHints],
         actionId,
+        params.narrationTts,
     );
 }
 
@@ -267,6 +280,11 @@ export async function completeRollAndNarrate(
     });
 }
 
+export type NarrationTtsSettings = {
+    narrationVoice?: unknown;
+    narrationSpeed?: unknown;
+};
+
 export type ProcessFreeActionWithDmParams = {
     sessionId: number;
     userId: number;
@@ -275,7 +293,29 @@ export type ProcessFreeActionWithDmParams = {
     combatState?: CombatState | null;
     useAiHomebrew?: boolean;
     actionId?: string;
+    narrationTts?: NarrationTtsSettings | null;
 };
+
+async function applySkillContextToIntent(
+    playerAction: string,
+    intent: ActionIntent | null,
+): Promise<ActionIntent | null> {
+    if (!intent || intent.type !== 'skill-check') return intent;
+    const skills = await listNormalizedSkills();
+    const resolution = resolveSkillForPlayerAction(playerAction, skills);
+    if (!resolution) return intent;
+    const payload = intent.payload as { skillIndex: string; resolutionNote?: string };
+    return {
+        type: 'skill-check',
+        payload: {
+            ...payload,
+            skillIndex: resolution.skillIndex,
+            ...(resolution.resolutionNote
+                ? { resolutionNote: resolution.resolutionNote }
+                : {}),
+        },
+    };
+}
 
 async function tryClassifyAndIssueRoll(params: ProcessFreeActionWithDmParams): Promise<GameMasterResponse | null> {
     const { sessionId, userId, playerAction, combatState, actionId } = params;
@@ -287,6 +327,7 @@ async function tryClassifyAndIssueRoll(params: ProcessFreeActionWithDmParams): P
     if (!intent && isDmLlmClassificationEnabled() && params.apiKey?.trim()) {
         intent = await classifyFreeActionWithLlm(playerAction, params.apiKey);
     }
+    intent = await applySkillContextToIntent(playerAction, intent);
     if (!intent) return null;
 
     const { result, intent: validatedIntent } = await validateActionIntent(sessionId, userId, intent, {
@@ -305,6 +346,16 @@ async function tryClassifyAndIssueRoll(params: ProcessFreeActionWithDmParams): P
                 metadata: { ...(result.data as object), playerAction },
             });
         }
+        const resolutionNote =
+            validatedIntent.type === 'skill-check' &&
+            validatedIntent.payload &&
+            typeof validatedIntent.payload === 'object' &&
+            'resolutionNote' in validatedIntent.payload &&
+            typeof (validatedIntent.payload as { resolutionNote?: string }).resolutionNote ===
+                'string'
+                ? (validatedIntent.payload as { resolutionNote: string }).resolutionNote
+                : undefined;
+
         return issuePendingRollToPlayer({
             sessionId,
             userId,
@@ -312,8 +363,12 @@ async function tryClassifyAndIssueRoll(params: ProcessFreeActionWithDmParams): P
             actionId,
             intentType: validatedIntent.type,
             intentPayload: validatedIntent.payload,
-            metadata: result.data as Record<string, unknown>,
+            metadata: {
+                ...(result.data as Record<string, unknown>),
+                ...(resolutionNote ? { skillResolutionNote: resolutionNote } : {}),
+            },
             playerAction,
+            skillResolutionNote: resolutionNote,
         });
     }
 
@@ -349,6 +404,7 @@ export async function processFreeActionWithDmFlow(
         useAiHomebrew,
         undefined,
         actionId,
+        params.narrationTts,
     );
 }
 
@@ -387,6 +443,7 @@ export async function completeManualRollAndNarrate(params: {
     combatState?: CombatState | null;
     useAiHomebrew?: boolean;
     resolutionResult?: RollResolutionResult | null;
+    narrationTts?: NarrationTtsSettings | null;
 }): Promise<GameMasterResponse> {
     const rawRoll = computeRawRollFromValues(params.pending, params.diceValues);
     const modifier = params.pending.modifier || 0;
@@ -416,5 +473,6 @@ export async function completeManualRollAndNarrate(params: {
         useAiHomebrew: params.useAiHomebrew,
         actionId: params.pending.context?.actionId,
         resolutionResult: params.resolutionResult ?? null,
+        narrationTts: params.narrationTts,
     });
 }

@@ -6,8 +6,10 @@ const QUEST_OPTION_HINTS =
   /\b(missão|objetivo|quest|contrato|entregar|concluir|completar|recompensa da missão)\b/i;
 
 function normalizeOptionText(action: string | { text: string; action: string; skill?: string }): string {
-  if (typeof action === 'string') return action;
-  return `${action.text ?? ''} ${action.action ?? ''}`.trim();
+  if (typeof action === 'string') return action.trim();
+  const label = action.text?.trim();
+  if (label && label.length >= 4) return label;
+  return action.action?.trim() ?? '';
 }
 
 export function collectOptionTexts(

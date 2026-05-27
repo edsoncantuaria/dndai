@@ -6,6 +6,7 @@ import {
   buildTtsPlaybackUrl,
   isValidTtsObjectKey,
 } from '../services/ttsService.js';
+import { isPiperVoiceId } from '../config/narrationTts.js';
 import { fetchObjectBuffer, isObjectStorageEnabled } from '../services/objectStorageService.js';
 
 export const generateNarrationAudio = async (req: Request, res: Response, next: NextFunction) => {
@@ -13,11 +14,18 @@ export const generateNarrationAudio = async (req: Request, res: Response, next: 
     if (!isTtsAvailable()) {
       throw createError(503, 'TTS não está configurado neste servidor.');
     }
-    const { text } = req.body ?? {};
+    const { text, voice, lengthScale, narrationVoice, narrationSpeed } = req.body ?? {};
     if (typeof text !== 'string' || !text.trim()) {
       throw createError(400, 'Texto inválido para síntese.');
     }
-    const audio = await synthesizeNarrationAudio(text);
+    const audio = await synthesizeNarrationAudio(text, {
+      voice: isPiperVoiceId(voice) ? voice : isPiperVoiceId(narrationVoice) ? narrationVoice : undefined,
+      lengthScale: typeof lengthScale === 'number' ? lengthScale : undefined,
+      settings: {
+        narrationVoice: isPiperVoiceId(narrationVoice) ? narrationVoice : isPiperVoiceId(voice) ? voice : undefined,
+        narrationSpeed,
+      },
+    });
     if (!audio?.key) {
       throw createError(500, 'Falha ao gerar o áudio solicitado.');
     }

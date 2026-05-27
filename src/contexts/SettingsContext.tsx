@@ -7,6 +7,13 @@ import {
     readGeminiApiKey,
     writeGeminiApiKey,
 } from '@/lib/geminiApiKeyStorage';
+import {
+    defaultNarrationTts,
+    isNarrationSpeedPreset,
+    isPiperVoiceId,
+    type NarrationSpeedPreset,
+    type PiperVoiceId,
+} from '@/lib/narrationTts';
 
 /** Modelos free no OpenRouter — motor principal do jogo. */
 export const OPENROUTER_MODELS = [
@@ -75,6 +82,10 @@ interface SettingsContextType {
     setTtsModel: (model: string) => void;
     ttsVoice: string;
     setTtsVoice: (voice: string) => void;
+    narrationVoice: PiperVoiceId;
+    setNarrationVoice: (voice: PiperVoiceId) => void;
+    narrationSpeed: NarrationSpeedPreset;
+    setNarrationSpeed: (speed: NarrationSpeedPreset) => void;
     apiKey: string;
     setApiKey: (key: string) => void;
     generationConfig: GenerationConfig;
@@ -118,6 +129,8 @@ const defaultSettings = {
     model: 'openai/gpt-oss-120b:free',
     ttsModel: AVAILABLE_TTS_MODELS[0],
     ttsVoice: AVAILABLE_TTS_VOICES[0],
+    narrationVoice: defaultNarrationTts.voice,
+    narrationSpeed: defaultNarrationTts.speed,
     apiKey: '',
     generationConfig: defaultGenerationConfig,
     volume: 0.3,
@@ -165,6 +178,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [model, setModel] = useState<string>(defaultSettings.model);
     const [ttsModel, setTtsModel] = useState<string>(defaultSettings.ttsModel);
     const [ttsVoice, setTtsVoice] = useState<string>(defaultSettings.ttsVoice);
+    const [narrationVoice, setNarrationVoice] = useState<PiperVoiceId>(defaultSettings.narrationVoice);
+    const [narrationSpeed, setNarrationSpeed] = useState<NarrationSpeedPreset>(defaultSettings.narrationSpeed);
     const [apiKey, setApiKey] = useState<string>(defaultSettings.apiKey);
     const [generationConfig, setGenerationConfig] = useState<GenerationConfig>(clampGenerationConfigValues(defaultSettings.generationConfig));
     const [volume, setVolume] = useState(defaultSettings.volume);
@@ -213,6 +228,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             ttsModel,
             generationConfig,
             ttsVoice,
+            narrationVoice,
+            narrationSpeed,
             volume,
             isMuted,
             playMenuMusic,
@@ -232,6 +249,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         ttsModel,
         generationConfig,
         ttsVoice,
+        narrationVoice,
+        narrationSpeed,
         volume,
         isMuted,
         playMenuMusic,
@@ -270,6 +289,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             }
             if (settings.ttsModel && AVAILABLE_TTS_MODELS.includes(settings.ttsModel)) setTtsModel(settings.ttsModel);
             if (settings.ttsVoice && AVAILABLE_TTS_VOICES.includes(settings.ttsVoice)) setTtsVoice(settings.ttsVoice);
+            if (isPiperVoiceId(settings.narrationVoice)) setNarrationVoice(settings.narrationVoice);
+            if (isNarrationSpeedPreset(settings.narrationSpeed)) setNarrationSpeed(settings.narrationSpeed);
             if (settings.generationConfig) setGenerationConfig(prev => clampGenerationConfigValues({ ...prev, ...settings.generationConfig }));
             if (typeof settings.volume === 'number') setVolume(settings.volume);
             if (typeof settings.isMuted === 'boolean') setIsMuted(settings.isMuted);
@@ -334,6 +355,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         model, setModel,
         ttsModel, setTtsModel,
         ttsVoice, setTtsVoice,
+        narrationVoice, setNarrationVoice,
+        narrationSpeed, setNarrationSpeed,
         apiKey, setApiKey,
         generationConfig, setGenerationConfig: setClampedGenerationConfig,
         volume, setVolume,

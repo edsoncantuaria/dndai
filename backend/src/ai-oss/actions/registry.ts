@@ -99,10 +99,11 @@ export function normalizeActionOptionsFromRegistry(
         const actionRaw = String(item.action ?? '').trim();
         const matched = matchRegistered(text || actionRaw, domain);
         const action = matched?.id ?? (byId.has(actionRaw) ? actionRaw : slugify(actionRaw || text));
-        if (!text || seen.has(action)) continue;
+        const displayText = text.length >= 8 ? text : matched?.text ?? text;
+        if (!displayText || seen.has(action)) continue;
         seen.add(action);
         normalized.push({
-            text: matched?.text ?? text,
+            text: displayText,
             action,
             skill: item.skill ?? matched?.skill,
         });

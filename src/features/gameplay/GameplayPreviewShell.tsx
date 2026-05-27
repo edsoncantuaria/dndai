@@ -39,7 +39,7 @@ export function GameplayPreviewShell() {
         region="Ruínas de Kael — Nível 3"
         timeLabel="Crepúsculo"
         weatherLabel="Nublado"
-        narrative={<NarrativeStage entries={MOCK_NARRATIVE} className="flex-1" />}
+        narrative={<NarrativeStage entries={MOCK_NARRATIVE} className="flex-1 pb-28 max-md:pb-36 md:pb-4" />}
         actionDock={
           <ActionBar
             options={MOCK_ACTIONS}

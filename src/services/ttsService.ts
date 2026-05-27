@@ -1,5 +1,6 @@
 // src/services/ttsService.ts
 import { apiClient } from './apiClient';
+import type { NarrationSpeedPreset, PiperVoiceId } from '@/lib/narrationTts';
 
 const API_URL =
     process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') || 'http://localhost:8071/api';
@@ -46,10 +47,19 @@ export const resolveNarrationPlaybackUrl = (audioKey?: string | null, audioUrl?:
   return null;
 };
 
-export const generateNarrationAudio = async (text: string) => {
+export type GenerateNarrationOptions = {
+  narrationVoice?: PiperVoiceId;
+  narrationSpeed?: NarrationSpeedPreset;
+};
+
+export const generateNarrationAudio = async (text: string, options?: GenerateNarrationOptions) => {
   const result = await apiClient<GenerateNarrationResponse>('/tts/generate', {
     method: 'POST',
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({
+      text,
+      narrationVoice: options?.narrationVoice,
+      narrationSpeed: options?.narrationSpeed,
+    }),
   });
   return {
     ...result,

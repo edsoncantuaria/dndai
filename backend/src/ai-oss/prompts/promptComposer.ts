@@ -1,4 +1,5 @@
 import { OSS_FORMAT_SYSTEM } from './system/format.js';
+import { buildOpeningSceneHint } from './narrativeQuality.js';
 import { buildCombatSystemInstruction, buildCombatSceneHint } from '../combat/deterministicCombat.js';
 import type { GameMasterFlowInput } from '../../schemas/gameSchemas.js';
 
@@ -41,6 +42,10 @@ export function composeOssPrompt(input: ComposePromptInput): {
     lines.push(`ACAO_JOGADOR=${input.playerAction.slice(0, 1200)}`);
     if (input.antiLoopHint) {
         lines.push(`ANTI_LOOP=${input.antiLoopHint}`);
+    }
+    const openingHint = buildOpeningSceneHint(input.playerAction);
+    if (openingHint) {
+        lines.push(openingHint);
     }
 
     const systemInstruction = input.combatActive

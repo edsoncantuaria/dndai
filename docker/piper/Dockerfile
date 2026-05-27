@@ -1,4 +1,4 @@
-# Piper TTS (pt-BR) + API HTTP para o backend
+# Piper TTS (pt-BR) + API HTTP para o backend — 4 vozes
 FROM node:20-bookworm-slim
 
 RUN apt-get update \
@@ -22,18 +22,31 @@ RUN mkdir -p /models \
     && wget -q -O /models/pt_BR-faber-medium.onnx.json \
       "https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/faber/medium/pt_BR-faber-medium.onnx.json" \
     && wget -q -O /models/pt_BR-faber-medium.onnx \
-      "https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/faber/medium/pt_BR-faber-medium.onnx"
+      "https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/faber/medium/pt_BR-faber-medium.onnx" \
+    && wget -q -O /models/pt-BR-razo-medium.onnx \
+      "https://huggingface.co/Lucasllfs/Razo-piper-voice/resolve/main/pt-BR-razo-medium.onnx" \
+    && wget -q -O /models/pt-BR-razo-medium.onnx.json \
+      "https://huggingface.co/Lucasllfs/Razo-piper-voice/resolve/main/config.json" \
+    && wget -q -O /models/miro_pt-BR.onnx \
+      "https://huggingface.co/OpenVoiceOS/pipertts_pt-BR_miro/resolve/main/miro_pt-BR.onnx" \
+    && wget -q -O /models/miro_pt-BR.onnx.json \
+      "https://huggingface.co/OpenVoiceOS/pipertts_pt-BR_miro/resolve/main/miro_pt-BR.onnx.json" \
+    && wget -q -O /models/dii_pt-BR.onnx \
+      "https://huggingface.co/OpenVoiceOS/pipertts_pt-BR_dii/resolve/main/dii_pt-BR.onnx" \
+    && wget -q -O /models/dii_pt-BR.onnx.json \
+      "https://huggingface.co/OpenVoiceOS/pipertts_pt-BR_dii/resolve/main/dii_pt-BR.onnx.json"
 
 WORKDIR /app
 COPY server.mjs ./server.mjs
 
 ENV PIPER_BIN=/opt/piper/piper/piper
-ENV PIPER_MODEL=/models/pt_BR-faber-medium.onnx
+ENV PIPER_DEFAULT_VOICE=faber
+ENV PIPER_LENGTH_SCALE=2.5
 ENV PORT=5500
 
 EXPOSE 5500
 
-HEALTHCHECK --interval=15s --timeout=10s --retries=8 --start-period=60s \
+HEALTHCHECK --interval=15s --timeout=10s --retries=8 --start-period=120s \
   CMD node -e "fetch('http://127.0.0.1:5500/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "server.mjs"]

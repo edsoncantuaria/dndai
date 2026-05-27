@@ -136,13 +136,16 @@ const getPlainTextFromLogEntry = (entry: GameMasterResponse['logEntries'][number
     return null;
 };
 
-const attachNarrationAudio = async (response: GameMasterResponse) => {
+const attachNarrationAudio = async (
+    response: GameMasterResponse,
+    userSettings?: { narrationVoice?: unknown; narrationSpeed?: unknown } | null,
+) => {
     if (!response?.logEntries?.length) return;
     for (const entry of response.logEntries) {
         if (!entry || (entry as any).audioUrl) continue;
         const text = getPlainTextFromLogEntry(entry as any);
         if (!text) continue;
-        const audio = await synthesizeNarrationAudio(text);
+        const audio = await synthesizeNarrationAudio(text, { settings: userSettings });
         if (!audio?.key) continue;
         const playbackUrl = audio.url ?? buildTtsPlaybackUrl(audio.key);
         (entry as any).audioUrl = playbackUrl;
@@ -803,6 +806,11 @@ export const buildOptimizedCharacterForAI = async (characterId: number) => {
     return characterForAI;
 };
 
+export type NarrationTtsSettings = {
+    narrationVoice?: unknown;
+    narrationSpeed?: unknown;
+};
+
 export const processPlayerTurn = async (
     sessionId: number,
     userId: number,
@@ -811,7 +819,8 @@ export const processPlayerTurn = async (
     currentCombatState?: CombatState,
     useAiHomebrew?: boolean,
     stateHints?: string[],
-    actionId?: string
+    actionId?: string,
+    narrationTtsOverride?: NarrationTtsSettings | null,
 ): Promise<GameMasterResponse> => {
     let isTestRun = false;
     let sessao: SessaoIA | null = null;
@@ -1515,7 +1524,13 @@ export const processPlayerTurn = async (
     aiResponse = runNarrativeGmValidator(aiResponse, {
         memorySummary: storySummaryForPrompt ?? newStorySummaryForLog ?? undefined,
     });
-    await attachNarrationAudio(aiResponse);
+    const narrationTtsSettings: NarrationTtsSettings = {
+        narrationVoice:
+            narrationTtsOverride?.narrationVoice ?? (user?.settings as NarrationTtsSettings | undefined)?.narrationVoice,
+        narrationSpeed:
+            narrationTtsOverride?.narrationSpeed ?? (user?.settings as NarrationTtsSettings | undefined)?.narrationSpeed,
+    };
+    await attachNarrationAudio(aiResponse, narrationTtsSettings);
     
     if (aiResponse.imagePrompt && isImageGenerationAvailable(apiKey)) {
         const imageEntryExists = aiResponse.logEntries?.some(entry => entry?.type === 'image');

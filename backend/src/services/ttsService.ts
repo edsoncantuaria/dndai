@@ -6,6 +6,11 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import { spawn } from 'child_process';
 import { uploadBinaryObject, isObjectStorageEnabled } from './objectStorageService.js';
+import {
+    resolveNarrationTtsOptions,
+    type NarrationTtsOptions,
+    type PiperVoiceId,
+} from '../config/narrationTts.js';
 
 const API_PUBLIC_URL = (process.env.API_PUBLIC_URL ?? '').replace(/\/$/, '');
 const TTS_KEY_PATTERN = /^tts\/[\w\-./]+$/i;
@@ -14,7 +19,8 @@ const PIPER_HTTP_URL = (process.env.PIPER_HTTP_URL ?? '').replace(/\/$/, '');
 const PIPER_BIN_PATH = process.env.PIPER_BIN_PATH ?? '';
 const PIPER_MODEL_PATH = process.env.PIPER_MODEL_PATH ?? '';
 const MAX_TTS_LENGTH = Number(process.env.PIPER_MAX_CHARACTERS ?? 600);
-const LENGTH_SCALE = Number(process.env.PIPER_LENGTH_SCALE ?? 1.15);
+/** Fallback quando o cliente não envia lengthScale. */
+const LENGTH_SCALE = Number(process.env.PIPER_LENGTH_SCALE ?? 2.5);
 
 const hasLocalPiper = Boolean(PIPER_BIN_PATH && PIPER_MODEL_PATH);
 const hasHttpPiper = Boolean(PIPER_HTTP_URL);
@@ -61,11 +67,17 @@ const sanitizeNarrationText = (text: string) => {
   return trimmed;
 };
 
-const runPiperHttp = async (text: string): Promise<Buffer> => {
+export type SynthesizeNarrationOptions = Partial<NarrationTtsOptions>;
+
+const runPiperHttp = async (text: string, opts: SynthesizeNarrationOptions): Promise<Buffer> => {
   const response = await fetch(`${PIPER_HTTP_URL}/synthesize`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({
+      text,
+      voice: opts.voice,
+      lengthScale: opts.lengthScale,
+    }),
   });
   if (!response.ok) {
     throw new Error(`Piper HTTP ${response.status}`);
@@ -73,12 +85,24 @@ const runPiperHttp = async (text: string): Promise<Buffer> => {
   return Buffer.from(await response.arrayBuffer());
 };
 
-const runPiperLocal = async (text: string): Promise<Buffer> => {
+const voiceModelPaths: Partial<Record<PiperVoiceId, string>> = {
+  faber: process.env.PIPER_MODEL_FABER,
+  razo: process.env.PIPER_MODEL_RAZO,
+  miro: process.env.PIPER_MODEL_MIRO,
+  dii: process.env.PIPER_MODEL_DII,
+};
+
+const resolveLocalModelPath = (voice: PiperVoiceId): string =>
+  voiceModelPaths[voice]?.trim() || PIPER_MODEL_PATH;
+
+const runPiperLocal = async (text: string, opts: SynthesizeNarrationOptions): Promise<Buffer> => {
+  const scale = opts.lengthScale ?? LENGTH_SCALE;
+  const modelPath = resolveLocalModelPath(opts.voice ?? 'faber');
   return new Promise((resolve, reject) => {
     const tempFile = path.join(tmpdir(), `piper-${randomUUID()}.wav`);
-    const args = ['--model', PIPER_MODEL_PATH, '--output_file', tempFile];
-    if (!Number.isNaN(LENGTH_SCALE) && LENGTH_SCALE > 0) {
-      args.push('--length_scale', LENGTH_SCALE.toString());
+    const args = ['--model', modelPath, '--output_file', tempFile];
+    if (!Number.isNaN(scale) && scale > 0) {
+      args.push('--length_scale', scale.toString());
     }
     const child = spawn(PIPER_BIN_PATH, args, {
       stdio: ['pipe', 'inherit', 'inherit'],
@@ -103,15 +127,17 @@ const runPiperLocal = async (text: string): Promise<Buffer> => {
   });
 };
 
-const runPiper = async (text: string): Promise<Buffer> => {
+const runPiper = async (text: string, opts: SynthesizeNarrationOptions): Promise<Buffer> => {
   if (hasHttpPiper) {
-    return runPiperHttp(text);
+    return runPiperHttp(text, opts);
   }
   if (hasLocalPiper) {
-    return runPiperLocal(text);
+    return runPiperLocal(text, opts);
   }
   throw new Error('Piper não configurado.');
 };
+
+export { resolveNarrationTtsOptions };
 
 export type SynthesizedNarration = {
   key: string;
@@ -119,13 +145,28 @@ export type SynthesizedNarration = {
   contentType: string;
 };
 
-export const synthesizeNarrationAudio = async (text: string): Promise<SynthesizedNarration | null> => {
+export type SynthesizeNarrationRequest = Partial<SynthesizeNarrationOptions> & {
+  settings?: { narrationVoice?: unknown; narrationSpeed?: unknown } | null;
+};
+
+export const synthesizeNarrationAudio = async (
+  text: string,
+  request?: SynthesizeNarrationRequest,
+): Promise<SynthesizedNarration | null> => {
   if (!isTtsEnabled) return null;
   const safeText = sanitizeNarrationText(text);
   if (!safeText) return null;
+  const fromSettings = resolveNarrationTtsOptions(request?.settings);
+  const synthOpts: SynthesizeNarrationOptions = {
+    voice: request?.voice ?? fromSettings.voice,
+    lengthScale: request?.lengthScale ?? fromSettings.lengthScale,
+    playbackRate: request?.playbackRate ?? fromSettings.playbackRate,
+  };
   try {
-    console.log(`[ttsService] Iniciando síntese Piper (${safeText.length} caracteres).`);
-    const buffer = await runPiper(safeText);
+    console.log(
+      `[ttsService] Piper voice=${synthOpts.voice} length_scale=${synthOpts.lengthScale} (${safeText.length} chars).`,
+    );
+    const buffer = await runPiper(safeText, synthOpts);
     const upload = await uploadBinaryObject(buffer, {
       prefix: 'tts',
       contentType: 'audio/wav',

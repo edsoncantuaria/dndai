@@ -57,7 +57,7 @@ export function GameplayTopBar({
                 ? 'bg-dnd-gold/20 text-dnd-gold'
                 : 'text-dnd-parchment-muted hover:bg-dnd-mist hover:text-dnd-parchment'
             )}
-            aria-label={isNarrationActive ? 'Parar narração' : 'Ouvir narração'}
+            aria-label={isNarrationActive ? 'Parar reprodução do bloco atual' : 'Ouvir bloco atual'}
           >
             {isNarrationActive ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
           </button>
