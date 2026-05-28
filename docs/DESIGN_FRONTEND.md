@@ -4,7 +4,7 @@
 >
 > **Referência de atmosfera (não copiar assets):** [Dungeons & Dragons — site oficial](https://www.dungeonsanddragons.com/)
 >
-> **Última revisão:** maio de 2026
+> **Última revisão:** maio de 2026 (cinematográfico/BG3-like + InputGate)
 
 ---
 
@@ -33,9 +33,12 @@
 | **Mesa primeiro** | Log narrativo é o centro visual; mecânica em painéis laterais |
 | **Fantasia premium** | Escuro cinematográfico + ouro + vermelho ember — não SaaS cinza |
 | **Feedback honesto** | Números do motor antes do parágrafo IA |
+| **InputGate absoluto (BG3-like)** | Ações state-changing só liberam após `narrationComplete` (ou falha final) |
 | **Legibilidade** | Pergaminho/claro sobre fundo escuro para texto longo |
 | **Toque moderno** | `100dvh`, safe areas, dock flutuante no mobile |
 | **Marca respeitosa** | Inspirar WotC; não usar IP protegida |
+
+**Skill operacional (PRs frontend):** `dndai-frontend-cinematic-design` (usa checklist e invariantes; evita regressão de “cinematográfico/BG3-like”).
 
 ---
 
@@ -126,7 +129,11 @@ Fonte: `src/design-system/tokens.css` → Tailwind `dnd.*`.
 | Personagem | `CharacterCreationWizard` | `NewCreationCharacter` steps |
 | Homebrew | `HomebrewStorePage` | `HomebrewStore` monólito |
 
-**Política:** features novas **apenas** em v2. Remover legado após quiescência da flag.
+**Política (realista, alinhada ao código atual):**
+
+- O legado **ainda existe** e está atrás de `NEXT_PUBLIC_UI_V2=false` por compatibilidade.
+- **Não adicionar features** nem melhorias no legado. Qualquer mudança deve ir para v2.
+- Objetivo: **remover a necessidade da flag** e deletar caminhos `*Legacy` quando a v2 estiver estável o suficiente para produção (sem “limbo” de turno, sem regressões de gameplay).
 
 ---
 
