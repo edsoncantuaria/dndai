@@ -297,6 +297,32 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
             }
         };
 
+        const handlePendingRollState = (payload?: {
+            sessionId?: number;
+            stateVersion?: number | null;
+            pending?: { rollRequest?: any } | null;
+        }) => {
+            if (!payload?.pending?.rollRequest) return;
+            // Re-hidrata o modal de dados 3D após reconexão, evitando limbo de 409.
+            handleApiResponse(
+                {
+                    logEntries: [],
+                    actionOptions: [],
+                    playerRollRequest: payload.pending.rollRequest,
+                    stateVersion: typeof payload.stateVersion === 'number' ? payload.stateVersion : undefined,
+                },
+                false,
+            );
+            setTurnPipelinePhase('rolling');
+            setActionPhaseLabel('Aguardando rolagem do jogador');
+        };
+
+        const handleSocketOpen = () => {
+            if (!sessionId) return;
+            // Heal atômico: pergunta ao servidor se existe roll pendente em Redis.
+            sendMessage('syncPendingRoll', { sessionId });
+        };
+
         const handleActionTimeout = (payload?: { actionId?: string }) => {
             if (!payload?.actionId) return;
             pendingActionsRef.current.delete(payload.actionId);
@@ -333,6 +359,8 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
         addEventListener('actionAck', handleActionAck);
         addEventListener('actionResolution', handleActionResolution);
         addEventListener('connectionClosed', handleSocketClosed);
+        addEventListener('pendingRollState', handlePendingRollState);
+        addEventListener('connectionOpen', handleSocketOpen);
 
         return () => {
             removeEventListener('gameStateUpdate', handleGameStateUpdate);
@@ -349,6 +377,8 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
             removeEventListener('actionAck', handleActionAck);
             removeEventListener('actionResolution', handleActionResolution);
             removeEventListener('connectionClosed', handleSocketClosed);
+            removeEventListener('pendingRollState', handlePendingRollState);
+            removeEventListener('connectionOpen', handleSocketOpen);
         };
     }, [
         handleApiResponse,

@@ -10,6 +10,8 @@ export type NarrationJobPayload = {
     actionId: string;
     /** P4.1 — ordenação; jobs com sequence < latest são descartados no worker. */
     actionSequence?: number;
+    /** P5.x — permite política de retry/backoff no BullMQ para eventos “épicos”. */
+    criticality?: 'normal' | 'critical';
     playerAction: string;
     apiKey: string;
     useAiHomebrew?: boolean;

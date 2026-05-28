@@ -67,6 +67,69 @@ export function configureWebSocket(httpServer: Server) {
                     await handleSubmitRollResult(ws, data.payload);
                     break;
 
+                case 'syncPendingRoll': {
+                    try {
+                        const sessionId = Number(data.payload?.sessionId);
+                        if (!Number.isFinite(sessionId) || sessionId <= 0) {
+                            throw createError(400, 'sessionId inválido.');
+                        }
+                        const { getPendingRollRequest } = await import('../services/rollRequestService.js');
+                        const pending = await getPendingRollRequest(sessionId);
+
+                        let stateVersion: number | null = null;
+                        try {
+                            const { AppDataSource } = await import('../database/data-source.js');
+                            const { SessaoIA } = await import('../entities/SessaoIA.js');
+                            const repo = AppDataSource.getRepository(SessaoIA);
+                            const row = await repo.findOne({ where: { id: sessionId }, select: ['id', 'stateVersion'] });
+                            stateVersion = row?.stateVersion ?? null;
+                        } catch {
+                            // best effort
+                        }
+
+                        ws.send(
+                            JSON.stringify({
+                                type: 'pendingRollState',
+                                payload: {
+                                    sessionId,
+                                    stateVersion,
+                                    pending: pending
+                                        ? {
+                                              requestId: pending.requestId,
+                                              userId: pending.userId,
+                                              createdAt: pending.createdAt,
+                                              context: pending.context ?? null,
+                                              rollRequest: {
+                                                  reason: pending.reason,
+                                                  dice: pending.dice,
+                                                  modifier: pending.modifier,
+                                                  dc: pending.dc,
+                                                  rollType: pending.rollType,
+                                                  advantage: pending.advantage,
+                                                  disadvantage: pending.disadvantage,
+                                                  requestId: pending.requestId,
+                                                  metadata: pending.metadata,
+                                              },
+                                          }
+                                        : null,
+                                },
+                            }),
+                        );
+                    } catch (error: unknown) {
+                        const err = error as { message?: string; status?: number };
+                        ws.send(
+                            JSON.stringify({
+                                type: 'error',
+                                payload: {
+                                    message: err.message || 'Erro ao sincronizar rolagem pendente.',
+                                    code: err.status || 'SYNC_PENDING_ROLL_ERROR',
+                                },
+                            }),
+                        );
+                    }
+                    break;
+                }
+
                 case 'getCharacter':
                     try {
                         const { characterId } = data.payload;

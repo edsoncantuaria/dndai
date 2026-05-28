@@ -1636,11 +1636,32 @@ export const processPlayerTurn = async (
         const {
             extractMainNarrationText,
             validateNarrativeConsistency,
+            remediateNarrationConsistency,
         } = await import('./narrativeConsistencyValidator.js');
         const { recordGameEvent } = await import('../events/recordGameEvent.js');
         const narrationText = extractMainNarrationText(aiResponse);
         const consistency = validateNarrativeConsistency(narrationText, normalizedStateHints);
         if (!consistency.valid) {
+            const remediation = remediateNarrationConsistency({
+                narrationText,
+                stateHints: normalizedStateHints,
+            });
+            if (remediation.changed && remediation.text.trim()) {
+                // Aplica a correção no campo `narration` (OSS minimal) ou na primeira entry `narration`.
+                if (typeof (aiResponse as any).narration === 'string') {
+                    (aiResponse as any).narration = remediation.text;
+                }
+                if (Array.isArray((aiResponse as any).logEntries)) {
+                    const entries = (aiResponse as any).logEntries as Array<any>;
+                    const idx = entries.findIndex(e => e?.type === 'narration' && typeof e?.content === 'string');
+                    if (idx >= 0) {
+                        entries[idx] = { ...entries[idx], content: remediation.text };
+                    }
+                }
+                if (remediation.note) {
+                    appendSystemNote(aiResponse, `[Consistência] ${remediation.note}`);
+                }
+            }
             appendSystemNote(
                 aiResponse,
                 `[Consistência] Ajuste narrativo recomendado: ${consistency.reason ?? 'contradição com o motor.'}`,

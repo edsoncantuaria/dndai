@@ -239,6 +239,9 @@ export async function handleSubmitRollResult(ws: ActionPipelineWs, rawPayload: u
             actionId: rollActionId,
             resolutionResult,
         });
+        const isCriticalEvent = Boolean(
+            resolutionResult?.updatedEntity && Number(resolutionResult.updatedEntity.hp) <= 0,
+        );
         const { dispatchNarrationToQueue } = await import('../queue/narrationDispatch.js');
         const enqueued = await dispatchNarrationToQueue({
             ws,
@@ -250,6 +253,7 @@ export async function handleSubmitRollResult(ws: ActionPipelineWs, rawPayload: u
             releaseRollRequestId: requestId,
             job: {
                 kind: 'roll',
+                criticality: isCriticalEvent ? 'critical' : 'normal',
                 playerAction: actionText,
                 apiKey,
                 useAiHomebrew,

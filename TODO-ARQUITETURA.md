@@ -70,6 +70,14 @@
 | P5.5.2 | Cache `region_graph:{slug}` | ✅ |
 | P5.5.3 | Teste round-trip compressão | ✅ |
 
+### Pós‑P5 — Hardening operacional ✅
+
+| ID | Tarefa | Status |
+|----|--------|--------|
+| P5.x.1 | Retry/backoff no BullMQ por criticidade (`criticality`) | ✅ |
+| P5.x.2 | Heal de `playerRollRequest` no reconnect (WS `syncPendingRoll`) | ✅ |
+| P5.x.3 | Remediação determinística quando prosa contradiz motor | ✅ |
+
 ### P5.6 Concorrência mecânica (opcional)
 
 | ID | Tarefa | Status |

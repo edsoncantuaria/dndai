@@ -65,3 +65,72 @@ export function validateNarrativeConsistency(
 
     return { valid: true };
 }
+
+function splitSentences(text: string): string[] {
+    return text
+        .split(/(?<=[.!?])\s+/g)
+        .map(s => s.trim())
+        .filter(Boolean);
+}
+
+function sentenceLooksLikeMiss(sentence: string): boolean {
+    const s = sentence.toLowerCase();
+    // Conservador: só remove se tiver marcador de erro + contexto de ataque/golpe.
+    const hasMiss = MISS_MARKERS.some(m => s.includes(m));
+    const hasAttackContext = s.includes('ataque') || s.includes('golpe') || s.includes('acerta') || s.includes('erra');
+    return hasMiss && hasAttackContext;
+}
+
+function sentenceLooksLikeHit(sentence: string): boolean {
+    const s = sentence.toLowerCase();
+    const hasHit = HIT_MARKERS.some(m => s.includes(m));
+    const hasAttackContext = s.includes('ataque') || s.includes('golpe') || s.includes('fer');
+    return hasHit && hasAttackContext;
+}
+
+export function remediateNarrationConsistency(params: {
+    narrationText: string;
+    stateHints: unknown;
+}): { changed: boolean; text: string; note?: string } {
+    const text = params.narrationText ?? '';
+    const hints = normalizeHints(params.stateHints);
+    const motorSaysHit = hints.some(h => h.includes('[motor] ataque acertou') || h.includes('ataque acertou'));
+    const motorSaysMiss = hints.some(h => h.includes('[motor] ataque errou') || h.includes('ataque errou'));
+
+    if (!motorSaysHit && !motorSaysMiss) return { changed: false, text };
+    if (!text.trim()) return { changed: false, text };
+
+    const sentences = splitSentences(text);
+    let changed = false;
+    let filtered = sentences;
+
+    if (motorSaysHit) {
+        const before = filtered.length;
+        filtered = filtered.filter(s => !sentenceLooksLikeMiss(s));
+        changed = changed || filtered.length !== before;
+        if (changed) {
+            filtered.push('Seu golpe encontra o alvo.');
+            return {
+                changed: true,
+                text: filtered.join(' ').trim(),
+                note: 'Remediação aplicada: motor confirmou acerto.',
+            };
+        }
+    }
+
+    if (motorSaysMiss) {
+        const before = filtered.length;
+        filtered = filtered.filter(s => !sentenceLooksLikeHit(s));
+        changed = changed || filtered.length !== before;
+        if (changed) {
+            filtered.push('O ataque não conecta.');
+            return {
+                changed: true,
+                text: filtered.join(' ').trim(),
+                note: 'Remediação aplicada: motor confirmou falha.',
+            };
+        }
+    }
+
+    return { changed: false, text };
+}

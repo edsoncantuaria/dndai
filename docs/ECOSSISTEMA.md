@@ -2,7 +2,7 @@
 
 > **Documento canônico** para revisão sênior, onboarding e agentes de IA. Descreve o sistema **como está implementado** (maio/2026). Complemento visual: **DESIGN_FRONTEND.md**. Índice de revisão: **VALIDACAO_SENIOR.md**.
 >
-> **Última revisão:** maio de 2026
+> **Última revisão:** maio de 2026 (pós‑P5: retry crítico BullMQ + heal roll reconnect + remediação determinística)
 
 ---
 
@@ -364,6 +364,14 @@ Após o motor resolver, o **prompt DM** alimenta o job na fila (contexto mecâni
 | `result.dice`, `modifier`, `total` | Do modal 3D |
 | `clientStateVersion` | |
 
+#### `syncPendingRoll` (heal de rolagem pendente)
+
+Uso: após reconectar, o cliente pede ao servidor o `playerRollRequest` que ainda estiver pendente (ex.: Redis) para reabrir o modal 3D e evitar “limbo 409”.
+
+| Campo | Notas |
+|-------|-------|
+| `sessionId` | Sessão alvo |
+
 ### 8.3 Servidor → cliente (ordem típica)
 
 | Tipo | Quando | Canônico? |
@@ -378,6 +386,7 @@ Após o motor resolver, o **prompt DM** alimenta o job na fila (contexto mecâni
 | `narrationComplete` | Fim ciclo narrativo | sim |
 | `stopLoading` | Libera spinner | sim |
 | `actionResolution` | Caminhos legados / híbridos | parcial — ainda ouvido no cliente |
+| `pendingRollState` | Resposta do `syncPendingRoll` | sim — heal UX |
 | `error` / `timeout` | Falha | sim |
 
 ### 8.4 Cliente — descarte por `actionSequence`
@@ -1075,13 +1084,14 @@ E o sistema mapeia isso para log + `actionOptions` via registry (não pelo model
 Entrada: `narrationText` + `stateHints` do motor. Saída:
 
 - `valid = true`: persiste normalmente
-- `valid = false`: grava evento `NarrationConsistencyRejected` + nota de mesa; **não** re-chama o LLM (adiado)
+- `valid = false`: aplica **remediação determinística** (heurística local) quando possível, grava evento `NarrationConsistencyRejected` + nota de mesa; **não** re-chama o LLM (adiado)
 
 ---
 
 ## Apêndice B.5 — Prompts OSS (spec técnico do que entra no modelo)
 
-> Aqui o foco é **o contrato do prompt** (estrutura + fontes), para auditoria e evolução.\n+> Os textos `system` são fixos/curtos e estão abaixo. O `userPrompt` é montado a partir de contexto em camadas (RAG + resumo + log compacto + ficha narrativa).
+> Aqui o foco é **o contrato do prompt** (estrutura + fontes), para auditoria e evolução.
+> Os textos `system` são fixos/curtos e estão abaixo. O `userPrompt` é montado a partir de contexto em camadas (RAG + resumo + log compacto + ficha narrativa).
 
 ### B.5.1 Seleção de fase e schema de saída
 
@@ -1311,7 +1321,14 @@ Limite intencional: o motor não implementa automaticamente “toda mecânica do
 
 1. Aloca `actionSequence` na sessão (MySQL).
 2. Cancela jobs waiting/delayed da mesma sessão com sequence menor (P4.3).
-3. Adiciona job: `{ sessionId, actionSequence, actionId, kind: 'action' | 'roll', ... }`.
+3. Adiciona job: `{ sessionId, actionSequence, actionId, kind: 'action' | 'roll', criticality?, ... }`.
+
+**Retry/backoff por criticidade (pós‑P5):**
+
+- Jobs com `criticality: 'critical'` recebem `attempts` + `backoff: exponential` no BullMQ.
+- Defaults via env (opcional):
+  - `NARRATION_CRITICAL_ATTEMPTS` (default 5)
+  - `NARRATION_CRITICAL_BACKOFF_MS` (default 2000)
 
 ### 9.2 Worker
 
@@ -1319,6 +1336,8 @@ Limite intencional: o motor não implementa automaticamente “toda mecânica do
 2. `tryClaimNarrationCompletion(actionId)` — skip se retry (P4.2).
 3. `processPlayerTurn({ executionSource: 'worker' })`.
 4. `persistNarrationTurn` com checks `isStaleBeforePersist` + skip mecânico.
+
+**Sem “erro prematuro” no retry:** o worker só emite `error/stopLoading` pro cliente no **último attempt**; antes disso o BullMQ reprocessa automaticamente.
 
 ### 9.3 Smoke
 
@@ -1363,7 +1382,8 @@ flowchart TD
     D -->|sim| F[mapMinimalToGameMasterShape]
     F --> G[strip mecânico narration_only]
     G --> H[validateNarrativeConsistency]
-    H -->|fail| I[nota + NarrationConsistencyRejected]
+    H -->|fail| I[remediateNarrationConsistency (determinístico)]
+    I --> K[nota + NarrationConsistencyRejected]
     H -->|ok| J[persist append-only]
 ```
 

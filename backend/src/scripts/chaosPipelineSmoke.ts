@@ -8,6 +8,7 @@ import { shouldEmitNarrationStream, NARRATION_STREAM_CANONICAL } from '../ai-oss
 import { applySnapshotToMemoryLayers } from '../services/narrativeSnapshotService.js';
 import { isNarrationQueuedResponse, buildQueuedNarrationAck } from '../queue/narrationDispatch.js';
 import { shouldSkipMechanicalPersistence } from '../narration/workerPersistencePolicy.js';
+import redisClient from '../database/redis-client.js';
 
 const steps: Array<{ name: string; run: () => void | Promise<void> }> = [
     {
@@ -64,3 +65,12 @@ for (const step of steps) {
     console.log(`[chaosPipelineSmoke] OK — ${step.name}`);
 }
 console.log(`[chaosPipelineSmoke] ${steps.length} checks passed`);
+
+try {
+    if (redisClient?.isOpen) {
+        await redisClient.quit();
+    }
+} finally {
+    // Em ambientes onde há handles pendentes, encerra explicitamente.
+    process.exit(0);
+}

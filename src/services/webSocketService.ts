@@ -54,6 +54,7 @@ function connect() {
     console.log('%c[WSS] ✅ Conexão estabelecida.', 'color: #4ade80');
     isConnecting = false;
     reconnectAttempts = 0;
+    emitEvent('connectionOpen', {});
 
     // Envia mensagens enfileiradas após reconexão
     messageQueue.forEach((msg) => socket?.send(JSON.stringify(msg)));
