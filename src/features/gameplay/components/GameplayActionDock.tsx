@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Dice5, Loader2 } from 'lucide-react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { resolveLoadingState } from '@/hooks/game/loadingLabels';
+import { isStateChangingBlocked } from '@/hooks/game/inputGate';
+import { useInputGate } from '@/hooks/game/useInputGate';
 import { DndButton } from '@/components/primitives';
 import { ActionBar } from './ActionBar';
 import { LoadingOracle } from './LoadingOracle';
@@ -43,6 +45,7 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
     setPendingStructuredIntent,
   } = useGameStateContext();
 
+  const gate = useInputGate();
   const [showStructuredTools, setShowStructuredTools] = useState(false);
 
   const loadingState = useMemo(
@@ -62,7 +65,18 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
   }, [combatState, character]);
 
   const isActionLocked =
-    Boolean(actionPhaseLabel) || isRollPending || !!pendingLootOffer || !!pendingHitDiceRequest || isLoading;
+    isStateChangingBlocked(gate) ||
+    Boolean(actionPhaseLabel) ||
+    isRollPending ||
+    !!pendingLootOffer ||
+    !!pendingHitDiceRequest ||
+    isLoading;
+
+  const statusLabel = useMemo(() => {
+    if (gate === 'LOCKED_NARRATING') return 'O motor validou. O Mestre descreve o desfecho…';
+    if (gate === 'LOCKED_MECHANICAL') return 'Resolvendo a ação…';
+    return loadingState.shortLabel ?? actionPhaseLabel ?? undefined;
+  }, [actionPhaseLabel, gate, loadingState.shortLabel]);
 
   const optionTexts = useMemo(
     () => collectOptionTexts(actionOptions),
@@ -203,7 +217,8 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
             {contextual.showSrdTools ? (
               <button
                 type="button"
-                className="ml-auto font-ui text-[10px] uppercase tracking-wider text-dnd-parchment-muted hover:text-dnd-gold"
+                className="ml-auto font-ui text-[10px] uppercase tracking-wider text-dnd-parchment-muted hover:text-dnd-gold disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isActionLocked}
                 onClick={() => setShowStructuredTools((v) => !v)}
               >
                 {showStructuredTools ? 'Ocultar SRD' : 'Ferramentas SRD'}
@@ -232,7 +247,7 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
       <ActionBar
         options={optionTexts}
         disabled={isActionLocked}
-        statusLabel={isActionLocked ? loadingState.shortLabel ?? actionPhaseLabel ?? undefined : undefined}
+        statusLabel={isActionLocked ? statusLabel : undefined}
         panelHeader={actionPanelHeader}
         onSelect={handleSelect}
         onFreeAction={onFreeAction}
