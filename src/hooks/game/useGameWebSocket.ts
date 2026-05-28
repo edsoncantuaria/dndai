@@ -3,7 +3,13 @@
 import { useEffect, type MutableRefObject } from 'react';
 import type { GameMasterResponse } from '@/types';
 import { addEventListener, removeEventListener } from '@/services/webSocketService';
-import { setTurnPipelinePhase } from '@/hooks/game/turnPipelineStore';
+import {
+    getTurnPipelinePhase,
+    setInputGate,
+    setTurnPipelinePhase,
+    type TurnPipelinePhase,
+} from '@/hooks/game/turnPipelineStore';
+import { deriveInputGate } from '@/hooks/game/inputGate';
 import type { useInteractionManager } from '../useInteractionManager';
 
 type InteractionSlice = Pick<
@@ -60,13 +66,46 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
     } = deps;
 
     useEffect(() => {
+        let phase: TurnPipelinePhase = getTurnPipelinePhase();
+        let isLoading = false;
+
+        const updateGate = (opts?: { nextPhase?: TurnPipelinePhase; rollOverride?: boolean; isLoadingOverride?: boolean }) => {
+            const nextPhase = opts?.nextPhase ?? phase;
+            const nextIsLoading = opts?.isLoadingOverride ?? isLoading;
+            setInputGate(
+                deriveInputGate({
+                    phase: nextPhase,
+                    hasPlayerRollRequest: opts?.rollOverride ?? Boolean(interactionState.playerRollRequest),
+                    hasPendingActions: pendingActionsRef.current.size > 0,
+                    isLoading: nextIsLoading,
+                }),
+            );
+        };
+
+        const setPhase = (next: TurnPipelinePhase) => {
+            phase = next;
+            setTurnPipelinePhase(next);
+            updateGate({ nextPhase: next });
+        };
+
+        const setLoading = (next: boolean) => {
+            isLoading = next;
+            setIsLoading(next);
+            updateGate({ isLoadingOverride: next });
+        };
+
+        const setLabel = (next: string | null) => {
+            setActionPhaseLabel(next);
+            updateGate();
+        };
+
         const releaseNarrationPipeline = () => {
             pendingActionsRef.current.clear();
             actionTimeoutsRef.current.forEach(timer => clearTimeout(timer));
             actionTimeoutsRef.current.clear();
-            setIsLoading(false);
+            setLoading(false);
             if (!interactionState.playerRollRequest) {
-                setActionPhaseLabel(null);
+                setLabel(null);
             }
         };
 
@@ -90,11 +129,11 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
                 !payload?.playerRollRequest
             ) {
                 releaseNarrationPipeline();
-                setTurnPipelinePhase('idle');
+                setPhase('idle');
                 return;
             }
             if (!interactionState.playerRollRequest && pendingActionsRef.current.size === 0) {
-                setActionPhaseLabel(null);
+                setLabel(null);
             }
         };
 
@@ -107,7 +146,7 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
                 pendingActionsRef.current.clear();
                 actionTimeoutsRef.current.forEach(timer => clearTimeout(timer));
                 actionTimeoutsRef.current.clear();
-                setActionPhaseLabel(null);
+                setLabel(null);
             }
             if (actionOptionsBackupRef.current) {
                 interactionState.setActionOptions(actionOptionsBackupRef.current);
@@ -118,18 +157,18 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
             }
         };
 
-        const updateLoadingState = () => setIsLoading(pendingActionsRef.current.size > 0);
+        const updateLoadingState = () => setLoading(pendingActionsRef.current.size > 0);
 
         const handleStartLoading = (payload?: { actionId?: string }) => {
             if (payload?.actionId) {
                 pendingActionsRef.current.add(payload.actionId);
                 updateLoadingState();
             } else {
-                setIsLoading(true);
+                setLoading(true);
             }
-            setActionPhaseLabel('Validando regras...');
+            setLabel('Validando regras...');
             if (interactionState.playerRollRequest) {
-                setTurnPipelinePhase('rolling');
+                setPhase('rolling');
             }
         };
 
@@ -140,10 +179,10 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
                 pendingActionsRef.current.clear();
                 actionTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
                 actionTimeoutsRef.current.clear();
-                setIsLoading(false);
+                setLoading(false);
             }
             if (pendingActionsRef.current.size === 0 && !interactionState.playerRollRequest) {
-                setActionPhaseLabel(null);
+                setLabel(null);
             }
         };
 
@@ -177,9 +216,9 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
                 });
             }
             if (payload?.status === 'needs_roll') {
-                setActionPhaseLabel('Aguardando rolagem do jogador');
+                setLabel('Aguardando rolagem do jogador');
                 if (pendingActionsRef.current.size === 0) {
-                    setIsLoading(false);
+                    setLoading(false);
                 }
             } else if (payload?.status === 'accepted') {
                 const awaitingRoll = Boolean(payload?.result?.playerRollRequest);
@@ -187,16 +226,16 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
                     (Array.isArray(payload?.result?.logEntries) && payload.result.logEntries.length > 0) ||
                     Boolean(payload?.result?.systemLog);
                 if (awaitingRoll) {
-                    setActionPhaseLabel('Aguardando rolagem do jogador');
+                    setLabel('Aguardando rolagem do jogador');
                 } else if (hasNarration && !interactionState.playerRollRequest) {
                     releaseNarrationPipeline();
                 } else {
-                    setActionPhaseLabel('Gerando narrativa...');
+                    setLabel('Gerando narrativa...');
                 }
             } else if (payload?.status === 'rejected') {
                 if (!interactionState.playerRollRequest && pendingActionsRef.current.size === 0) {
-                    setActionPhaseLabel(null);
-                    setIsLoading(false);
+                    setLabel(null);
+                    setLoading(false);
                 }
             }
             if (payload?.result) {
@@ -235,17 +274,17 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
                 },
                 false,
             );
-            setActionPhaseLabel('Regras aplicadas — gerando narração...');
-            setTurnPipelinePhase('mechanical');
+            setLabel('Regras aplicadas — gerando narração...');
+            setPhase('mechanical');
         };
 
         const handleNarrationLoading = (payload?: { actionId?: string }) => {
             if (payload?.actionId) {
                 pendingActionsRef.current.add(payload.actionId);
             }
-            setActionPhaseLabel('O Mestre está narrando...');
-            setIsLoading(true);
-            setTurnPipelinePhase('narrating');
+            setLabel('O Mestre está narrando...');
+            setLoading(true);
+            setPhase('narrating');
         };
 
         const handleNarrationStream = (payload?: {
@@ -258,7 +297,7 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
             if (payload?.canonical === true) return;
             if (payload?.kind === 'preview' && payload.text?.trim()) {
                 const snippet = payload.text.trim().slice(-160);
-                setActionPhaseLabel(snippet.length > 12 ? snippet : 'O Mestre está narrando...');
+                setLabel(snippet.length > 12 ? snippet : 'O Mestre está narrando...');
             }
         };
 
@@ -266,10 +305,10 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
             acceptActionSequence(payload, latestActionSequenceRef);
             if (payload?.actionId) {
                 pendingActionsRef.current.add(payload.actionId);
-                setIsLoading(true);
+                setLoading(true);
             }
-            setActionPhaseLabel('Narração na fila — aguarde...');
-            setTurnPipelinePhase('narrating');
+            setLabel('Narração na fila — aguarde...');
+            setPhase('narrating');
         };
 
         const handleNarrationCancelled = (payload?: {
@@ -281,9 +320,9 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
                 clearPendingAction(payload.actionId);
             }
             if (pendingActionsRef.current.size === 0 && !interactionState.playerRollRequest) {
-                setIsLoading(false);
-                setActionPhaseLabel(null);
-                setTurnPipelinePhase('idle');
+                setLoading(false);
+                setLabel(null);
+                setPhase('idle');
             }
         };
 
@@ -292,8 +331,9 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
                 clearPendingAction(payload.actionId);
             }
             if (pendingActionsRef.current.size === 0 && !interactionState.playerRollRequest) {
-                setActionPhaseLabel(null);
-                setIsLoading(false);
+                setLabel(null);
+                setLoading(false);
+                setPhase('idle');
             }
         };
 
@@ -313,8 +353,9 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
                 },
                 false,
             );
-            setTurnPipelinePhase('rolling');
-            setActionPhaseLabel('Aguardando rolagem do jogador');
+            setPhase('rolling');
+            setLabel('Aguardando rolagem do jogador');
+            updateGate({ nextPhase: 'rolling', rollOverride: true });
         };
 
         const handleSocketOpen = () => {
@@ -333,7 +374,7 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
             }
             updateLoadingState();
             if (!interactionState.playerRollRequest) {
-                setActionPhaseLabel(null);
+                setLabel(null);
             }
             toast({
                 variant: 'destructive',
@@ -344,6 +385,9 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
                 void loadGameSession(sessionId);
             }
         };
+
+        // Bootstrap do gate na montagem do hook (ex.: refresh com fase persistida no store).
+        updateGate({ nextPhase: phase });
 
         addEventListener('gameStateUpdate', handleGameStateUpdate);
         addEventListener('mechanicalStateUpdate', handleMechanicalStateUpdate);
