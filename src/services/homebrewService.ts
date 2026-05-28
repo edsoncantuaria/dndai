@@ -130,6 +130,15 @@ export const updateHomebrewContent = async (id: string, data: Partial<CreateHome
     return response.content;
 }
 
+export const getHomebrewDetails = async (id: string): Promise<HomebrewContent | null> => {
+    try {
+        const response = await apiClient<{ content: HomebrewContent }>(`/homebrew/${id}`, { method: 'GET' });
+        return response.content;
+    } catch {
+        return null;
+    }
+};
+
 export const getHomebrewDependencies = async (id: string): Promise<HomebrewContent[]> => {
     return apiClient<HomebrewContent[]>(`/homebrew/${id}/dependencies`);
 };
