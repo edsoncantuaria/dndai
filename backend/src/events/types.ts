@@ -17,6 +17,7 @@ export type GameEventType =
     | 'NarrationCompleted'
     | 'NarrationSkipped'
     | 'NarrationCancelled'
+    | 'NarrationConsistencyRejected'
     | 'NarrationFailed'
     | 'ProcessActionFailed';
 

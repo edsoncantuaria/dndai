@@ -45,7 +45,8 @@
     "scenario:intent": "node scripts/runIntentScenario.js",
     "test-session-reuse": "node scripts/testSessionReuse.js",
     "session:smoke": "tsx src/scripts/sessionSimulator.ts",
-    "chaos:smoke": "tsx src/scripts/chaosPipelineSmoke.ts"
+    "chaos:smoke": "tsx src/scripts/chaosPipelineSmoke.ts",
+    "worker:narration": "tsx src/narrationWorkerMain.ts"
   },
   "keywords": [
     "rpg",

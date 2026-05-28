@@ -28,6 +28,12 @@ import { enforceWorldStateLocation } from './regionMapValidation.js';
 import { prepareLogPayload } from './logPayload.js';
 import { buildWorldStateSnapshot } from './worldStateSnapshot.js';
 import { instrumentGameEvent } from '../services/gameEventInstrumentation.js';
+import {
+    type NarrationExecutionSource,
+    isStaleBeforePersist,
+    logStalePersistAbort,
+    shouldSkipMechanicalPersistence,
+} from './workerPersistencePolicy.js';
 
 export interface PersistNarrationTurnParams {
     sessao: SessaoIA;
@@ -50,6 +56,8 @@ export interface PersistNarrationTurnParams {
     latestNarrationSummary: string | null;
     sessionCacheKey: string;
     actionSequence?: number | null;
+    /** P5.2 — `worker` não grava combate/mecânica; apenas append narrativo. */
+    executionSource?: NarrationExecutionSource;
 }
 
 /** Transação de logs, homebrew, merge de personagem e memória vetorial (extraído de narrarService). */
@@ -75,7 +83,25 @@ export async function persistNarrationTurn(params: PersistNarrationTurnParams): 
         latestNarrationSummary,
         sessionCacheKey,
         actionSequence,
+        executionSource = 'sync',
     } = params;
+
+    if (await isStaleBeforePersist(sessao.id, actionSequence)) {
+        await logStalePersistAbort({
+            sessionId: sessao.id,
+            actionId,
+            actionSequence,
+            stage: 'pre_transaction',
+        });
+        return {
+            ...aiResponse,
+            stateVersion: sessao.stateVersion ?? undefined,
+            actionSequence: actionSequence ?? undefined,
+            systemLog: '[pipeline:narration-stale-abort]',
+        };
+    }
+
+    const skipMechanicalWrites = shouldSkipMechanicalPersistence(motorOwnsState, executionSource);
 
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect();
@@ -158,14 +184,31 @@ export async function persistNarrationTurn(params: PersistNarrationTurnParams): 
             await persistSessionLog('summary', 'Story Summary', newStorySummaryForLog);
         }
 
-        const canonicalStateToPersist = combatReconciliation?.canonicalState ?? null;
-        if (canonicalStateToPersist || loadedCombat.encounterId !== null) {
-            await saveCombatEncounterState(
-                queryRunner,
-                sessao.id,
-                loadedCombat.encounterId,
-                canonicalStateToPersist,
-            );
+        if (!skipMechanicalWrites) {
+            if (await isStaleBeforePersist(sessao.id, actionSequence)) {
+                await logStalePersistAbort({
+                    sessionId: sessao.id,
+                    actionId,
+                    actionSequence,
+                    stage: 'pre_combat_save',
+                });
+                await queryRunner.rollbackTransaction();
+                return {
+                    ...aiResponse,
+                    stateVersion: sessao.stateVersion ?? undefined,
+                    actionSequence: actionSequence ?? undefined,
+                    systemLog: '[pipeline:narration-stale-abort]',
+                };
+            }
+            const canonicalStateToPersist = combatReconciliation?.canonicalState ?? null;
+            if (canonicalStateToPersist || loadedCombat.encounterId !== null) {
+                await saveCombatEncounterState(
+                    queryRunner,
+                    sessao.id,
+                    loadedCombat.encounterId,
+                    canonicalStateToPersist,
+                );
+            }
         }
 
         if (aiResponse.logEntries) {

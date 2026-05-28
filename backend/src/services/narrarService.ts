@@ -822,6 +822,7 @@ export const processPlayerTurn = async (
     actionId?: string,
     narrationTtsOverride?: NarrationTtsSettings | null,
     actionSequence?: number,
+    executionSource: import('../narration/workerPersistencePolicy.js').NarrationExecutionSource = 'sync',
 ): Promise<GameMasterResponse> => {
     let isTestRun = false;
     let sessao: SessaoIA | null = null;
@@ -1207,39 +1208,51 @@ export const processPlayerTurn = async (
             }
         }
     } else if (!finalUsedFallback && motorOwnsState && !isTestRun && sessao) {
-        const { runMotorCombatPipeline } = await import('./combatMotorService.js');
-        const motorCombat = await runMotorCombatPipeline({
-            sessaoId: sessao.id,
-            encounterId: loadedCombat.encounterId,
-            stored: loadedCombat.state,
-            clientCombat: currentCombatState ?? null,
-            characterId: sessao.character?.id,
-        });
-        loadedCombat.state = motorCombat.canonicalState;
-        loadedCombat.encounterId = motorCombat.encounterId;
-        combatReconciliation = {
-            canonicalState: motorCombat.canonicalState,
-            publicState: motorCombat.publicState,
-            changed: motorCombat.changed,
-            telemetry: motorCombat.telemetry,
-        };
-        aiResponse.combatState = motorCombat.publicState as any;
-        for (const note of motorCombat.telemetry) {
-            appendSystemNote(aiResponse, note);
-        }
-        if (motorCombat.rewards) {
-            motorCombatRewards = motorCombat.rewards;
-            aiResponse.lootOffer = motorCombat.rewards.lootOffer as any;
-        }
-        if (motorCombat.combatEnded && sessao.character?.id) {
-            const charRepo = AppDataSource.getRepository(Character);
-            const fresh = await charRepo.findOne({
-                where: { id: sessao.character.id },
-                select: ['id', 'xp', 'level'],
+        if (executionSource === 'worker') {
+            loadedCombat = await loadCombatEncounterState(sessao.id);
+            combatReconciliation = {
+                canonicalState: null,
+                publicState: loadedCombat.state ? projectPublicCombatState(loadedCombat.state) : null,
+                changed: false,
+                telemetry: [],
+            };
+            aiResponse.combatState = combatReconciliation.publicState as any;
+            delete (aiResponse as { lootOffer?: unknown }).lootOffer;
+        } else {
+            const { runMotorCombatPipeline } = await import('./combatMotorService.js');
+            const motorCombat = await runMotorCombatPipeline({
+                sessaoId: sessao.id,
+                encounterId: loadedCombat.encounterId,
+                stored: loadedCombat.state,
+                clientCombat: currentCombatState ?? null,
+                characterId: sessao.character?.id,
             });
-            if (fresh) {
-                characterForAI.xp = fresh.xp ?? characterForAI.xp;
-                characterForAI.level = fresh.level ?? characterForAI.level;
+            loadedCombat.state = motorCombat.canonicalState;
+            loadedCombat.encounterId = motorCombat.encounterId;
+            combatReconciliation = {
+                canonicalState: motorCombat.canonicalState,
+                publicState: motorCombat.publicState,
+                changed: motorCombat.changed,
+                telemetry: motorCombat.telemetry,
+            };
+            aiResponse.combatState = motorCombat.publicState as any;
+            for (const note of motorCombat.telemetry) {
+                appendSystemNote(aiResponse, note);
+            }
+            if (motorCombat.rewards) {
+                motorCombatRewards = motorCombat.rewards;
+                aiResponse.lootOffer = motorCombat.rewards.lootOffer as any;
+            }
+            if (motorCombat.combatEnded && sessao.character?.id) {
+                const charRepo = AppDataSource.getRepository(Character);
+                const fresh = await charRepo.findOne({
+                    where: { id: sessao.character.id },
+                    select: ['id', 'xp', 'level'],
+                });
+                if (fresh) {
+                    characterForAI.xp = fresh.xp ?? characterForAI.xp;
+                    characterForAI.level = fresh.level ?? characterForAI.level;
+                }
             }
         }
     } else if (!finalUsedFallback && motorOwnsState) {
@@ -1389,7 +1402,7 @@ export const processPlayerTurn = async (
         if (xpResult.totalXpAwarded > 0) {
             notesPieces.push(xpResult.summaries.join(' '));
         }
-        if (combatReconciliation.telemetry.length) {
+        if (combatReconciliation?.telemetry?.length) {
             notesPieces.push(combatReconciliation.telemetry.join(' '));
         }
         if (aiResponse.systemLog) {
@@ -1619,6 +1632,29 @@ export const processPlayerTurn = async (
 
     await clearPendingRollRequest(sessao.id);
 
+    if (!isTestRun && sessao && motorOwnsState) {
+        const {
+            extractMainNarrationText,
+            validateNarrativeConsistency,
+        } = await import('./narrativeConsistencyValidator.js');
+        const { recordGameEvent } = await import('../events/recordGameEvent.js');
+        const narrationText = extractMainNarrationText(aiResponse);
+        const consistency = validateNarrativeConsistency(narrationText, normalizedStateHints);
+        if (!consistency.valid) {
+            appendSystemNote(
+                aiResponse,
+                `[Consistência] Ajuste narrativo recomendado: ${consistency.reason ?? 'contradição com o motor.'}`,
+            );
+            void recordGameEvent({
+                sessionId: sessao.id,
+                actionId: actionId ?? null,
+                type: 'NarrationConsistencyRejected',
+                stateVersion: sessao.stateVersion ?? null,
+                payload: { reason: consistency.reason, actionSequence: actionSequence ?? null },
+            }).catch(() => undefined);
+        }
+    }
+
     return persistNarrationTurn({
         sessao,
         userId,
@@ -1640,5 +1676,6 @@ export const processPlayerTurn = async (
         latestNarrationSummary,
         sessionCacheKey,
         actionSequence: actionSequence ?? null,
+        executionSource,
     });
 };

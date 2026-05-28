@@ -67,6 +67,7 @@ services:
       MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-chronicles}
       PIPER_HTTP_URL: http://piper:5500
       API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:8071/api}
+      SKIP_NARRATION_WORKERS: 'true'
     ports:
       - '8071:8071'
     entrypoint: ["/docker-entrypoint.sh"]
@@ -81,6 +82,34 @@ services:
       piper:
         condition: service_healthy
       qdrant:
+        condition: service_healthy
+
+  narration-worker-dev:
+    profiles: ['dev']
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    working_dir: /app
+    volumes:
+      - ./backend/src:/app/src
+    environment:
+      NODE_ENV: development
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-dndai}
+      DB_PASSWORD: ${DB_PASSWORD:-dndai_secret}
+      DB_NAME: ${DB_NAME:-dndai}
+      DB_SYNC: ${DB_SYNC:-true}
+      REDIS_URL: redis://redis:6379
+      AI_PIPELINE_MODE: narration_only
+      AI_ENGINE: oss
+      OPENROUTER_KEY1: ${OPENROUTER_KEY1:-}
+    entrypoint: ["/docker-entrypoint.sh"]
+    command: ["npx", "tsx", "watch", "src/narrationWorkerMain.ts"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   frontend-dev:

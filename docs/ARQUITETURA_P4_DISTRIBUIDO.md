@@ -1,6 +1,6 @@
 # P4 — Invariantes do sistema distribuído
 
-> Complementa `ARQUITETURA_JOGO_COMPLETA.md` e `ARQUITETURA_IA_COMPLETA.md` após P0/P2.
+> Complementa `ARQUITETURA_JOGO_COMPLETA.md` e `ARQUITETURA_IA_COMPLETA.md`. **Status:** P4.1–P4.8 ✅ (`TODO-ARQUITETURA.md`).
 
 O produto deixou de ser “LLM no hot path” e passou a ser **motor determinístico + renderização narrativa assíncrona** (BullMQ). Os riscos principais agora são **ordem**, **idempotência**, **cancelamento** e **observabilidade**.
 
@@ -79,12 +79,15 @@ processAction → motor → dispatchNarrationToQueue
 npm run chaos:smoke --prefix backend
 ```
 
-## Fora do P4 imediato
+## Próximo passo: P5
 
-- Session Actor / mailbox
-- Narrative consistency validator offline
+Roadmap ativo: **`TODO-ARQUITETURA.md` seção P5** · detalhe em **`ARQUITETURA_P5_RESILIENCIA.md`**
+
+Prioridade: isolamento do worker (P5.2) → split API/worker Docker (P5.1) → LLM produção (P5.3) → validador narrativo (P5.4).
+
+## Fora do P4/P5 imediato
+
+- Session Actor / mailbox (P3 / pós-P5.6)
 - Homebrew capability graph
 - Provider abstraction completa
-- Chaos tests automatizados
-
-Ver `TODO-ARQUITETURA.md` seção P4.
+- Chaos tests com crash real de Redis/worker (após P5.1)

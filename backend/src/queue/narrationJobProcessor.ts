@@ -46,10 +46,10 @@ async function processRollNarrationJob(job: NarrationJobPayload): Promise<void> 
 
     const t0 = performance.now();
     const { completeManualRollAndNarrate } = await import('../services/dm/dmTurnOrchestrator.js');
-    const { applyMotorPostRollEffects } = await import('../services/motorPostRollService.js');
     const { bumpSessionStateVersion } = await import('../action-pipeline/context.js');
-    const { AppDataSource } = await import('../database/data-source.js');
-    const { SessaoIA } = await import('../entities/SessaoIA.js');
+    const { loadCombatEncounterState, projectPublicCombatState } = await import(
+        '../services/combatStateService.js'
+    );
 
     const response = await completeManualRollAndNarrate({
         sessionId: job.sessionId,
@@ -62,6 +62,7 @@ async function processRollNarrationJob(job: NarrationJobPayload): Promise<void> 
         resolutionResult: job.resolutionResult ?? null,
         narrationTts: { narrationVoice: job.narrationVoice, narrationSpeed: job.narrationSpeed },
         actionSequence: job.actionSequence,
+        executionSource: 'worker',
     });
 
     const newStateVersion = await bumpSessionStateVersion(job.sessionId);
@@ -74,26 +75,12 @@ async function processRollNarrationJob(job: NarrationJobPayload): Promise<void> 
     };
 
     try {
-        const sessaoRow = await AppDataSource.getRepository(SessaoIA).findOne({
-            where: { id: job.sessionId },
-            select: ['id', 'characterId'],
-        });
-        const postRoll = await applyMotorPostRollEffects({
-            sessionId: job.sessionId,
-            pending: job.pending,
-            total: job.rollTotal ?? 0,
-            resolutionResult: job.resolutionResult ?? null,
-            combatState: job.combatState as never,
-        });
-        if (postRoll.motorCombat?.publicState !== undefined) {
-            enrichedResponse.combatState = postRoll.motorCombat.publicState as typeof enrichedResponse.combatState;
+        const loadedCombat = await loadCombatEncounterState(job.sessionId);
+        if (loadedCombat.state) {
+            enrichedResponse.combatState = projectPublicCombatState(loadedCombat.state) as typeof enrichedResponse.combatState;
         }
-        if (postRoll.motorCombat?.rewards?.lootOffer) {
-            enrichedResponse.lootOffer = postRoll.motorCombat.rewards.lootOffer;
-        }
-        void sessaoRow;
     } catch (err) {
-        console.warn('[narrationJobProcessor] motor pós-rolagem:', err);
+        console.warn('[narrationJobProcessor] leitura combate pós-narração:', err);
     }
 
     recordNarrationLatencyMs(performance.now() - t0);
@@ -134,6 +121,7 @@ async function processPlayerActionJob(job: NarrationJobPayload): Promise<void> {
         job.actionId,
         { narrationVoice: job.narrationVoice, narrationSpeed: job.narrationSpeed },
         job.actionSequence,
+        'worker',
     );
     recordNarrationLatencyMs(performance.now() - t0);
     instrumentGameEvent(job.sessionId, 'NarrationCompleted', {

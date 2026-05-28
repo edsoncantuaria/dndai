@@ -2,9 +2,9 @@
 
 Documento único e autocontido que descreve **todo** o ecossistema de inteligência artificial do jogo: princípios, fluxos, schemas, prompts, provedores, validação, memória, persistência e variáveis de ambiente. Destina-se a quem precisa entender ou auditar o sistema sem abrir dezenas de arquivos.
 
-**Última revisão alinhada ao código:** maio de 2026 (narração desacoplada via BullMQ, JSON OSS minimal sempre ativo, sem flags de arquitetura).
+**Última revisão alinhada ao código:** maio de 2026 (P0–P4 concluídos: motor síncrono + narração BullMQ, JSON OSS minimal fixo, `actionSequence`, idempotência, snapshot Redis, sem feature flags de arquitetura).
 
-**Complemento:** fluxo de jogo, WS, combate e infra — `ARQUITETURA_JOGO_COMPLETA.md` · Roadmap: `TODO-ARQUITETURA.md`
+**Complementos:** `ARQUITETURA_JOGO_COMPLETA.md` · `ARQUITETURA_P4_DISTRIBUIDO.md` · `ARQUITETURA_P5_RESILIENCIA.md` · `TODO-ARQUITETURA.md`
 
 ---
 
@@ -33,6 +33,7 @@ Documento único e autocontido que descreve **todo** o ecossistema de inteligên
 21. [Variáveis de ambiente](#21-variáveis-de-ambiente)
 22. [Índice de arquivos no repositório](#22-índice-de-arquivos-no-repositório)
 23. [Diagramas de referência](#23-diagramas-de-referência)
+24. [Sistema distribuído da narração (P4)](#24-sistema-distribuído-da-narração-p4)
 
 ---
 
@@ -118,14 +119,14 @@ Nem toda chamada a um LLM passa pelo mesmo caminho. Esta é a lista completa:
 | **Desfecho após dados 3D** | WS `submitRollResult` | `resolveStructuredRoll` → fila `kind: roll` → `completeManualRollAndNarrate` no worker |
 | **Intent com delta sem rolagem** | `handleStructuredIntent` | Delta + `mechanicalStateUpdate` → fila com prompt DM |
 | **Intent com rolagem** | `processAction` + `intent` | `issuePendingRollToPlayer` — **sem IA** até `submitRollResult` |
-| **Fallback REST** | `POST /api/sessions/:id/actions` | **Síncrono** via `actionService` (legado; UI usa WS) |
-| **Fallback sem Redis** | Handlers WS | `processPlayerTurn` inline só em testes (`REDIS_URL=mock`) |
+| **REST (P4.8)** | `POST /api/sessions/:id/actions` | Mesma fila que WS via `tryEnqueueRestNarration` quando Redis + `apiKey`; resposta `narration_queued` — cliente precisa de WS para `gameStateUpdate` |
+| **Fallback sem Redis** | Handlers WS / REST | `processPlayerTurn` inline (`REDIS_URL=mock` ou fila indisponível) |
 | **Classificador de ação livre** | Interno ao DM | `classifyFreeActionWithLlm` — JSON pequeno, modelo leve, **opcional** |
 | **Criação de homebrew** | HTTP / serviço | `aiCreationService` — JSON de item/criatura para API 5e |
 | **Embeddings / recall** | Interno | `vectorMemoryService` + OpenRouter embeddings → Qdrant |
 | **Imagem de cena** | Pós-persistência | `imageGenerationService` — opcional, não é o Mestre textual |
 
-O **hot path** do gameplay é: `processAction` (WebSocket) → DM → `processPlayerTurn` → OSS ou legado → persistência → `gameStateUpdate`.
+O **hot path** do gameplay é: `processAction` (WebSocket) → motor/DM **síncrono** → `dispatchNarrationToQueue` → worker BullMQ → `processPlayerTurn` → OSS ou legado → `persistNarrationTurn` (com claim idempotente) → `gameStateUpdate` + `narrationComplete`. O handler WS **não** chama `processPlayerTurn` quando a fila aceita o job.
 
 ---
 
@@ -136,8 +137,9 @@ O **hot path** do gameplay é: `processAction` (WebSocket) → DM → `processPl
 1. O jogador digita ação ou escolhe botão no dock (`GameplayActionDock`, ficha, combate).
 2. `useGameActions.processPlayerAction` monta payload e chama `sendMessage('processAction', { ... })`.
 3. Payload inclui: `contractVersion: 1`, `sessionId`, `prompt`, `intent` (opcional), `combatState`, `apiKey`, `model`, `useAiHomebrew`, `narrationVoice`, `narrationSpeed`, `actionId`, `clientStateVersion`, `clientInstanceId`, `actionCursor`.
-4. `useGameWebSocket` escuta: `actionAck`, **`mechanicalStateUpdate`**, `narrationLoading`, **`narrationQueued`**, `narrationStream`, `gameStateUpdate`, `actionResolution`, `narrationComplete`, `stopLoading`, `error`.
+4. `useGameWebSocket` escuta: `actionAck`, **`mechanicalStateUpdate`**, `narrationLoading`, **`narrationQueued`**, **`narrationCancelled`**, `narrationStream` (preview não canônico), `gameStateUpdate`, `actionResolution`, `narrationComplete`, `stopLoading`, `error`. Payloads relevantes incluem **`actionSequence`** (servidor).
 5. `turnPipelineStore` / `useTurnPipeline` — fases `idle` | `rolling` | `mechanical` | `narrating`.
+6. `latestActionSequenceRef` (P4.1) — descarta `gameStateUpdate` / `narrationComplete` com `actionSequence` menor que o último visto.
 
 ### 5.2 Backend WebSocket (`processAction`)
 
@@ -181,7 +183,7 @@ O DM não é um modelo separado: é **orquestração em código** que decide se 
 | Função | Papel |
 |--------|-------|
 | `processFreeActionWithDmFlow` | Texto livre; com `ws` enfileira narração em vez de `processPlayerTurn` inline |
-| `dispatchNarrationToQueue` | `queue/narrationDispatch.ts` — mecânico + BullMQ + WS |
+| `dispatchNarrationToQueue` | `queue/narrationDispatch.ts` — `allocateActionSequence`, cancela jobs obsoletos, mecânico + BullMQ + WS |
 | `tryClassifyAndIssueRoll` | Classifica e, se preciso, emite rolagem sem narrar |
 | `issuePendingRollToPlayer` | Salva rolagem pendente; resposta mínima com `playerRollRequest` |
 | `narrateAfterPlayerRoll` | Após dados 3D: monta prompt de desfecho e chama `processPlayerTurn` |
@@ -193,7 +195,7 @@ O DM não é um modelo separado: é **orquestração em código** que decide se 
 
 Ordem em `tryClassifyAndIssueRoll`:
 
-1. Se `DM_CLASSIFY_FREE_ACTION` ativo: **`inferSkillCheckFromFreeText`** (heurística em português + **`skillActionSemantics`** para corrigir perícia errada, ex.: “acrobacia para enganar” → Enganação).
+1. **`inferSkillCheckFromFreeText`** (sempre ativo — heurística em português + **`skillActionSemantics`** para corrigir perícia errada, ex.: “acrobacia para enganar” → Enganação).
 2. Se ainda sem intent e `DM_LLM_CLASSIFY` ativo e há API key: **`classifyFreeActionWithLlm`** (ver seção 18).
 3. **`validateActionIntent`** no motor.
 4. Se `needs_roll`: emite rolagem (3D ou auto-roll) e **retorna sem** `processPlayerTurn`.
@@ -219,7 +221,7 @@ Esse prompt composto vira o **`playerAction`** passado ao `processPlayerTurn` (n
 | Variável | Padrão | Efeito |
 |----------|--------|--------|
 | `DM_AUTO_ROLL` | `false` | Se `true`, servidor rola sozinho (sem modal 3D) |
-| `DM_CLASSIFY_FREE_ACTION` | **sempre ativo** | Heurística PT + `skillActionSemantics` (sem env) |
+| Heurística PT + `skillActionSemantics` | sempre no código | Sem env — `inferSkillCheckFromFreeText` |
 | `DM_LLM_CLASSIFY` | `true` | LLM auxiliar; `false` para economizar |
 | `DM_CLASSIFY_MODEL` | (opcional) | Modelo só para classificar |
 
@@ -314,6 +316,19 @@ Em `processPlayerTurn`, antes da IA:
 - `getCastSummaryForSession` — bloco de texto no prompt DM.
 - `getWorldPresenceHints` — ecos/rumores de outros jogadores na região (multiplayer assíncrono leve).
 
+### 8.6 Snapshot narrativo em Redis (P4.5)
+
+**Arquivo:** `backend/src/services/narrativeSnapshotService.ts`
+
+Camadas “pesadas” do contexto (resumo, timeline, região, fatos estáticos formatados) são cacheadas em Redis (`session:{id}:narrative_snapshot`) após `persistNarrationTurn`, com refresh a cada **`NARRATIVE_SNAPSHOT_EVERY_N_TURNS`** turnos (default 3).
+
+`buildNarrationContext` (`narration/contextBuilder.ts`) chama `getNarrativeSnapshot` e `applySnapshotToMemoryLayers` — reduz consultas SQL/Qdrant no worker quando o snapshot ainda é válido. Recall vetorial e fatos dinâmicos continuam sendo buscados quando a política de embedding permitir.
+
+| Env | Padrão | Função |
+|-----|--------|--------|
+| `NARRATIVE_SNAPSHOT_EVERY_N_TURNS` | 3 | Intervalo de rebuild |
+| `NARRATIVE_SNAPSHOT_TTL_SEC` | 3600 | TTL da chave Redis |
+
 ---
 
 ## 9. Dois motores de narração: OSS e legado
@@ -358,7 +373,8 @@ Até **`OSS_MAX_API_ATTEMPTS`** (2 no modo legado; **1** com minimal):
 3. Se `validationFeedback` anterior: anexa `CORRECAO: ...` ao user prompt.
 4. **`logOssPromptBundle`** — grava prompt completo para debug (telemetria).
 5. **Chamada API:**
-   - Se `OSS_STREAM_NARRATION=true` e há `actionId`: `streamOpenRouterChat` → eventos WS `narrationStream` (preview parcial da narração).
+   - Stream só se `shouldEmitNarrationStream` (`streamPolicy.ts`): `OSS_STREAM_NARRATION=true`, `actionId` e **sem** fila assíncrona no turno (preview com `canonical: false`).
+   - Com stream: `streamOpenRouterChat` → WS `narrationStream`.
    - Senão: `createOssModelAdapter` → `generateContent` síncrono.
 6. **Parse:** `parseOssJsonResponse` → `repairPass` (normalização de aspas, extração de JSON, etc.).
 7. Se parse falhou: **`runOssJsonOnlyRepair`** — mini-chamada só para consertar JSON (`OSS_JSON_ONLY_REPAIR`).
@@ -715,6 +731,16 @@ Fluxo: intent → motor → rolagem ou aceite → eventualmente IA só para narr
 
 **Arquivo:** `narration/persistence.ts` — `persistNarrationTurn`
 
+### 16.0 Idempotência (P4.2)
+
+Antes de gravar logs/fatos/XP na transação, o worker chama **`tryClaimNarrationPersistenceTx`** (`narrationIdempotencyService.ts`) na tabela **`narration_completions`** (unique `sessionId` + `actionId`).
+
+- Primeira execução: claim OK → persiste normalmente.
+- Retry BullMQ com mesmo `actionId`: claim falha → **não** duplica `SessionLog` nem fatos; o worker pode reemitir WS (cliente filtra por `actionSequence`).
+- `isNarrationPersistenceCompleted` evita rodar o LLM de novo se a persistência já terminou.
+
+### 16.1 Transação MySQL
+
 Transação MySQL:
 
 | Log type | Conteúdo |
@@ -737,6 +763,7 @@ Também:
 - `enforceWorldStateLocation` — valida região/POI se IA sugerir mudança (em modos que ainda passam worldState; em narration_only a IA não envia)
 - Invalidação de cache Redis de homebrew se necessário
 - Geração de imagem de cena assíncrona opcional
+- **`refreshNarrativeSnapshotIfDue`** — atualiza snapshot Redis (P4.5) quando o contador de turnos atinge o intervalo
 
 ---
 
@@ -800,12 +827,17 @@ Também:
 - Payload WS: `narrationVoice`, `narrationSpeed`
 - Gera áudio da narração e pode anexar `audioUrl` em log entries
 
-### 19.2 Streaming de narração
+### 19.2 Streaming de narração (P4.6)
 
-- `OSS_STREAM_NARRATION=true`
-- `registerNarrationStreamSink(actionId)` no WebSocket
-- Eventos: `narrationStream` com `kind: preview | structured | done`
-- Extração parcial: `extractStreamingNarrationPreview` enquanto JSON chega
+- **`streamPolicy.ts`:** `NARRATION_STREAM_CANONICAL = false` — o texto final vem sempre de `gameStateUpdate` após parse/validação.
+- `shouldEmitNarrationStream`: desligado quando há job BullMQ para o turno (narração assíncrona).
+- Com stream ativo: `registerNarrationStreamSink(actionId)` no WebSocket; eventos `narrationStream` com `kind: preview | structured | done` e `canonical: false`.
+- Frontend deve ignorar preview como fonte de log — só animação de loading.
+- Extração parcial: `extractStreamingNarrationPreview` enquanto JSON chega no handler síncrono.
+
+### 19.3 TTS no contrato WS
+
+Voz e velocidade via `narrationVoice` / `narrationSpeed` no `ProcessActionSchema`; tipos compartilhados em `backend/src/config/narrationTts.ts` e `src/lib/narrationTts.ts`. Repassados ao worker e a `synthesizeNarrationAudio` após persistência.
 
 ---
 
@@ -814,6 +846,7 @@ Também:
 | Mecanismo | Descrição |
 |-----------|-----------|
 | **Event log (P0.1)** | `recordGameEvent` — `IntentReceived`, `RollResolved`, `DeltaApplied`, `NarrationRequested`, `NarrationCompleted` |
+| **Pipeline trace (P4.4)** | `telemetry/pipelineTrace.ts` — logs `[PipelineTrace]` JSON (`narration:dispatch`, stale abort, etc.) |
 | **Admin replay** | `GET /api/admin/sessions/:sessionId/actions/:actionId/events` |
 | `[ActionFlow]` logs | Estágios do WS: received, phase, queued, finalized |
 | `actionObservabilityService` | traceId, intentHash, duração por fase |
@@ -824,7 +857,7 @@ Também:
 | `GET /api/admin/ai-metrics` | OpenRouter + objeto `pipeline` (snapshot latências) |
 | `OSS_TRACE_LOG=true` | Log verbose por traceId no pipeline OSS |
 
-Scripts npm: `session:smoke` (pipeline local), `ai:oss-smoke`, `ai:oss-benchmark`, `ai:oss-metrics`.
+Scripts npm: `session:smoke` (pipeline local), `chaos:smoke` (invariantes P4), `ai:oss-smoke`, `ai:oss-benchmark`, `ai:oss-metrics`.
 
 ---
 
@@ -874,6 +907,9 @@ Scripts npm: `session:smoke` (pipeline local), `ai:oss-smoke`, `ai:oss-benchmark
 | `NARRATION_BULL_CONCURRENCY` | 2 | Workers BullMQ no `server.ts` |
 | `NARRATIVE_LEVEL` | standard | Tamanho da prosa (`narrativeLevel.ts`) |
 | `REDIS_URL` | — | Obrigatório para fila; `mock` = síncrono em testes |
+| `NARRATIVE_SNAPSHOT_EVERY_N_TURNS` | 3 | Refresh do snapshot Redis (P4.5) |
+| `NARRATIVE_SNAPSHOT_TTL_SEC` | 3600 | TTL do snapshot |
+| `PIPELINE_TRACE` | false | Logs `[PipelineTrace]` verbosos (P4.4) |
 
 ### 21.5 Memória e infra
 
@@ -911,10 +947,17 @@ Scripts npm: `session:smoke` (pipeline local), `ai:oss-smoke`, `ai:oss-benchmark
 | `backend/src/narration/motorStateBridge.ts` | Strip campos motor |
 | `backend/src/websocket/webSocketServer.ts` | WS fino (roteamento) |
 | `backend/src/action-pipeline/*` | Handlers `processAction` / `submitRollResult` |
-| `backend/src/queue/narrationDispatch.ts` | Enfileirar + eventos WS |
-| `backend/src/queue/narrationJobProcessor.ts` | Worker: `processPlayerTurn` / roll |
+| `backend/src/queue/narrationDispatch.ts` | Enfileirar + `actionSequence` + cancelamento |
+| `backend/src/queue/narrationQueueCancel.ts` | Remove jobs obsoletos; WS `narrationCancelled` |
+| `backend/src/queue/narrationJobProcessor.ts` | Worker: stale check, idempotência, `processPlayerTurn` |
 | `backend/src/queue/narrationWorker.ts` | `startNarrationWorkers()` |
+| `backend/src/services/actionSequenceService.ts` | `allocateActionSequence`, `getLatestActionSequence` |
+| `backend/src/services/narrationIdempotencyService.ts` | Claim em `narration_completions` |
+| `backend/src/services/narrativeSnapshotService.ts` | Snapshot Redis do contexto |
+| `backend/src/services/restNarrationEnqueue.ts` | REST → mesma fila (P4.8) |
+| `backend/src/telemetry/pipelineTrace.ts` | Trace E2E (P4.4) |
 | `backend/src/events/recordGameEvent.ts` | Event log |
+| `backend/src/entities/NarrationCompletion.ts` | Idempotência persistência |
 
 ### 22.2 DM
 
@@ -965,6 +1008,7 @@ Scripts npm: `session:smoke` (pipeline local), `ai:oss-smoke`, `ai:oss-benchmark
 | `providers/OpenRouterManager.ts` | Pool de chaves |
 | `core/engineSwitch.ts` | AI_ENGINE |
 | `core/apiKeyResolve.ts` | Resolução de chave |
+| `core/streamPolicy.ts` | Stream não canônico + gate com fila |
 | `core/streamSwitch.ts` | OSS_STREAM |
 | `telemetry/ossPromptLog.ts` | Log de prompts |
 | `constants.ts` | Modelos |
@@ -993,10 +1037,12 @@ Scripts npm: `session:smoke` (pipeline local), `ai:oss-smoke`, `ai:oss-benchmark
 |---------|--------|
 | `src/hooks/newUseGameState.ts` | Orquestrador estado |
 | `src/hooks/game/useGameActions.ts` | processAction |
-| `src/hooks/game/useGameWebSocket.ts` | Handlers WS + mechanical/queued |
+| `src/hooks/game/useGameWebSocket.ts` | Handlers WS + mechanical/queued/cancelled + `actionSequence` |
+| `src/hooks/game/slices/useGameActionPipelineRefs.ts` | `latestActionSequenceRef` (P4.1) |
 | `src/hooks/game/turnPipelineStore.ts` | Fase do turno na UI |
 | `src/hooks/game/useTurnPipeline.ts` | Hook da fase |
 | `src/hooks/game/slices/*` | Slices de estado (F.2) |
+| `src/lib/narrationTts.ts` | Voz/velocidade Piper no payload WS |
 | `src/services/webSocketService.ts` | Conexão WS |
 | `src/features/gameplay/GameplayScreen.tsx` | UI jogo |
 | `src/components/DiceRollModal.tsx` | Dados 3D |
@@ -1010,20 +1056,25 @@ Scripts npm: `session:smoke` (pipeline local), `ai:oss-smoke`, `ai:oss-benchmark
 ```
 JOGADOR ──► WebSocket (action-pipeline)
                 │
-                ├─ MOTOR / DM (síncrono) ──► mechanicalStateUpdate
+                ├─ MOTOR / DM (síncrono) ──► mechanicalStateUpdate { actionSequence }
                 │
-                └─ dispatchNarrationToQueue ──► narrationQueued
+                └─ dispatchNarrationToQueue
+                       ├─ allocateActionSequence (+1)
+                       ├─ cancelStaleNarrationJobs → narrationCancelled
+                       └─ narrationQueued { actionSequence }
                             │
                             ▼
-                    BullMQ worker
+                    BullMQ worker (stale? abort)
                             │
                     processPlayerTurn
                             │
-              buildNarrationContext → runNarrationAiPhases (OSS/legacy)
+              buildNarrationContext (+ snapshot Redis)
                             │
-              stripMotor + persistNarrationTurn
+              runNarrationAiPhases (OSS/legacy)
                             │
-              gameStateUpdate + narrationComplete ──► Cliente
+              tryClaimNarrationPersistence → persistNarrationTurn
+                            │
+              gameStateUpdate + narrationComplete { actionSequence } ──► Cliente
 ```
 
 ### 23.2 Pipeline OSS interno
@@ -1063,10 +1114,34 @@ newFacts → SQL                     levelUpState, homebrew
 | **Motor** | Regras D&D 5e autoritativas em `rules/` e serviços associados |
 | **Intent** | Ação estruturada tipada (ataque, perícia, equipar, …) |
 | **narration_only** | IA só narra; estado mecânico no servidor |
-| **stateVersion** | Contador para sincronizar cliente e servidor |
+| **stateVersion** | Contador para sincronizar cliente e servidor (mecânico) |
+| **actionSequence** | Contador **servidor** por sessão; ordena entrega de narração (P4.1) |
+| **actionCursor** | Cursor **cliente** anti-replay de submit |
 | **playerRollRequest** | Pedido de rolagem ao jogador (dados 3D) |
+| **narration_queued** | Estado REST/WS: narração na fila; log final via WS |
 | **GameMasterFlowInput** | Pacote de entrada para o LLM |
 | **GameMasterResponse** | Pacote de saída para o cliente (após filtros) |
+
+---
+
+## 24. Sistema distribuído da narração (P4)
+
+Detalhe expandido: **`ARQUITETURA_P4_DISTRIBUIDO.md`**.
+
+| ID | Invariante | Onde |
+|----|-----------|------|
+| P4.1 | Narração obsoleta não entrega | `sessoes_ia.actionSequence`, worker abort, `latestActionSequenceRef` no cliente |
+| P4.2 | Retry não duplica persistência | `narration_completions` + claim em `persistNarrationTurn` |
+| P4.3 | Jobs obsoletos removidos | `narrationQueueCancel.ts`, WS `narrationCancelled` |
+| P4.4 | Trace E2E | `pipelineTrace.ts` + event log |
+| P4.5 | Snapshot narrativo | `narrativeSnapshotService.ts` (Redis) |
+| P4.6 | Stream não canônico | `streamPolicy.ts` |
+| P4.7 | Smoke de invariantes | `npm run chaos:smoke --prefix backend` |
+| P4.8 | REST na fila | `restNarrationEnqueue.ts` + `actionService` |
+
+**Roadmap ativo (P5):** `TODO-ARQUITETURA.md` · `ARQUITETURA_P5_RESILIENCIA.md`.
+
+**Fora do escopo imediato:** Session Actor, homebrew capability graph, chaos com crash real de Redis/worker (pós-P5.1).
 
 ---
 

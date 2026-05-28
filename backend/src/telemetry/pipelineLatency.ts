@@ -28,18 +28,28 @@ export function recordJsonRepairOutcome(success: boolean): void {
     else buckets.json_repair.fail += 1;
 }
 
+const JSON_REPAIR_ALERT_THRESHOLD = Number(process.env.JSON_REPAIR_ALERT_THRESHOLD ?? 0.15);
+
 export function getPipelineLatencySnapshot(): Record<string, unknown> {
     const avg = (arr: number[]) =>
         arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null;
     const totalRepairs = buckets.json_repair.ok + buckets.json_repair.fail;
+    const jsonRepairSuccessRate = totalRepairs > 0 ? buckets.json_repair.ok / totalRepairs : null;
+    const jsonRepairFailureRate = totalRepairs > 0 ? buckets.json_repair.fail / totalRepairs : null;
     return {
         mechanical_latency_ms_avg: avg(buckets.mechanical_ms),
         narration_latency_ms_avg: avg(buckets.narration_ms),
-        json_repair_rate:
-            totalRepairs > 0 ? buckets.json_repair.ok / totalRepairs : null,
+        json_repair_rate: jsonRepairSuccessRate,
+        json_repair_failure_rate: jsonRepairFailureRate,
+        json_repair_alert:
+            jsonRepairFailureRate != null && Number.isFinite(JSON_REPAIR_ALERT_THRESHOLD)
+                ? jsonRepairFailureRate > JSON_REPAIR_ALERT_THRESHOLD
+                : false,
+        json_repair_alert_threshold: JSON_REPAIR_ALERT_THRESHOLD,
         samples: {
             mechanical: buckets.mechanical_ms.length,
             narration: buckets.narration_ms.length,
+            json_repair: totalRepairs,
         },
     };
 }

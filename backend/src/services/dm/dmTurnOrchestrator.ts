@@ -129,6 +129,7 @@ export type NarrateAfterPlayerRollParams = {
     extraMotorHints?: string[];
     narrationTts?: NarrationTtsSettings | null;
     actionSequence?: number;
+    executionSource?: import('../narration/workerPersistencePolicy.js').NarrationExecutionSource;
 };
 
 /** Jogador já rolou no 3D; motor já aplicou efeitos — só narrar desfecho. */
@@ -203,6 +204,7 @@ export async function narrateAfterPlayerRoll(
         actionId,
         params.narrationTts,
         params.actionSequence,
+        params.executionSource ?? 'sync',
     );
 }
 
@@ -480,6 +482,7 @@ export async function completeManualRollAndNarrate(params: {
     resolutionResult?: RollResolutionResult | null;
     narrationTts?: NarrationTtsSettings | null;
     actionSequence?: number;
+    executionSource?: import('../narration/workerPersistencePolicy.js').NarrationExecutionSource;
 }): Promise<GameMasterResponse> {
     const rawRoll = computeRawRollFromValues(params.pending, params.diceValues);
     const modifier = params.pending.modifier || 0;
@@ -511,5 +514,6 @@ export async function completeManualRollAndNarrate(params: {
         resolutionResult: params.resolutionResult ?? null,
         narrationTts: params.narrationTts,
         actionSequence: params.actionSequence,
+        executionSource: params.executionSource ?? 'worker',
     });
 }

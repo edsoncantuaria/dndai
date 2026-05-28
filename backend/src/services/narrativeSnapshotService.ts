@@ -1,3 +1,4 @@
+import { gunzipSync, gzipSync } from 'zlib';
 import redisClient from '../database/redis-client.js';
 import { getStorySummary, buildTimelineFacts } from './storyService.js';
 import {
@@ -27,8 +28,28 @@ export type NarrativeSnapshotPayload = {
     builtAt: string;
 };
 
+const SNAPSHOT_COMPRESS_PREFIX = 'gz1:';
+const SNAPSHOT_COMPRESS_MIN_BYTES = 2048;
+const REGION_GRAPH_CACHE_PREFIX = 'region_graph:';
+
 function snapshotKey(sessionId: number): string {
     return `session:${sessionId}:narrative_snapshot`;
+}
+
+function encodeSnapshotBlob(payload: NarrativeSnapshotPayload): string {
+    const json = JSON.stringify(payload);
+    if (Buffer.byteLength(json, 'utf8') < SNAPSHOT_COMPRESS_MIN_BYTES) return json;
+    const compressed = gzipSync(Buffer.from(json, 'utf8'));
+    return `${SNAPSHOT_COMPRESS_PREFIX}${compressed.toString('base64')}`;
+}
+
+function decodeSnapshotBlob(raw: string): NarrativeSnapshotPayload {
+    if (raw.startsWith(SNAPSHOT_COMPRESS_PREFIX)) {
+        const b64 = raw.slice(SNAPSHOT_COMPRESS_PREFIX.length);
+        const json = gunzipSync(Buffer.from(b64, 'base64')).toString('utf8');
+        return JSON.parse(json) as NarrativeSnapshotPayload;
+    }
+    return JSON.parse(raw) as NarrativeSnapshotPayload;
 }
 
 function counterKey(sessionId: number): string {
@@ -42,7 +63,7 @@ export async function getNarrativeSnapshot(
     try {
         const raw = await redisClient.get(snapshotKey(sessionId));
         if (!raw) return null;
-        return JSON.parse(raw) as NarrativeSnapshotPayload;
+        return decodeSnapshotBlob(raw);
     } catch {
         return null;
     }
@@ -53,7 +74,7 @@ async function saveNarrativeSnapshot(
     payload: NarrativeSnapshotPayload,
 ): Promise<void> {
     if (!redisClient?.isOpen) return;
-    await redisClient.set(snapshotKey(sessionId), JSON.stringify(payload), {
+    await redisClient.set(snapshotKey(sessionId), encodeSnapshotBlob(payload), {
         EX: Number.isFinite(SNAPSHOT_TTL_SEC) ? SNAPSHOT_TTL_SEC : 3600,
     });
 }
@@ -76,7 +97,16 @@ export async function refreshNarrativeSnapshot(params: {
     const storySummary = (await getStorySummary(sessionId)) || undefined;
     const timelineFacts = (await buildTimelineFacts(sessionId)) || undefined;
     const regionContext = await resolveRegionContextForPrompt(character, characterForAI);
-    const regionGraphSummary = regionContext ? formatRegionGraphSummary(regionContext) : undefined;
+    let regionGraphSummary = regionContext ? formatRegionGraphSummary(regionContext) : undefined;
+    if (regionContext?.slug && redisClient?.isOpen) {
+        const regionKey = `${REGION_GRAPH_CACHE_PREFIX}${regionContext.slug}`;
+        if (regionGraphSummary) {
+            await redisClient.set(regionKey, regionGraphSummary.slice(0, 500), { EX: 86400 });
+        } else {
+            const cachedRegion = await redisClient.get(regionKey);
+            if (cachedRegion) regionGraphSummary = cachedRegion;
+        }
+    }
 
     const facts = await queryRelevantFacts(sessionId, {
         regionSlug: regionContext?.slug,

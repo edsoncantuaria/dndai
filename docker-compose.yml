@@ -7,7 +7,7 @@
 #
 # Stack completa em container (teste de produção):
 #   docker compose --profile full up -d --build
-# Narração: BullMQ no Redis; worker sobe junto com o backend (sem serviço extra).
+# Narração: BullMQ no Redis. Profile `full`: API (SKIP_NARRATION_WORKERS) + narration-worker.
 #
 # URLs (dev local): http://localhost:9002 · http://localhost:8071/api/health
 
@@ -176,6 +176,7 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       AI_PIPELINE_MODE: ${AI_PIPELINE_MODE:-narration_only}
+      SKIP_NARRATION_WORKERS: 'true'
       QDRANT_ENABLED: ${QDRANT_ENABLED:-false}
       QDRANT_URL: http://qdrant:6333
       QDRANT_VECTOR_SIZE: ${QDRANT_VECTOR_SIZE:-2048}
@@ -201,6 +202,39 @@ services:
       timeout: 5s
       retries: 18
       start_period: 120s
+
+  narration-worker:
+    profiles: ['full']
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ['npx', 'tsx', 'src/narrationWorkerMain.ts']
+    environment:
+      NODE_ENV: production
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-dndai}
+      DB_PASSWORD: ${DB_PASSWORD:-dndai_secret}
+      DB_NAME: ${DB_NAME:-dndai}
+      DB_SYNC: 'false'
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      AI_PIPELINE_MODE: ${AI_PIPELINE_MODE:-narration_only}
+      AI_ENGINE: ${AI_ENGINE:-oss}
+      OPENROUTER_PREFER_SERVER_KEYS: ${OPENROUTER_PREFER_SERVER_KEYS:-true}
+      OPENROUTER_KEY1: ${OPENROUTER_KEY1:-}
+      OPENROUTER_KEY2: ${OPENROUTER_KEY2:-}
+      OPENROUTER_KEY3: ${OPENROUTER_KEY3:-}
+      OPENROUTER_KEY4: ${OPENROUTER_KEY4:-}
+      <<: *media-env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
 
   frontend:
     profiles: ['full']

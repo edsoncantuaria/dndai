@@ -50,7 +50,6 @@ import {
     recordOssGenerationAttempt,
 } from '../telemetry/requestMetrics.js';
 import { recordJsonRepairOutcome } from '../../telemetry/pipelineLatency.js';
-import { recordJsonRepairOutcome } from '../../telemetry/pipelineLatency.js';
 import { logOssPromptBundle } from '../telemetry/ossPromptLog.js';
 
 type GenerationConfig = z.infer<typeof GenerationConfigSchema>;

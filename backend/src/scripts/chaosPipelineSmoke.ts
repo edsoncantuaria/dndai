@@ -7,6 +7,7 @@ import { isStaleNarrationSequence, setCachedActionSequence } from '../services/a
 import { shouldEmitNarrationStream, NARRATION_STREAM_CANONICAL } from '../ai-oss/core/streamPolicy.js';
 import { applySnapshotToMemoryLayers } from '../services/narrativeSnapshotService.js';
 import { isNarrationQueuedResponse, buildQueuedNarrationAck } from '../queue/narrationDispatch.js';
+import { shouldSkipMechanicalPersistence } from '../narration/workerPersistencePolicy.js';
 
 const steps: Array<{ name: string; run: () => void | Promise<void> }> = [
     {
@@ -47,6 +48,13 @@ const steps: Array<{ name: string; run: () => void | Promise<void> }> = [
         name: 'queued ack marker',
         run: () => {
             assert.equal(isNarrationQueuedResponse(buildQueuedNarrationAck()), true);
+        },
+    },
+    {
+        name: 'P5 worker skip mechanical persist',
+        run: () => {
+            assert.equal(shouldSkipMechanicalPersistence(true, 'worker'), true);
+            assert.equal(shouldSkipMechanicalPersistence(true, 'sync'), false);
         },
     },
 ];

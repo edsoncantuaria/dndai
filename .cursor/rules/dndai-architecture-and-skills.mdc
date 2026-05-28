@@ -12,7 +12,8 @@ Estas melhorias estão **sempre ligadas** no código — não usar env para “a
 | Capacidade | Onde |
 |------------|------|
 | Split mecânico × narrativo | `mechanicalStateUpdate` antes da narração |
-| Fila BullMQ + worker no `server.ts` | `backend/src/queue/` |
+| Fila BullMQ | `backend/src/queue/` — dev: mesmo processo; prod: `SKIP_NARRATION_WORKERS` + `npm run worker:narration` |
+| Worker append-only mecânico (P5) | `executionSource: worker` — não persiste combate/ficha; só logs/fatos |
 | JSON minimalista OSS | `OssMinimalNarrationSchema` + registry de `actionOptions` |
 | Motor autoritativo | `AI_PIPELINE_MODE=narration_only` |
 
@@ -40,3 +41,4 @@ Se a tarefa tocar qualquer linha acima, **ler a skill** (não improvisar). Roadm
 
 - `docs/ARQUITETURA_JOGO_COMPLETA.md`
 - `docs/ARQUITETURA_IA_COMPLETA.md`
+- `docs/ARQUITETURA_P5_RESILIENCIA.md`

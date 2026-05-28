@@ -2,9 +2,9 @@
 
 Documento único e autocontido que descreve **toda** a arquitetura do produto: frontend, backend, motor de regras, tempo real, dados, mundo, combate, sessões e infraestrutura. Complementa o documento de IA (`ARQUITETURA_IA_COMPLETA.md` no mesmo diretório), que detalha exclusivamente prompts, schemas e pipelines do Mestre virtual.
 
-**Última revisão alinhada ao código:** maio de 2026 (pós-P0/P2: pipeline WS extraído, narração BullMQ, split mecânico sempre ativo, sem feature flags de arquitetura).
+**Última revisão alinhada ao código:** maio de 2026 (P0–P4 concluídos: pipeline WS, BullMQ, split mecânico fixo, `actionSequence`, idempotência, snapshot narrativo, REST na fila — sem feature flags de arquitetura).
 
-**Roadmap concluído:** `TODO-ARQUITETURA.md` · **Regra Cursor:** `.cursor/rules/dndai-architecture-and-skills.mdc`
+**Complementos:** `ARQUITETURA_IA_COMPLETA.md` · `ARQUITETURA_P4_DISTRIBUIDO.md` · `ARQUITETURA_P5_RESILIENCIA.md` · `TODO-ARQUITETURA.md` · **Regra Cursor:** `.cursor/rules/dndai-architecture-and-skills.mdc`
 
 ---
 
@@ -37,6 +37,7 @@ Documento único e autocontido que descreve **toda** a arquitetura do produto: f
 25. [Índice de pastas no repositório](#25-índice-de-pastas-no-repositório)
 26. [Diagramas de referência](#26-diagramas-de-referência)
 27. [Glossário](#27-glossário)
+28. [Sistema distribuído (P4)](#28-sistema-distribuído-p4)
 
 ---
 
@@ -169,7 +170,7 @@ Transições típicas:
 | Contexto | Responsabilidade |
 |----------|------------------|
 | **AuthContext** | `user`, login/registro, licença, API key, logout |
-| **SettingsContext** | modelo LLM, TTS, volume, homebrew, voz/speed Piper (`narrationTts`) |
+| **SettingsContext** | modelo LLM, TTS Piper (`narrationVoice` / `narrationSpeed` via `src/lib/narrationTts.ts`), volume, homebrew |
 | **GameStateContext** | Fachada de `useNewGameState` — tudo que a partida precisa |
 | **HubNavigationContext** | Navegação entre telas do hub (opcional v2) |
 
@@ -187,7 +188,8 @@ Combina:
 | Ações | `useGameActions` | `processPlayerAction`, `submitRollResult`, level-up, loot, shop |
 | WS | `useGameWebSocket` | listeners de eventos do servidor |
 | Turn pipeline | `turnPipelineStore`, `useTurnPipeline` | Fases UI: `idle` → `rolling` → `mechanical` → `narrating` |
-| Slices (F.2) | `hooks/game/slices/*` | `useGameSessionSlice`, `useGameNarrationSlice`, `useGameCombatSlice`, refs do pipeline |
+| Slices (F.2) | `hooks/game/slices/*` | `useGameSessionSlice`, `useGameNarrationSlice`, `useGameCombatSlice` |
+| Pipeline refs (P4.1) | `useGameActionPipelineRefs` | `latestActionSequenceRef` — descarta WS narrativo obsoleto |
 
 Estado principal exposto:
 
@@ -326,7 +328,7 @@ Ordem de inicialização:
 | `/api/roll-requests` | consulta rolagens pendentes (HTTP auxiliar) |
 | `/api/images` | geração/consulta de imagens de cena |
 | `/api/srd` | proxy/health SRD local |
-| `/api/sessions` | `POST /:sessionId/actions` — **REST fallback** do mesmo pipeline de ação |
+| `/api/sessions` | `POST /:sessionId/actions` — mesmo motor; narração via fila quando Redis + `apiKey` (P4.8) |
 | `/api/translations` | i18n para UI |
 | `/api/health` | status + SRD + media + TTS |
 | `/api/admin/ai-metrics` | métricas OpenRouter + snapshot `pipeline` (latência mecânico/narração, `json_repair_rate`) |
@@ -383,7 +385,7 @@ Entidade: `session_cast_members` — papéis `pc | npc | ally | enemy`, vínculo
 | **`narrationQueued`** | Job BullMQ aceito; cliente mantém loading até `narrationComplete` |
 | **`narrationCancelled`** | Job obsoleto removido da fila (ação mais nova); libera loading da ação antiga |
 | `narrationStream` | Preview de narração (`OSS_STREAM_NARRATION`) |
-| `gameStateUpdate` | `GameMasterResponse` + `stateVersion` (após worker ou fallback síncrono) |
+| `gameStateUpdate` | `GameMasterResponse` + `stateVersion` + `actionSequence` (após worker ou fallback síncrono) |
 | `actionResolution` | Fechamento formal (`accepted`, `needs_roll`, etc.) |
 | `narrationComplete` | Narração terminou; libera UI |
 | `stopLoading` / `startLoading` | Loading por `actionId` / `requestId` |
@@ -403,11 +405,13 @@ Validado por Zod (`schemas/processActionSchema.ts`):
 - `clientStateVersion`, `actionId`, `clientInstanceId`, `actionCursor`
 - `narrationVoice`, `narrationSpeed` — repassados ao TTS pós-narração
 
-### 9.4 Concorrência e cancelamento
+### 9.4 Concorrência, ordem e cancelamento
 
 - `activeActions` — ações em voo; desconexão cancela via `cancelledActions`.
 - `actionPhaseService` — fases persistidas: RECEIVED, NORMALIZED, RULES, AI_SYNTHESIS, DELTA_APPLIED.
-- `sessionRuntimeService` — lease por `clientInstanceId` e cursor monotônico anti-replay.
+- `sessionRuntimeService` — lease por `clientInstanceId` e **`actionCursor`** monotônico anti-replay de submit.
+- **`actionSequence` (P4.1)** — contador em `sessoes_ia`, incrementado ao enfileirar narração; distinto de `stateVersion` e `actionCursor`. Propagado em `narrationQueued`, `mechanicalStateUpdate`, `gameStateUpdate`, `narrationComplete`.
+- **Cancelamento de fila (P4.3):** nova narração chama `cancelStaleNarrationJobsForSession` e emite `narrationCancelled` + `stopLoading` para `actionId` supersedido; jobs em execução abortam no worker ao detectar sequence stale.
 
 ---
 
@@ -449,9 +453,19 @@ submitRollResult:
 
 **Event log (P0.1):** `recordGameEvent` em `IntentReceived`, `RollResolved`, `DeltaApplied`, `NarrationRequested`, `NarrationCompleted` (persistência em `action_logs`).
 
-### 10.1 REST paralelo (legado)
+**Trace (P4.4):** `logPipelineTrace` em pontos críticos (`narration:dispatch`, abort stale, etc.).
 
-`POST /api/sessions/:sessionId/actions` via `actionService` — **ainda síncrono** (narração no request HTTP). O gameplay principal usa WebSocket + fila. Migrar REST é débito opcional fora do P0.
+### 10.1 REST e fila (P4.8)
+
+`POST /api/sessions/:sessionId/actions` via `actionService`:
+
+1. Motor/DM roda **no request** (como o WS).
+2. Se Redis disponível e há `apiKey`, `tryEnqueueRestNarration` enfileira igual ao WebSocket.
+3. Resposta HTTP inclui `status: narration_queued`, `actionSequence` e `systemLog: [pipeline:narration-queued]`.
+4. O cliente **deve** ouvir WebSocket para `gameStateUpdate` narrativo (REST não bloqueia até o LLM terminar).
+5. Sem Redis ou sem chave: fallback **síncrono** (`processPlayerTurn` no request).
+
+O gameplay principal continua sendo **WebSocket**; REST cobre integrações e testes HTTP.
 
 ---
 
@@ -472,7 +486,7 @@ Com **`ws`** presente, `processFreeActionWithDmFlow` **não** chama `processPlay
 | Variável | Padrão | Efeito |
 |----------|--------|--------|
 | `DM_AUTO_ROLL` | `false` | Servidor rola sem modal 3D |
-| `DM_CLASSIFY_FREE_ACTION` | sempre ativo no código | Heurística PT + `skillActionSemantics` |
+| Heurística + `skillActionSemantics` | sempre no código | `inferSkillCheckFromFreeText` (sem env) |
 | `DM_LLM_CLASSIFY` | `true` | Classificador LLM auxiliar; `false` para economizar |
 
 Detalhe de prompts: `ARQUITETURA_IA_COMPLETA.md` §6.
@@ -695,7 +709,10 @@ Cada sessão tem elenco dinâmico:
 | `userId` | Dono |
 | `characterId` | PJ ativo |
 | `homebrewContentIds` | Pacotes instalados na sessão |
-| `stateVersion` | Contador de sincronização |
+| `stateVersion` | Contador de sincronização mecânica |
+| `actionSequence` | Contador servidor para ordenar narração na fila (P4.1) |
+| `actionCursor` | Cursor anti-replay de ações do cliente |
+| `currentActionId` / `currentActionPhase` | Ação em voo e fase observável |
 | `leaseOwnerClientId` / `leaseExpiresAt` | Lease de cliente único (opcional) |
 | `lastHeartbeatAt` | Heartbeat de sessão |
 
@@ -793,7 +810,8 @@ Agrupamento das 38 entidades TypeORM em `backend/src/entities/`:
 
 | Entidade | Papel |
 |----------|-------|
-| SessaoIA | Sessão de jogo |
+| SessaoIA | Sessão de jogo (`stateVersion`, `actionSequence`, `actionCursor`) |
+| NarrationCompletion | Idempotência P4.2 — unique `(sessionId, actionId)` |
 | SessionLog | Log persistente (ação, narração, state, gm_raw) |
 | SessionFact | Fatos atômicos validados |
 | StorySummary | Resumo rolling |
@@ -857,16 +875,25 @@ Entradas de log no cliente recebem `stateVersion` para evitar duplicatas ao reco
 ### 22.3 Lease e cursor
 
 - `clientInstanceId` — identifica aba/dispositivo.
-- `actionCursor` — monotônico; `validateAndPersistActionCursor` evita ações duplicadas fora de ordem.
+- `actionCursor` — monotônico **no cliente**; `validateAndPersistActionCursor` evita submits duplicados fora de ordem.
 - `heartbeatSessionLeaseOrThrow` — sessão exclusiva opcional por cliente.
 
-### 22.4 Patch de personagem no cliente
+### 22.4 `actionSequence` (P4.1)
+
+| Conceito | Papel |
+|----------|-------|
+| `sessoes_ia.actionSequence` | Incrementado em `allocateActionSequence` ao enfileirar narração |
+| Worker BullMQ | Aborta se `job.actionSequence < getLatestActionSequence(sessionId)` |
+| Cliente | `latestActionSequenceRef` em `useGameWebSocket` — ignora `gameStateUpdate` / `narrationComplete` antigos |
+| vs `stateVersion` | `stateVersion` = revisão de estado mecânico; `actionSequence` = ordem de **entrega narrativa** |
+
+### 22.5 Patch de personagem no cliente
 
 `patchCharacter` / `characterPatch.ts` — merge parcial de `updatedCharacter` vindo do servidor sem substituir ficha inteira.
 
-`mechanicalStateUpdate` aplica patch mecânico **antes** do log narrativo chegar no `gameStateUpdate`.
+`mechanicalStateUpdate` aplica patch mecânico **antes** do log narrativo chegar no `gameStateUpdate` (ambos podem carregar `actionSequence`).
 
-### 22.5 Event log (P0.1)
+### 22.6 Event log (P0.1)
 
 - **API:** `backend/src/events/` — `recordGameEvent`, tipos `GameEventType`.
 - **Armazenamento:** reutiliza `action_logs` (tabela dedicada `session_game_events` adiada — ⏸ no roadmap).
@@ -926,10 +953,13 @@ Compose principal: `docker-compose.yml` (projeto `dndai`).
 | NARRATION_BULL_CONCURRENCY | Workers BullMQ (default 2) |
 | NARRATIVE_LEVEL | `ultra-compact` \| `compact` \| `standard` \| `cinematic` |
 | SESSION_FACT_TTL_* | TTL por tier de `SessionFact` (P2.3) |
+| NARRATIVE_SNAPSHOT_EVERY_N_TURNS | Refresh snapshot Redis (P4.5, default 3) |
+| NARRATIVE_SNAPSHOT_TTL_SEC | TTL snapshot (default 3600) |
+| PIPELINE_TRACE | Logs `[PipelineTrace]` JSON (P4.4) |
 | ACTION_TIMEOUT_MS | Timeout WS |
 | ACTION_FLOW_DEBUG | Logs `[ActionFlow]` |
 
-**Removidos / não usar:** `MECHANICAL_NARRATIVE_SPLIT`, `ASYNC_NARRATION_*`, `OSS_MINIMAL_NARRATION`, `NARRATION_WORKER_INLINE`, fila Redis `redis-list` — capacidades equivalentes **sempre ligadas** no código.
+**Removidos / não reintroduzir:** `MECHANICAL_NARRATIVE_SPLIT`, `ASYNC_NARRATION_*`, `OSS_MINIMAL_NARRATION`, `DM_CLASSIFY_FREE_ACTION` (env), `NARRATION_WORKER_INLINE`, fila Redis `redis-list`, `NARRATION_QUEUE_DRIVER=redis-list` — o código usa **BullMQ** e comportamentos **sempre ativos** (`isMechanicalNarrativeSplitEnabled()` e `isOssMinimalNarrationEnabled()` retornam `true` fixo).
 
 ### 24.2 Frontend
 
@@ -958,12 +988,13 @@ dndai/
 ├── backend/src/
 │   ├── server.ts                 # HTTP + WS + startNarrationWorkers()
 │   ├── action-pipeline/          # handlers WS (P0.5)
-│   ├── queue/                    # BullMQ, narrationDispatch, job processor
+│   ├── queue/                    # BullMQ, dispatch, cancel, job processor
 │   ├── events/                   # event log append-only
 │   ├── combat/                   # FSM combatPhase (P0.4)
+│   ├── telemetry/                # pipelineTrace, pipelineLatency
 │   ├── routes/ controllers/ middlewares/
 │   ├── websocket/                # webSocketServer fino, mechanicalUpdate, registry
-│   ├── services/                 # domínio (dm, combat, inventário…)
+│   ├── services/                 # domínio + P4 (actionSequence, idempotency, snapshot, restEnqueue)
 │   ├── rules/                    # motor 5e
 │   ├── narration/                # contexto + persistência narrativa
 │   ├── ai-oss/                   # pipeline IA OSS
@@ -1037,18 +1068,24 @@ loading → main_menu ⇄ session_list
 │  CLIENTE   │ ── processAction ─►│ action-pipeline  │
 └────────────┘                    └────────┬─────────┘
       ▲                                    │
-      │ mechanicalStateUpdate              ▼
+      │ mechanicalStateUpdate {seq}        ▼
       │◄─────────────────────────── MOTOR (rules)
-      │ narrationQueued                    │
+      │ narrationQueued {seq}              │
+      │ narrationCancelled (obsoleto)      ▼
+      │                         allocateActionSequence
+      │                         cancel stale jobs
       │                                    ▼
       │                            BullMQ (Redis)
       │                                    │
-      │         gameStateUpdate            ▼
+      │    gameStateUpdate {seq}           ▼
       └──────────────────────── narrationJobProcessor
+                                   (stale? abort)
                                          │
-                                    processPlayerTurn (IA)
+                                   claim idempotency
                                          │
-                                    MySQL + event log
+                                   processPlayerTurn (IA)
+                                         │
+                                   MySQL + snapshot Redis
 ```
 
 ---
@@ -1074,7 +1111,34 @@ loading → main_menu ⇄ session_list
 | **Lease** | Bloqueio opcional de sessão a um cliente/aba |
 | **mechanicalStateUpdate** | WS com delta mecânico antes da prosa |
 | **narrationQueued** | WS indicando job na fila BullMQ |
+| **narrationCancelled** | WS — narração supersedida; libera loading da ação antiga |
+| **actionSequence** | Ordem servidor da narração (P4.1) |
+| **actionCursor** | Ordem cliente anti-replay de submit |
 | **turnPipelinePhase** | Estado UI do turno no cliente (`idle`…`narrating`) |
+| **narration_queued** | Status REST — aguardar WS para log narrativo |
+
+---
+
+## 28. Sistema distribuído (P4)
+
+O jogo em produção segue o modelo **motor determinístico + renderização narrativa assíncrona**. Referência detalhada: **`ARQUITETURA_P4_DISTRIBUIDO.md`**.
+
+| Componente | Arquivo |
+|------------|---------|
+| Enfileiramento + sequence | `queue/narrationDispatch.ts`, `services/actionSequenceService.ts` |
+| Cancelamento | `queue/narrationQueueCancel.ts` |
+| Worker | `queue/narrationJobProcessor.ts` |
+| Idempotência | `services/narrationIdempotencyService.ts`, `entities/NarrationCompletion.ts` |
+| Snapshot contexto IA | `services/narrativeSnapshotService.ts` |
+| REST na fila | `services/restNarrationEnqueue.ts` |
+| Trace | `telemetry/pipelineTrace.ts` |
+| Smoke P4 | `npm run chaos:smoke --prefix backend` |
+
+**Migration obrigatória em deploy:** `1743000000000-ActionSequenceNarrationCompletion.ts` (`actionSequence` + `narration_completions`).
+
+**Roadmap ativo (P5):** `TODO-ARQUITETURA.md` · `ARQUITETURA_P5_RESILIENCIA.md`.
+
+**Não implementado (P3):** Session Actor, Kafka, MMO.
 
 ---
 

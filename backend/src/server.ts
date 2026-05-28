@@ -159,8 +159,15 @@ const startServer = async () => {
         // Configurar o servidor WebSocket, passando o servidor HTTP
         configureWebSocket(server);
 
-        const { startNarrationWorkers } = await import('./queue/narrationWorker.js');
-        startNarrationWorkers();
+        const skipNarrationWorkers = ['1', 'true', 'yes', 'on'].includes(
+            (process.env.SKIP_NARRATION_WORKERS ?? '').trim().toLowerCase(),
+        );
+        if (skipNarrationWorkers) {
+            console.log('[Startup] SKIP_NARRATION_WORKERS — consumidor BullMQ não iniciado neste processo.');
+        } else {
+            const { startNarrationWorkers } = await import('./queue/narrationWorker.js');
+            startNarrationWorkers();
+        }
 
         server.listen(PORT, () => {
             console.log(`Servidor HTTP e WebSocket rodando em http://localhost:${PORT}`);
