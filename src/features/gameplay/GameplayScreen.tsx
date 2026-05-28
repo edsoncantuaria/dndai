@@ -26,6 +26,8 @@ import { GameplaySidePanelContent } from './components/GameplaySidePanelContent'
 import { GameplayFreeActionSheet } from './GameplayFreeActionSheet';
 import { LoadingOracle } from './components/LoadingOracle';
 import { useGameplayScrollLock } from '@/hooks/useGameplayScrollLock';
+import { isStateChangingBlocked } from '@/hooks/game/inputGate';
+import { useInputGate } from '@/hooks/game/useInputGate';
 
 export interface GameplayScreenProps {
   returnToMenu: () => void;
@@ -56,6 +58,7 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
 
   const { toast } = useToast();
   const { hasSeenGuidedTips, setHasSeenGuidedTips } = useSettingsContext();
+  const gate = useInputGate();
 
   const [freeActionOpen, setFreeActionOpen] = useState(false);
   const [freeText, setFreeText] = useState('');
@@ -123,10 +126,14 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
   const handleFreeSubmit = useCallback(() => {
     const text = freeText.trim();
     if (!text) return;
+    if (isStateChangingBlocked(gate)) {
+      toast({ description: 'Aguarde: o Mestre está resolvendo a última ação.' });
+      return;
+    }
     processPlayerAction(text);
     setFreeText('');
     setFreeActionOpen(false);
-  }, [freeText, processPlayerAction]);
+  }, [freeText, gate, processPlayerAction, toast]);
 
   if (isLoading && !character) {
     return (
@@ -269,6 +276,7 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
           value={freeText}
           onChange={setFreeText}
           onSubmit={handleFreeSubmit}
+          disabled={isStateChangingBlocked(gate)}
         />
 
         <WorldMapModal

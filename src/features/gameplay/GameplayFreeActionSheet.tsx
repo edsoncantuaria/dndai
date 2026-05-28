@@ -9,6 +9,7 @@ export interface GameplayFreeActionSheetProps {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  disabled?: boolean;
 }
 
 export function GameplayFreeActionSheet({
@@ -17,6 +18,7 @@ export function GameplayFreeActionSheet({
   value,
   onChange,
   onSubmit,
+  disabled,
 }: GameplayFreeActionSheetProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -27,6 +29,7 @@ export function GameplayFreeActionSheet({
   }, [open]);
 
   const handleSubmit = () => {
+    if (disabled) return;
     if (!value.trim()) return;
     onSubmit();
   };
@@ -44,7 +47,9 @@ export function GameplayFreeActionSheet({
         onChange={(e) => onChange(e.target.value)}
         rows={4}
         className="min-h-[100px]"
+        disabled={disabled}
         onKeyDown={(e) => {
+          if (disabled) return;
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
             e.preventDefault();
             handleSubmit();
@@ -62,7 +67,7 @@ export function GameplayFreeActionSheet({
           variant="ember"
           className="min-h-[48px] flex-1"
           onClick={handleSubmit}
-          disabled={!value.trim()}
+          disabled={Boolean(disabled) || !value.trim()}
         >
           Enviar
         </DndButton>
