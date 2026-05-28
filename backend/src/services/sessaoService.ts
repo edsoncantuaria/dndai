@@ -228,6 +228,7 @@ export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>
     novaSessao.apiKey = '';
     novaSessao.homebrewContentIds = Array.from(allDependentIds);
     novaSessao.actionCursor = 0;
+    novaSessao.actionSequence = 0;
 
     const sessaoSalva = await sessaoRepository.save(novaSessao);
     await acquireSessionLeaseOrThrow({

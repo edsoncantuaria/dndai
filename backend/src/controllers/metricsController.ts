@@ -14,6 +14,7 @@ import {
 } from '../ai-oss/telemetry/ossRedisMetrics.js';
 import { enrichObservabilitySnapshot } from '../ai-oss/telemetry/ossObservability.js';
 import { getOssGenerationCounters } from '../ai-oss/telemetry/requestMetrics.js';
+import { getPipelineLatencySnapshot } from '../telemetry/pipelineLatency.js';
 
 export const getWarningMetrics = (_req: Request, res: Response, _next: NextFunction) => {
     const lines = [
@@ -58,5 +59,6 @@ export const getOpenRouterMetricsHandler = async (_req: Request, res: Response) 
         ossStreamEnabled: ['1', 'true', 'yes', 'on'].includes(
             (process.env.OSS_STREAM_NARRATION ?? 'false').trim().toLowerCase(),
         ),
+        pipeline: getPipelineLatencySnapshot(),
     });
 };

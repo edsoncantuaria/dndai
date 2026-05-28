@@ -25,15 +25,11 @@ export const isDmAutoRollEnabled = (): boolean =>
         (process.env.DM_AUTO_ROLL ?? 'false').trim().toLowerCase(),
     );
 
-export const isDmFreeActionClassificationEnabled = (): boolean =>
-    !['0', 'false', 'no', 'off'].includes(
-        (process.env.DM_CLASSIFY_FREE_ACTION ?? 'true').trim().toLowerCase(),
-    );
+export const isDmFreeActionClassificationEnabled = (): boolean => true;
 
+/** Classificação LLM de texto livre (custo extra); desligar só com DM_LLM_CLASSIFY=false explícito. */
 export const isDmLlmClassificationEnabled = (): boolean =>
-    !['0', 'false', 'no', 'off'].includes(
-        (process.env.DM_LLM_CLASSIFY ?? 'true').trim().toLowerCase(),
-    );
+    !['0', 'false', 'no', 'off'].includes((process.env.DM_LLM_CLASSIFY ?? 'true').trim().toLowerCase());
 
 const ROLL_TYPE_MAP: Record<ActionIntent['type'], PlayerRollRequest['rollType']> = {
     'weapon-attack': 'attack',
@@ -132,6 +128,7 @@ export type NarrateAfterPlayerRollParams = {
     resolutionResult?: RollResolutionResult | null;
     extraMotorHints?: string[];
     narrationTts?: NarrationTtsSettings | null;
+    actionSequence?: number;
 };
 
 /** Jogador já rolou no 3D; motor já aplicou efeitos — só narrar desfecho. */
@@ -186,6 +183,15 @@ export async function narrateAfterPlayerRoll(
         preRolled.total,
     );
 
+    const { shouldAllowCombatNarration } = await import('../../combat/combatPhaseService.js');
+    if (!(await shouldAllowCombatNarration(sessionId))) {
+        return {
+            logEntries: [],
+            actionOptions: [],
+            systemLog: '[Motor] Narração adiada — aguardando fase AWAITING_NARRATION do combate.',
+        };
+    }
+
     return processPlayerTurn(
         sessionId,
         userId,
@@ -196,6 +202,7 @@ export async function narrateAfterPlayerRoll(
         [legacyRollLine, ...motorHints],
         actionId,
         params.narrationTts,
+        params.actionSequence,
     );
 }
 
@@ -294,6 +301,8 @@ export type ProcessFreeActionWithDmParams = {
     useAiHomebrew?: boolean;
     actionId?: string;
     narrationTts?: NarrationTtsSettings | null;
+    /** Quando presente, narração vai para fila BullMQ (não bloqueia WS). */
+    ws?: import('ws').WebSocket;
 };
 
 async function applySkillContextToIntent(
@@ -395,6 +404,32 @@ export async function processFreeActionWithDmFlow(
         combatActive: Boolean(combatState?.isActive),
     });
 
+    const resolvedId = actionId ?? uuidv4();
+    const { isNarrationQueueAvailable } = await import('../../queue/narrationJobQueue.js');
+    if (params.ws || isNarrationQueueAvailable()) {
+        const { dispatchNarrationToQueue, buildQueuedNarrationAck } = await import(
+            '../../queue/narrationDispatch.js'
+        );
+        const { getSessionStateVersion } = await import('../../action-pipeline/context.js');
+        const queued = await dispatchNarrationToQueue({
+            ws: params.ws,
+            sessionId,
+            userId,
+            actionId: resolvedId,
+            stateVersion: getSessionStateVersion(sessionId),
+            job: {
+                kind: 'action',
+                playerAction: prompt,
+                apiKey,
+                combatState: combatState ?? undefined,
+                useAiHomebrew,
+                narrationVoice: params.narrationTts?.narrationVoice as string | undefined,
+                narrationSpeed: params.narrationTts?.narrationSpeed as string | undefined,
+            },
+        });
+        if (queued) return buildQueuedNarrationAck();
+    }
+
     return processPlayerTurn(
         sessionId,
         userId,
@@ -444,6 +479,7 @@ export async function completeManualRollAndNarrate(params: {
     useAiHomebrew?: boolean;
     resolutionResult?: RollResolutionResult | null;
     narrationTts?: NarrationTtsSettings | null;
+    actionSequence?: number;
 }): Promise<GameMasterResponse> {
     const rawRoll = computeRawRollFromValues(params.pending, params.diceValues);
     const modifier = params.pending.modifier || 0;
@@ -474,5 +510,6 @@ export async function completeManualRollAndNarrate(params: {
         actionId: params.pending.context?.actionId,
         resolutionResult: params.resolutionResult ?? null,
         narrationTts: params.narrationTts,
+        actionSequence: params.actionSequence,
     });
 }

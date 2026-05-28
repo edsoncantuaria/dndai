@@ -18,6 +18,10 @@ import {
     resolveRegionContextForPrompt,
     type RegionPromptContext,
 } from './regionContext.js';
+import {
+    applySnapshotToMemoryLayers,
+    getNarrativeSnapshot,
+} from '../services/narrativeSnapshotService.js';
 
 const MAX_MEMORY_LINES = 5;
 
@@ -86,31 +90,40 @@ const collectQuestIds = (characterForAI: Record<string, unknown>): string[] => {
 export async function buildNarrationContext(input: NarrationContextInput): Promise<NarrationContext> {
     const { sessionId, character, characterForAI, playerAction, compactGameLog, apiKey, isTestRun } = input;
 
-    let storySummary: string | undefined;
-    let timelineFacts: string | undefined;
-    if (!isTestRun) {
+    const snapshot = !isTestRun ? await getNarrativeSnapshot(sessionId) : null;
+
+    let storySummary: string | undefined = snapshot?.storySummary;
+    let timelineFacts: string | undefined = snapshot?.timelineFacts;
+    if (!isTestRun && !storySummary) {
         storySummary = (await getStorySummary(sessionId)) || undefined;
+    }
+    if (!isTestRun && !timelineFacts) {
         timelineFacts = (await buildTimelineFacts(sessionId)) || undefined;
     }
 
     const regionContext = !isTestRun
         ? await resolveRegionContextForPrompt(character, characterForAI)
         : null;
-    const regionGraphSummary = regionContext ? formatRegionGraphSummary(regionContext) : undefined;
+    const regionGraphSummary =
+        snapshot?.regionGraphSummary ??
+        (regionContext ? formatRegionGraphSummary(regionContext) : undefined);
 
-    const memoryLayers: string[] = [];
-    if (storySummary) memoryLayers.push(`Resumo=${storySummary.slice(0, 400)}`);
-    if (timelineFacts) memoryLayers.push(`Timeline=${timelineFacts.slice(0, 400)}`);
+    const dynamicLayers: string[] = [];
 
-    if (!isTestRun) {
+    if (!snapshot?.staticMemoryBlock && !isTestRun) {
         const facts = await queryRelevantFacts(sessionId, {
-            regionSlug: regionContext?.slug,
+            regionSlug: regionContext?.slug ?? snapshot?.regionSlug,
             npcIds: collectNpcIds(characterForAI),
             questIds: collectQuestIds(characterForAI),
             limit: 10,
         });
         const factsBlock = formatFactsForPrompt(facts);
-        if (factsBlock) memoryLayers.push(`Fatos conhecidos:\n${factsBlock}`);
+        if (factsBlock) dynamicLayers.push(`Fatos conhecidos:\n${factsBlock}`);
+    }
+
+    if (!snapshot?.staticMemoryBlock) {
+        if (storySummary) dynamicLayers.unshift(`Resumo=${storySummary.slice(0, 400)}`);
+        if (timelineFacts) dynamicLayers.unshift(`Timeline=${timelineFacts.slice(0, 400)}`);
     }
 
     if (!isTestRun) {
@@ -132,18 +145,18 @@ export async function buildNarrationContext(input: NarrationContextInput): Promi
             );
             const recallBlock = formatMemoriesForPrompt(memories);
             if (recallBlock) {
-                memoryLayers.push(
+                dynamicLayers.push(
                     `${env.QDRANT_ENABLED && isQdrantReady() && semanticRecall ? 'Recall vetorial (Qdrant)' : 'Memórias (backlog/SQL)'}:\n${recallBlock}`,
                 );
             } else if (policyNote) {
-                memoryLayers.push(policyNote);
+                dynamicLayers.push(policyNote);
             }
         } catch (error) {
             console.error('[contextBuilder] Falha no recall de memórias:', error);
         }
     }
 
-    const layeredMemorySummary = memoryLayers.length ? memoryLayers.join('\n\n') : undefined;
+    const layeredMemorySummary = applySnapshotToMemoryLayers(snapshot, dynamicLayers);
     const enrichedGameLog = layeredMemorySummary
         ? `${compactGameLog}\n\nMEMORIA_CAMADAS=\n${layeredMemorySummary}`
         : compactGameLog;

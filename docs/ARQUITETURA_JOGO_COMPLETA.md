@@ -2,7 +2,9 @@
 
 Documento único e autocontido que descreve **toda** a arquitetura do produto: frontend, backend, motor de regras, tempo real, dados, mundo, combate, sessões e infraestrutura. Complementa o documento de IA (`ARQUITETURA_IA_COMPLETA.md` no mesmo diretório), que detalha exclusivamente prompts, schemas e pipelines do Mestre virtual.
 
-**Última revisão alinhada ao código:** maio de 2026.
+**Última revisão alinhada ao código:** maio de 2026 (pós-P0/P2: pipeline WS extraído, narração BullMQ, split mecânico sempre ativo, sem feature flags de arquitetura).
+
+**Roadmap concluído:** `TODO-ARQUITETURA.md` · **Regra Cursor:** `.cursor/rules/dndai-architecture-and-skills.mdc`
 
 ---
 
@@ -83,19 +85,25 @@ O jogador **não edita regras por chat**: ações mecânicas passam por **intent
                                 │ HTTPS + WSS (JWT)
 ┌───────────────────────────────▼─────────────────────────────────────────┐
 │ CAMADA DE API (backend/src/)                                             │
-│  server.ts — Express + configureWebSocket                                │
-│  routes/* — REST                                                         │
-│  controllers/* — handlers                                                │
-│  middlewares — auth, errors                                              │
+│  server.ts — Express + WS + startNarrationWorkers() (BullMQ)             │
+│  action-pipeline/* — processAction, submitRollResult (P0.5)              │
+│  routes/* — REST · events/recordGameEvent (P0.1)                         │
 └───────────────────────────────┬─────────────────────────────────────────┘
                                 │
         ┌───────────────────────┼───────────────────────┐
         ▼                       ▼                       ▼
 ┌───────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │ ORQUESTRAÇÃO  │     │ MOTOR DE REGRAS │     │ NARRAÇÃO + IA   │
-│ WS, DM,       │     │ rules/*         │     │ narrarService,  │
-│ actionService │     │ stateDelta      │     │ ai-oss/*        │
+│ DM, fila      │     │ rules/*         │     │ narrarService,  │
+│ narrationDispatch│  │ stateDelta, FSM │     │ ai-oss/*        │
 └───────────────┘     └─────────────────┘     └─────────────────┘
+        │                       │                       │
+        └───────────────────────┼───────────────────────┘
+                                ▼
+                    ┌───────────────────────┐
+                    │ Redis — BullMQ fila   │
+                    │ narrationJobProcessor │
+                    └───────────────────────┘
         │                       │                       │
         └───────────────────────┼───────────────────────┘
                                 ▼
@@ -178,13 +186,15 @@ Combina:
 | Sessão | `useGameSession` | carregar sessão, `handleApiResponse`, criar personagem, WebSocket init |
 | Ações | `useGameActions` | `processPlayerAction`, `submitRollResult`, level-up, loot, shop |
 | WS | `useGameWebSocket` | listeners de eventos do servidor |
+| Turn pipeline | `turnPipelineStore`, `useTurnPipeline` | Fases UI: `idle` → `rolling` → `mechanical` → `narrating` |
+| Slices (F.2) | `hooks/game/slices/*` | `useGameSessionSlice`, `useGameNarrationSlice`, `useGameCombatSlice`, refs do pipeline |
 
 Estado principal exposto:
 
 - `character`, `sessionId`, `log`, `actionOptions`
 - `combatState`, `playerRollRequest`, `skillCheckRequest`, `spellCastRequest`
 - `levelUpState`, `shopState`, `pendingLootOffer`, `pendingHitDiceRequest`
-- `isLoading`, `actionPhaseLabel`, `apiError`, `progressionFeed`, `ambientSound`
+- `isLoading`, `actionPhaseLabel`, `turnPipelinePhase`, `apiError`, `progressionFeed`, `ambientSound`
 
 ### 5.3 `useInteractionManager`
 
@@ -293,8 +303,9 @@ Ordem de inicialização:
 4. `ensureDefaultSpawnRegions` — regiões de spawn para novas sessões.
 5. `checkObjectStorageHealth` — MinIO.
 6. `ensureQdrantCollections` — se `QDRANT_ENABLED`.
-7. `configureWebSocket(server)` — mesmo processo HTTP.
-8. `listen(PORT)` — padrão via `env.PORT` (8071 em dev Docker).
+7. `configureWebSocket(server)` — mesmo processo HTTP (~130 linhas; delega para `action-pipeline/`).
+8. `startNarrationWorkers()` — consumidor BullMQ da fila de narração (mesmo processo que a API).
+9. `listen(PORT)` — padrão via `env.PORT` (8071 em dev Docker).
 
 ### 8.2 Mapa de rotas REST
 
@@ -318,8 +329,9 @@ Ordem de inicialização:
 | `/api/sessions` | `POST /:sessionId/actions` — **REST fallback** do mesmo pipeline de ação |
 | `/api/translations` | i18n para UI |
 | `/api/health` | status + SRD + media + TTS |
-| `/api/admin/ai-metrics` | métricas OpenRouter |
-| `/metrics` | métricas Prometheus-style (se configurado) |
+| `/api/admin/ai-metrics` | métricas OpenRouter + snapshot `pipeline` (latência mecânico/narração, `json_repair_rate`) |
+| `/api/admin/sessions/:sessionId/actions/:actionId/events` | replay de eventos por ação (P0.1.4) |
+| `/metrics` | métricas Prometheus-style; `/metrics/ai-pipeline` snapshot interno |
 
 Todas as rotas de sessão/personagem exigem **auth**, salvo health público.
 
@@ -341,7 +353,17 @@ Entidade: `session_cast_members` — papéis `pc | npc | ally | enemy`, vínculo
 
 ## 9. WebSocket: protocolo em tempo real
 
-**Arquivo:** `backend/src/websocket/webSocketServer.ts`
+**Transporte:** `backend/src/websocket/webSocketServer.ts` — autenticação JWT, heartbeat, roteamento por `type`.
+
+**Pipeline de ação (P0.5):** `backend/src/action-pipeline/`
+
+| Arquivo | Responsabilidade |
+|---------|------------------|
+| `processActionHandler.ts` | `processAction` — intent, texto livre, enfileiramento |
+| `submitRollResultHandler.ts` | `submitRollResult` — motor + fila de narração |
+| `structuredIntentHandler.ts` | `handleStructuredIntent` — regras, delta, rolagem |
+| `context.ts` | `stateVersion`, telemetria de fase, `emitActionRelease` |
+| `types.ts` | Tipos do WS autenticado |
 
 ### 9.1 Tipos de mensagem (cliente → servidor)
 
@@ -356,16 +378,21 @@ Entidade: `session_cast_members` — papéis `pc | npc | ally | enemy`, vínculo
 | type | Quando |
 |------|--------|
 | `actionAck` | Ação recebida |
-| `narrationLoading` | IA começou a processar |
-| `narrationStream` | Preview de narração (OSS stream) |
-| `gameStateUpdate` | Payload `GameMasterResponse` + `stateVersion` |
-| `actionResolution` | Fechamento formal da ação com status |
-| `narrationComplete` | Libera UI de “narrando” |
-| `stopLoading` / `startLoading` | Estados de loading por `actionId` |
+| **`mechanicalStateUpdate`** | Estado mecânico aplicado **antes** da narração (HP, combate, entidades — sem log narrativo obrigatório) |
+| `narrationLoading` | Narração iniciada (fila ou síncrona) |
+| **`narrationQueued`** | Job BullMQ aceito; cliente mantém loading até `narrationComplete` |
+| **`narrationCancelled`** | Job obsoleto removido da fila (ação mais nova); libera loading da ação antiga |
+| `narrationStream` | Preview de narração (`OSS_STREAM_NARRATION`) |
+| `gameStateUpdate` | `GameMasterResponse` + `stateVersion` (após worker ou fallback síncrono) |
+| `actionResolution` | Fechamento formal (`accepted`, `needs_roll`, etc.) |
+| `narrationComplete` | Narração terminou; libera UI |
+| `stopLoading` / `startLoading` | Loading por `actionId` / `requestId` |
 | `timeout` | Ação excedeu `ACTION_TIMEOUT_MS` |
 | `error` | Falha (`STATE_DESYNC`, rolagem pendente, etc.) |
 | `characterUpdate` | Resposta a `getCharacter` |
 | `connectionClosed` | (evento interno cliente) |
+
+O cliente trata `mechanicalStateUpdate` e `narrationQueued` em `useGameWebSocket.ts` e atualiza `turnPipelinePhase` via `turnPipelineStore`.
 
 ### 9.3 Contrato `processAction`
 
@@ -386,51 +413,45 @@ Validado por Zod (`schemas/processActionSchema.ts`):
 
 ## 10. Ciclo de uma ação (pipeline completo)
 
+**Princípio:** mecânico **síncrono** no handler WS; narração LLM **assíncrona** via BullMQ (Redis). Sem flags — comportamento fixo no código.
+
 ```
-JOGADOR (UI)
-    │
-    ├─ Botão estruturado ──► monta intent ──► processAction { intent }
-    │
-    └─ Texto livre ────────► processAction { prompt }
-                │
-                ▼
-         webSocketServer
-                │
-    ┌───────────┴───────────┐
-    │ intent presente?      │
-    └───────────┬───────────┘
-          sim   │   não
-                │    └──► dmTurnOrchestrator.processFreeActionWithDmFlow
-                │              ├─ classificar perícia?
-                │              ├─ emitir playerRollRequest (3D)
-                │              └─ ou processPlayerTurn (IA)
-                ▼
-         validateActionIntent (motor)
-                │
-    ┌───────────┼───────────┐
-    │ rejected  │ needs_roll│ accepted
-    ▼           ▼           ▼
-  erro      issuePending   applyResultingStateDelta
-            ou auto-roll       + eventual IA
-            ▼
-         [Jogador rola 3D]
-            ▼
-         submitRollResult
-            ▼
-         resolveStructuredRoll (motor)
-            ▼
-         completeManualRollAndNarrate
-            ▼
-         processPlayerTurn (IA)
-            ▼
-         persistNarrationTurn
-            ▼
-         gameStateUpdate + stateVersion
+JOGADOR (UI) ──► processAction / submitRollResult
+        │
+        ▼
+ action-pipeline/ (handler WS)
+        │
+        ├─ intent? ──► handleStructuredIntent
+        │       ├─ rejected → error
+        │       ├─ needs_roll → playerRollRequest (para; sem IA)
+        │       ├─ accepted + delta → mechanicalStateUpdate → enqueue narração → narrationQueued
+        │       └─ DM_AUTO_ROLL → auto-roll síncrono (exceção de teste)
+        │
+        └─ texto livre ──► processFreeActionWithDmFlow(ws)
+                ├─ classificar → needs_roll → playerRollRequest
+                └─ senão → dispatchNarrationToQueue → narrationQueued (return)
+
+submitRollResult:
+        resolveStructuredRoll (motor)
+        ├─ follow-up roll → novo playerRollRequest
+        ├─ shouldNarrate=false → só mechanical / resolution
+        └─ dispatchNarrationToQueue(kind: roll) → narrationQueued
+
+        ▼ (worker BullMQ — mesmo processo server.ts)
+ narrationJobProcessor → processPlayerTurn / completeManualRollAndNarrate
+        ▼
+ sendToUser → gameStateUpdate + narrationComplete + stopLoading
 ```
 
-### 10.1 REST paralelo
+**Helper central:** `backend/src/queue/narrationDispatch.ts` — `dispatchNarrationToQueue()` (mecânico opcional, enqueue, eventos WS, `recordGameEvent`).
 
-`actionService.processActionIntent` — mesma lógica para clientes HTTP; usado em testes e fallback. Incrementa `stateVersion`, aplica deltas, chama narração quando aplicável.
+**Fallback síncrono:** apenas se Redis indisponível (`REDIS_URL=mock` em testes) — handlers chamam `processPlayerTurn` / `completeManualRollAndNarrate` no mesmo request.
+
+**Event log (P0.1):** `recordGameEvent` em `IntentReceived`, `RollResolved`, `DeltaApplied`, `NarrationRequested`, `NarrationCompleted` (persistência em `action_logs`).
+
+### 10.1 REST paralelo (legado)
+
+`POST /api/sessions/:sessionId/actions` via `actionService` — **ainda síncrono** (narração no request HTTP). O gameplay principal usa WebSocket + fila. Migrar REST é débito opcional fora do P0.
 
 ---
 
@@ -444,9 +465,17 @@ O DM **não** é um modelo separado: é código que:
 2. Pede rolagem ao jogador **antes** da narração quando o motor exige teste.
 3. Monta prompt de fase (`dmPromptBuilder`) para a IA.
 
-Funções-chave: `processFreeActionWithDmFlow`, `issuePendingRollToPlayer`, `narrateAfterPlayerRoll`, `completeManualRollAndNarrate`.
+Funções-chave: `processFreeActionWithDmFlow`, `issuePendingRollToPlayer`, `completeManualRollAndNarrate` (worker), `dispatchNarrationToQueue`.
 
-Variáveis: `DM_AUTO_ROLL`, `DM_CLASSIFY_FREE_ACTION`, `DM_LLM_CLASSIFY` — ver documento de IA para detalhe dos prompts DM.
+Com **`ws`** presente, `processFreeActionWithDmFlow` **não** chama `processPlayerTurn` inline: monta prompt DM e enfileira (`NARRATION_QUEUED_MARKER` no `systemLog` interno).
+
+| Variável | Padrão | Efeito |
+|----------|--------|--------|
+| `DM_AUTO_ROLL` | `false` | Servidor rola sem modal 3D |
+| `DM_CLASSIFY_FREE_ACTION` | sempre ativo no código | Heurística PT + `skillActionSemantics` |
+| `DM_LLM_CLASSIFY` | `true` | Classificador LLM auxiliar; `false` para economizar |
+
+Detalhe de prompts: `ARQUITETURA_IA_COMPLETA.md` §6.
 
 ---
 
@@ -524,7 +553,8 @@ Flag `STRICT_AUTHORITATIVE_DELTAS` — rejeita deltas não assinados pelo motor.
 2. `issuePendingRollToPlayer` persiste em Redis/DB (`rollRequestService`).
 3. Cliente abre **DiceRollModal** com `playerRollRequest` (dados, modificador, CD, motivo).
 4. Jogador rola visualmente; `onRoll` → `submitRollResult` via WebSocket.
-5. Servidor valida, aplica motor, chama IA para **narração do desfecho** apenas.
+5. Servidor valida, aplica motor, emite `mechanicalStateUpdate` + `narrationQueued`.
+6. Worker BullMQ narra o desfecho (`completeManualRollAndNarrate` → `gameStateUpdate`).
 
 ### 13.2 Fluxo auto-roll (`DM_AUTO_ROLL=true`)
 
@@ -575,6 +605,14 @@ O cliente envia `combatState` como **hint**; o servidor reconcilia com o banco. 
 ### 14.5 Fim de combate
 
 `evaluateCombatAutoEnd` — detecta vitória/derrota; pode conceder loot via `motorCombat.rewards.lootOffer`.
+
+### 14.6 FSM de fase (P0.4)
+
+**Pasta:** `backend/src/combat/` — `combatPhase.ts`, `combatPhaseService.ts`
+
+- Coluna `phase` em `combat_encounters` (migration `CombatEncounterPhase`).
+- Fases: `IDLE`, `ENCOUNTER_ACTIVE`, `ROLL_PENDING`, `AWAITING_NARRATION`, etc.
+- `advanceCombatPhaseAfterRoll` após `resolveStructuredRoll` — separa resolução mecânica de beat narrativo (`isCombatNarrationPhase`).
 
 ---
 
@@ -826,6 +864,15 @@ Entradas de log no cliente recebem `stateVersion` para evitar duplicatas ao reco
 
 `patchCharacter` / `characterPatch.ts` — merge parcial de `updatedCharacter` vindo do servidor sem substituir ficha inteira.
 
+`mechanicalStateUpdate` aplica patch mecânico **antes** do log narrativo chegar no `gameStateUpdate`.
+
+### 22.5 Event log (P0.1)
+
+- **API:** `backend/src/events/` — `recordGameEvent`, tipos `GameEventType`.
+- **Armazenamento:** reutiliza `action_logs` (tabela dedicada `session_game_events` adiada — ⏸ no roadmap).
+- **Admin:** `GET /api/admin/sessions/:sessionId/actions/:actionId/events`.
+- **Instrumentação:** `gameEventInstrumentation.ts` + métricas em `/api/admin/ai-metrics`.
+
 ---
 
 ## 23. Infraestrutura Docker
@@ -864,7 +911,7 @@ Compose principal: `docker-compose.yml` (projeto `dndai`).
 | PORT | Porta HTTP/WS |
 | DB_* | MySQL |
 | DB_SYNC | true só dev — sync schema automático |
-| REDIS_URL | Cache; `mock` em testes |
+| REDIS_URL | Cache + **BullMQ** (obrigatório em prod); `mock` → narração síncrona nos handlers |
 | JWT_SECRET | Tokens |
 | SRD_API_BASE | URL da API 5e local |
 | QDRANT_* | Memória vetorial |
@@ -872,9 +919,17 @@ Compose principal: `docker-compose.yml` (projeto `dndai`).
 | PIPER_HTTP_URL | TTS |
 | API_PUBLIC_URL | URLs absolutas de mídia |
 | OPENROUTER_KEY* | IA |
-| AI_ENGINE | oss / legacy |
-| DM_* | Pipeline do mestre |
+| AI_ENGINE | `oss` recomendado |
+| AI_PIPELINE_MODE | `narration_only` (único modo) |
+| DM_AUTO_ROLL | Rolagem no servidor |
+| DM_LLM_CLASSIFY | `false` desliga classificador LLM de texto livre |
+| NARRATION_BULL_CONCURRENCY | Workers BullMQ (default 2) |
+| NARRATIVE_LEVEL | `ultra-compact` \| `compact` \| `standard` \| `cinematic` |
+| SESSION_FACT_TTL_* | TTL por tier de `SessionFact` (P2.3) |
 | ACTION_TIMEOUT_MS | Timeout WS |
+| ACTION_FLOW_DEBUG | Logs `[ActionFlow]` |
+
+**Removidos / não usar:** `MECHANICAL_NARRATIVE_SPLIT`, `ASYNC_NARRATION_*`, `OSS_MINIMAL_NARRATION`, `NARRATION_WORKER_INLINE`, fila Redis `redis-list` — capacidades equivalentes **sempre ligadas** no código.
 
 ### 24.2 Frontend
 
@@ -901,14 +956,19 @@ dndai/
 │   ├── types/                    # Tipos TS compartilhados
 │   └── lib/                      # utils, uiV2, narrationTts
 ├── backend/src/
-│   ├── server.ts
+│   ├── server.ts                 # HTTP + WS + startNarrationWorkers()
+│   ├── action-pipeline/          # handlers WS (P0.5)
+│   ├── queue/                    # BullMQ, narrationDispatch, job processor
+│   ├── events/                   # event log append-only
+│   ├── combat/                   # FSM combatPhase (P0.4)
 │   ├── routes/ controllers/ middlewares/
-│   ├── websocket/
+│   ├── websocket/                # webSocketServer fino, mechanicalUpdate, registry
 │   ├── services/                 # domínio (dm, combat, inventário…)
 │   ├── rules/                    # motor 5e
 │   ├── narration/                # contexto + persistência narrativa
 │   ├── ai-oss/                   # pipeline IA OSS
-│   ├── ai/                       # legado Gemini
+│   ├── config/                   # narrativeLevel, oss minimal (sempre on)
+│   ├── telemetry/                # pipelineLatency, oss metrics
 │   ├── entities/                 # TypeORM
 │   ├── schemas/                  # Zod
 │   └── database/                 # migrations, data-source, qdrant
@@ -970,32 +1030,25 @@ loading → main_menu ⇄ session_list
               → playing (GameplayScreen)
 ```
 
-### 26.3 Integração motor + IA + cliente
+### 26.3 Integração motor + IA + cliente (assíncrono)
 
 ```
-┌────────────┐     intent/prompt      ┌────────────┐
-│  CLIENTE   │ ───────────────────►  │     WS     │
-└────────────┘                       └─────┬──────┘
+┌────────────┐                    ┌──────────────────┐
+│  CLIENTE   │ ── processAction ─►│ action-pipeline  │
+└────────────┘                    └────────┬─────────┘
       ▲                                    │
-      │         gameStateUpdate            │
+      │ mechanicalStateUpdate              ▼
+      │◄─────────────────────────── MOTOR (rules)
+      │ narrationQueued                    │
       │                                    ▼
-      │                              ┌────────────┐
-      │                              │    DM      │
-      │                              └─────┬──────┘
+      │                            BullMQ (Redis)
       │                                    │
-      │              ┌─────────────────────┼─────────────────────┐
-      │              ▼                     ▼                     ▼
-      │        ┌──────────┐         ┌──────────┐         ┌──────────┐
-      │        │  MOTOR   │         │ ROLAGEM  │         │ narrar   │
-      │        │  rules   │         │ 3D/pend. │         │ + IA     │
-      │        └────┬─────┘         └────┬─────┘         └────┬─────┘
-      │             │                     │                     │
-      │             └─────────────────────┼─────────────────────┘
-      │                                   ▼
-      │                             ┌──────────┐
-      └─────────────────────────────│ MySQL +  │
-                                    │  Redis   │
-                                    └──────────┘
+      │         gameStateUpdate            ▼
+      └──────────────────────── narrationJobProcessor
+                                         │
+                                    processPlayerTurn (IA)
+                                         │
+                                    MySQL + event log
 ```
 
 ---
@@ -1019,6 +1072,9 @@ loading → main_menu ⇄ session_list
 | **Homebrew** | Conteúdo customizado fora do SRD oficial |
 | **POI** | Point of Interest no mapa regional |
 | **Lease** | Bloqueio opcional de sessão a um cliente/aba |
+| **mechanicalStateUpdate** | WS com delta mecânico antes da prosa |
+| **narrationQueued** | WS indicando job na fila BullMQ |
+| **turnPipelinePhase** | Estado UI do turno no cliente (`idle`…`narrating`) |
 
 ---
 
@@ -1029,9 +1085,10 @@ Tudo que diz respeito exclusivamente a **prompts, schemas JSON do LLM, OpenRoute
 Para alterar comportamento de mesa, comece por:
 
 1. **Regras** — `backend/src/rules/` e `actionIntentService.ts`
-2. **Fluxo WS** — `webSocketServer.ts` e `dmTurnOrchestrator.ts`
-3. **UI** — `src/features/gameplay/` e hooks em `src/hooks/game/`
-4. **Dados** — `entities/` e migrations em `backend/src/database/migrations/`
+2. **Fluxo WS** — `backend/src/action-pipeline/` e `queue/narrationDispatch.ts`
+3. **DM / fila** — `services/dm/dmTurnOrchestrator.ts`, `queue/narrationJobProcessor.ts`
+4. **UI** — `src/features/gameplay/`, `useGameWebSocket`, `turnPipelineStore`
+5. **Dados** — `entities/` e migrations em `backend/src/database/migrations/`
 
 ---
 

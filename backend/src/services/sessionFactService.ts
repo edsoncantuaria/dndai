@@ -1,6 +1,7 @@
 import { AppDataSource } from '../database/data-source.js';
 import { SessionFact, type SessionFactCategory, type SessionFactSource } from '../entities/SessionFact.js';
 import { NewFactSchema, type NewFact } from '../schemas/memorySchemas.js';
+import { expireStaleSessionFacts, resolveFactTierFromCategory } from './sessionFactTtl.js';
 
 const MAX_FACTS_PER_TURN = 5;
 const MAX_STORED_FACTS = 200;
@@ -82,8 +83,12 @@ export const persistValidatedFacts = async (params: {
                 questId: fact.questId ?? null,
                 source: params.source ?? 'ai',
                 isActive: true,
+                tier: resolveFactTierFromCategory(fact.category),
             })),
         );
+        void expireStaleSessionFacts(params.sessaoId).catch(err => {
+            console.warn('[sessionFact] TTL cleanup:', err);
+        });
     }
 
     return { accepted, rejected };

@@ -821,6 +821,7 @@ export const processPlayerTurn = async (
     stateHints?: string[],
     actionId?: string,
     narrationTtsOverride?: NarrationTtsSettings | null,
+    actionSequence?: number,
 ): Promise<GameMasterResponse> => {
     let isTestRun = false;
     let sessao: SessaoIA | null = null;
@@ -974,6 +975,11 @@ export const processPlayerTurn = async (
     if (promptCombatState?.isActive) {
         stateHintsFromContext.push('[Combat] Conflito ativo, mantenha foco em combate.');
     }
+    const { resolveNarrativeLevel, maxNarrationCharsForLevel } = await import('../config/narrativeLevel.js');
+    const narrativeLevel = resolveNarrativeLevel(playerAction, Boolean(promptCombatState?.isActive));
+    stateHintsFromContext.push(
+        `[NarrativeLevel] ${narrativeLevel}; limite ~${maxNarrationCharsForLevel(narrativeLevel)} caracteres na narração.`,
+    );
     let castAndWorldHints: string[] = [];
     if (!isTestRun && sessao?.id) {
         try {
@@ -1616,6 +1622,7 @@ export const processPlayerTurn = async (
     return persistNarrationTurn({
         sessao,
         userId,
+        actionId: actionId ?? null,
         apiKey,
         aiResponse,
         playerAction,
@@ -1632,5 +1639,6 @@ export const processPlayerTurn = async (
         motorOwnsState,
         latestNarrationSummary,
         sessionCacheKey,
+        actionSequence: actionSequence ?? null,
     });
 };

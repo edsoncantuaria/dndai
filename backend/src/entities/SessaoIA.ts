@@ -62,6 +62,10 @@ export class SessaoIA {
     @Column({ type: 'int', default: 0 })
     actionCursor: number;
 
+    /** P4.1 — sequence monotônico servidor (narração enfileirada); ordenação de entrega. */
+    @Column({ type: 'int', default: 0 })
+    actionSequence: number;
+
     @Column({ type: 'varchar', length: 64, nullable: true })
     currentActionId: string | null;
 

@@ -43,7 +43,9 @@
     "check-session-logs": "node scripts/checkSessionLogs.js",
     "scenario-attack": "node scripts/runAttackScenario.js",
     "scenario:intent": "node scripts/runIntentScenario.js",
-    "test-session-reuse": "node scripts/testSessionReuse.js"
+    "test-session-reuse": "node scripts/testSessionReuse.js",
+    "session:smoke": "tsx src/scripts/sessionSimulator.ts",
+    "chaos:smoke": "tsx src/scripts/chaosPipelineSmoke.ts"
   },
   "keywords": [
     "rpg",
@@ -61,6 +63,7 @@
     "@google/genai": "^1.29.0",
     "@qdrant/js-client-rest": "^1.15.1",
     "bcryptjs": "^2.4.3",
+    "bullmq": "^5.34.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",

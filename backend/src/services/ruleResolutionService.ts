@@ -95,6 +95,17 @@ const buildDamageFollowUp = (
     };
 };
 
+/** P0.4.3/4 — contrato de narração por efeito (testável sem DB). */
+export function rollResolutionShouldNarrate(
+    effect: 'attack' | 'damage' | 'healing',
+    opts: { hasDamageFollowUp?: boolean },
+): boolean {
+    if (effect === 'attack') {
+        return opts.hasDamageFollowUp ? false : true;
+    }
+    return true;
+}
+
 const mergeCharacterUpdates = (
     base: Awaited<ReturnType<typeof applyCharacterStateDelta>> | null,
     incoming: Awaited<ReturnType<typeof applyCharacterStateDelta>> | null
@@ -238,7 +249,9 @@ export async function resolveStructuredRoll(
                 total,
                 targetName: target?.name,
             },
-            shouldNarrate: !nextRollRequest,
+            shouldNarrate: rollResolutionShouldNarrate('attack', {
+                hasDamageFollowUp: Boolean(nextRollRequest),
+            }),
             updatedCharacter: cumulativeCharacterDelta ?? undefined,
             nextRollRequest,
             hints,

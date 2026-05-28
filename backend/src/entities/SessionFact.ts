@@ -12,6 +12,7 @@ import { Character } from './Character.js';
 
 export type SessionFactCategory = 'region' | 'npc' | 'quest' | 'general';
 export type SessionFactSource = 'motor' | 'ai' | 'system';
+export type SessionFactTier = 'ephemeral' | 'scene' | 'persistent';
 
 @Entity('session_facts')
 @Index(['sessaoId', 'isActive'])
@@ -57,6 +58,10 @@ export class SessionFact {
 
     @Column({ type: 'boolean', default: true })
     isActive: boolean;
+
+    /** P2.3 — TTL hierárquico: ephemeral (horas), scene (dia), persistent (sem expiração automática). */
+    @Column({ type: 'varchar', length: 16, default: 'scene' })
+    tier: SessionFactTier;
 
     @CreateDateColumn()
     createdAt: Date;

@@ -39,6 +39,7 @@ import rollRequestRoutes from './routes/rollRequestRoutes.js';
 import imageRoutes from './routes/imageRoutes.js';
 import srdRoutes from './routes/srdRoutes.js';
 import actionRoutes from './routes/actionRoutes.js';
+import adminEventsRoutes from './routes/adminEventsRoutes.js';
 
 
 const app = express();
@@ -88,6 +89,7 @@ app.use('/api/logs', logsRoutes);
 app.use('/api/regions', regionRoutes);
 app.use('/metrics', metricsRoutes);
 app.get('/api/admin/ai-metrics', getOpenRouterMetricsHandler);
+app.use('/api/admin', adminEventsRoutes);
 app.use('/api/tts', ttsRoutes);
 app.use('/api/roll-requests', rollRequestRoutes);
 app.use('/api/images', imageRoutes);
@@ -156,6 +158,9 @@ const startServer = async () => {
         
         // Configurar o servidor WebSocket, passando o servidor HTTP
         configureWebSocket(server);
+
+        const { startNarrationWorkers } = await import('./queue/narrationWorker.js');
+        startNarrationWorkers();
 
         server.listen(PORT, () => {
             console.log(`Servidor HTTP e WebSocket rodando em http://localhost:${PORT}`);

@@ -17,6 +17,7 @@ import type {
     SessaoIA,
 } from '@/types';
 import { deriveAmbientSoundFromWorld } from './ambientSound';
+import { setTurnPipelinePhase } from '@/hooks/game/turnPipelineStore';
 import { patchCharacter } from './characterPatch';
 import type { useGameLog } from '../useGameLog';
 import type { useInteractionManager } from '../useInteractionManager';
@@ -108,6 +109,7 @@ export function useGameSession(options: UseGameSessionOptions) {
             }
 
             if (response.playerRollRequest && Object.keys(response.playerRollRequest).length > 0) {
+                setTurnPipelinePhase('rolling');
                 interactionState.setRequest({ type: 'roll', request: response.playerRollRequest });
                 if (response.actionOptions !== undefined) {
                     interactionState.setActionOptions(response.actionOptions);

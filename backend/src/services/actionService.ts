@@ -29,6 +29,12 @@ import {
     registerActionIntentTelemetry,
     clearActionTelemetry,
 } from './actionObservabilityService.js';
+import { isNarrationQueuedResponse } from '../queue/narrationDispatch.js';
+import { getLatestActionSequence } from './actionSequenceService.js';
+import {
+    tryEnqueueRestNarration,
+    buildRestQueuedHttpPayload,
+} from './restNarrationEnqueue.js';
 
 interface ProcessActionInput {
     sessionId: number;
@@ -175,14 +181,41 @@ export const createProcessActionIntent = (overrides?: Partial<ActionServiceDeps>
                 const patch = inventoryStateToCharacterPatch(inventoryState);
                 if (body.apiKey && body.prompt?.trim()) {
                     await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'AI_SYNTHESIS' });
+                    const narratePrompt = `${body.prompt}\n[Motor] Loot coletado e registrado no inventário.`;
+                    const enq = await tryEnqueueRestNarration({
+                        sessionId,
+                        userId,
+                        actionId,
+                        playerAction: narratePrompt,
+                        apiKey: body.apiKey,
+                        combatState: body.combatState,
+                        useAiHomebrew: body.useAiHomebrew,
+                        stateVersion: newVersion,
+                    });
+                    if (enq.mode === 'queued') {
+                        await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'DELTA_APPLIED' });
+                        const queuedPayload = buildRestQueuedHttpPayload(
+                            actionId,
+                            newVersion,
+                            enq.actionSequence,
+                            { updatedCharacter: patch },
+                        );
+                        return {
+                            actionResolution: {
+                                ...queuedPayload.actionResolution,
+                                rule: 'claim-loot',
+                            },
+                            gameStateUpdate: queuedPayload.gameStateUpdate,
+                        };
+                    }
                     const response = await NarrarService.processPlayerTurn(
                         sessionId,
                         userId,
-                        body.prompt,
+                        narratePrompt,
                         body.apiKey,
                         body.combatState ?? undefined,
                         body.useAiHomebrew,
-                        ['[Motor] Loot coletado e registrado no inventário.'],
+                        undefined,
                         actionId,
                     );
                     const narratedVersion = await deps.incrementStateVersion(sessionId);
@@ -324,14 +357,34 @@ export const createProcessActionIntent = (overrides?: Partial<ActionServiceDeps>
                 ];
                 if (body.apiKey?.trim() && body.prompt?.trim()) {
                     await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'AI_SYNTHESIS' });
+                    const narratePrompt = `${body.prompt}\n[Motor] Missão concluída: +${questResult.xpAwarded} XP.`;
+                    const enq = await tryEnqueueRestNarration({
+                        sessionId,
+                        userId,
+                        actionId,
+                        playerAction: narratePrompt,
+                        apiKey: body.apiKey,
+                        combatState: body.combatState,
+                        useAiHomebrew: body.useAiHomebrew,
+                        stateVersion: newVersion,
+                    });
+                    if (enq.mode === 'queued') {
+                        const qp = buildRestQueuedHttpPayload(actionId, newVersion, enq.actionSequence, {
+                            progressionFeed,
+                        });
+                        return {
+                            actionResolution: { ...qp.actionResolution, rule: 'quest-complete' },
+                            gameStateUpdate: { ...qp.gameStateUpdate, progressionFeed },
+                        };
+                    }
                     const response = await NarrarService.processPlayerTurn(
                         sessionId,
                         userId,
-                        body.prompt,
+                        narratePrompt,
                         body.apiKey,
                         body.combatState ?? undefined,
                         body.useAiHomebrew,
-                        [`[Motor] Missão concluída: +${questResult.xpAwarded} XP.`],
+                        undefined,
                         actionId,
                     );
                     const narratedVersion = await deps.incrementStateVersion(sessionId);
@@ -368,14 +421,34 @@ export const createProcessActionIntent = (overrides?: Partial<ActionServiceDeps>
                 await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'DELTA_APPLIED' });
                 if (body.apiKey?.trim() && body.prompt?.trim()) {
                     await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'AI_SYNTHESIS' });
+                    const narratePrompt = `${body.prompt}\n[Motor] Encontro de combate iniciado.`;
+                    const enq = await tryEnqueueRestNarration({
+                        sessionId,
+                        userId,
+                        actionId,
+                        playerAction: narratePrompt,
+                        apiKey: body.apiKey,
+                        combatState: encounter.combatState,
+                        useAiHomebrew: body.useAiHomebrew,
+                        stateVersion: newVersion,
+                    });
+                    if (enq.mode === 'queued') {
+                        const qp = buildRestQueuedHttpPayload(actionId, newVersion, enq.actionSequence, {
+                            combatState: encounter.combatState,
+                        });
+                        return {
+                            actionResolution: { ...qp.actionResolution, rule: 'start-encounter' },
+                            gameStateUpdate: { ...qp.gameStateUpdate, combatState: encounter.combatState },
+                        };
+                    }
                     const response = await NarrarService.processPlayerTurn(
                         sessionId,
                         userId,
-                        body.prompt,
+                        narratePrompt,
                         body.apiKey,
                         encounter.combatState,
                         body.useAiHomebrew,
-                        ['[Motor] Encontro de combate iniciado.'],
+                        undefined,
                         actionId,
                     );
                     const narratedVersion = await deps.incrementStateVersion(sessionId);
@@ -414,13 +487,31 @@ export const createProcessActionIntent = (overrides?: Partial<ActionServiceDeps>
                     throw createError(400, result.reason ?? 'Viagem rejeitada pelo motor.');
                 }
                 const transition = await applyRegionTransition(sessionId, userId, body.intent.payload);
-                await deps.incrementStateVersion(sessionId);
+                const travelVersion = await deps.incrementStateVersion(sessionId);
                 if (!body.apiKey) {
                     throw createError(400, 'apiKey é obrigatória para narrar a chegada.');
                 }
                 await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'AI_SYNTHESIS' });
                 const travelPrompt = body.prompt?.trim()
                     || `[Motor] Chegada em ${transition.regionName}${transition.poiName ? ` (${transition.poiName})` : ''}.`;
+                const enq = await tryEnqueueRestNarration({
+                    sessionId,
+                    userId,
+                    actionId,
+                    playerAction: travelPrompt,
+                    apiKey: body.apiKey,
+                    combatState: body.combatState,
+                    useAiHomebrew: body.useAiHomebrew,
+                    stateVersion: travelVersion,
+                });
+                if (enq.mode === 'queued') {
+                    await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'DELTA_APPLIED' });
+                    const qp = buildRestQueuedHttpPayload(actionId, travelVersion, enq.actionSequence);
+                    return {
+                        actionResolution: { ...qp.actionResolution, rule: 'travel' },
+                        gameStateUpdate: qp.gameStateUpdate,
+                    };
+                }
                 const response = await NarrarService.processPlayerTurn(
                     sessionId,
                     userId,
@@ -643,6 +734,15 @@ export const createProcessActionIntent = (overrides?: Partial<ActionServiceDeps>
             const newVersion = await deps.incrementStateVersion(sessionId);
 
             await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'DELTA_APPLIED' });
+
+        if (isNarrationQueuedResponse(response)) {
+            const actionSequence = await getLatestActionSequence(sessionId);
+            const qp = buildRestQueuedHttpPayload(actionId, newVersion, actionSequence);
+            return {
+                actionResolution: qp.actionResolution,
+                gameStateUpdate: qp.gameStateUpdate,
+            };
+        }
 
         return {
             actionResolution: {

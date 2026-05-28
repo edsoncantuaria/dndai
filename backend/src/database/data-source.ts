@@ -43,6 +43,10 @@ import { SessionFact } from '../entities/SessionFact.js';
 import { SessionCastMember } from '../entities/SessionCastMember.js';
 import { Phase4And5Schema1735689600000 } from './migrations/1735689600000-Phase4And5Schema.js';
 import { SessionCastMembers1740000000000 } from './migrations/1740000000000-SessionCastMembers.js';
+import { CombatEncounterPhase1741000000000 } from './migrations/1741000000000-CombatEncounterPhase.js';
+import { SessionFactTier1742000000000 } from './migrations/1742000000000-SessionFactTier.js';
+import { ActionSequenceNarrationCompletion1743000000000 } from './migrations/1743000000000-ActionSequenceNarrationCompletion.js';
+import { NarrationCompletion } from '../entities/NarrationCompletion.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const migrationsOnly = process.env.DB_MIGRATIONS_ONLY === 'true';
@@ -106,9 +110,16 @@ export const AppDataSource = new DataSource({
         CharacterResource,
         SessionFact,
         SessionCastMember,
+        NarrationCompletion,
     ], 
     
-    migrations: [Phase4And5Schema1735689600000, SessionCastMembers1740000000000],
+    migrations: [
+        Phase4And5Schema1735689600000,
+        SessionCastMembers1740000000000,
+        CombatEncounterPhase1741000000000,
+        SessionFactTier1742000000000,
+        ActionSequenceNarrationCompletion1743000000000,
+    ],
     migrationsTableName: 'typeorm_migrations',
     subscribers: [],
 });

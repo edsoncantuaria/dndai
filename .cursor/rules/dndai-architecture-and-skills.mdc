@@ -1,0 +1,42 @@
+---
+description: Arquitetura padrão do dndai e uso obrigatório de skills do projeto
+alwaysApply: true
+---
+
+# dndai — arquitetura e skills
+
+## Comportamento padrão (não pedir flags ao usuário)
+
+Estas melhorias estão **sempre ligadas** no código — não usar env para “ativar”:
+
+| Capacidade | Onde |
+|------------|------|
+| Split mecânico × narrativo | `mechanicalStateUpdate` antes da narração |
+| Fila BullMQ + worker no `server.ts` | `backend/src/queue/` |
+| JSON minimalista OSS | `OssMinimalNarrationSchema` + registry de `actionOptions` |
+| Motor autoritativo | `AI_PIPELINE_MODE=narration_only` |
+
+**Fallback único:** sem Redis (`REDIS_URL=mock` em testes) a narração de rolagem volta síncrona no handler.
+
+Não reintroduzir: fila `redis-list`, `NARRATION_WORKER_INLINE`, flags `MECHANICAL_NARRATIVE_SPLIT`, `ASYNC_NARRATION_*`, `OSS_MINIMAL_NARRATION`.
+
+## Skills — uso obrigatório
+
+Antes de implementar ou refatorar, verificar `.cursor/skills/` e `.cursor/AGENTS.md`:
+
+| Área | Skill |
+|------|--------|
+| WS / filas / loading | `dndai-mechanical-narrative-split` |
+| Schemas OSS / prompts | `dndai-minimal-llm-json` |
+| Combate FSM | `dndai-combat-fsm` |
+| Event log | `dndai-event-log` |
+| Pipeline WS | `dndai-action-pipeline-refactor` |
+| Smoke / CI | `dndai-session-simulator` |
+| Frontend turno | `dndai-frontend-turn-machine` |
+
+Se a tarefa tocar qualquer linha acima, **ler a skill** (não improvisar). Roadmap: `TODO-ARQUITETURA.md`.
+
+## Documentação
+
+- `docs/ARQUITETURA_JOGO_COMPLETA.md`
+- `docs/ARQUITETURA_IA_COMPLETA.md`

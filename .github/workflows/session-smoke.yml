@@ -1,0 +1,25 @@
+name: Session smoke
+
+on:
+  pull_request:
+    branches: [main, master, develop]
+
+jobs:
+  session-smoke:
+    name: Backend — session smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run session:smoke
+        env:
+          REDIS_URL: mock

@@ -27,6 +27,10 @@ export class CombatEncounter {
     @Column({ type: 'int', default: 0 })
     turn: number;
 
+    /** P0.4 — fase da máquina de estados (`combat/combatPhase.ts`). */
+    @Column({ type: 'varchar', length: 32, default: 'IDLE' })
+    phase: string;
+
     @Column({ type: 'simple-json', nullable: true })
     initiativeOrder: string[] | null;
 

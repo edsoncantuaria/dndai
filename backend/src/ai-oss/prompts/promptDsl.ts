@@ -5,7 +5,9 @@ import {
     detectPromptPhase,
     type PromptPhase,
 } from './phaseTemplates.js';
+import { isOssMinimalNarrationEnabled } from '../../config/ossMinimalNarration.js';
 import { OSS_FORMAT_SYSTEM } from './system/format.js';
+import { OSS_MINIMAL_FORMAT_SYSTEM } from './system/formatMinimal.js';
 import { buildNarrativeCharacterCard } from '../context/narrativeCharacterCard.js';
 import { composeOssPrompt } from './promptComposer.js';
 
@@ -60,9 +62,15 @@ export function composePrompt(input: ComposePromptInput): {
         flowInput: input.flowInput,
     });
 
-    let systemInstruction =
-        outputSchema === 'combat' ? buildCombatSystemInstruction() : OSS_FORMAT_SYSTEM;
-    systemInstruction = composed.systemInstruction || systemInstruction;
+    const useMinimal = isOssMinimalNarrationEnabled();
+    let systemInstruction = useMinimal
+        ? OSS_MINIMAL_FORMAT_SYSTEM
+        : outputSchema === 'combat'
+          ? buildCombatSystemInstruction()
+          : OSS_FORMAT_SYSTEM;
+    if (!useMinimal) {
+        systemInstruction = composed.systemInstruction || systemInstruction;
+    }
     systemInstruction = appendPhaseTemplateToSystem(systemInstruction, phase);
 
     return {

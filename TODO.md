@@ -1,5 +1,7 @@
 # Crônicas de Aventuras — Plano de Refatoração
 
+> **🔥 Prioridade atual (arquitetura produção):** ver **`TODO-ARQUITETURA.md`** — P0 desacoplamento motor×IA, event log, skills em `.cursor/skills/`, agentes em `.cursor/AGENTS.md`.
+
 > **Objetivo:** Refazer o projeto do zero *em espírito*, reaproveitando o núcleo maduro. Integrar a [5e-srd-api](https://github.com/5e-bits/5e-srd-api) como fonte canônica de dados SRD, permitir homebrew derivado dela, e corrigir os problemas de IA, persistência e UX que impedem uma experiência fluida.
 
 **Última validação:** 2026-05-23

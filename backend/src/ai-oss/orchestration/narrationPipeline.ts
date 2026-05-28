@@ -39,10 +39,18 @@ import {
 import { mapOssNarrationToGameMasterShape } from '../schemas/narration.schema.js';
 import type { OssNarrationResponse } from '../schemas/narration.schema.js';
 import { validateOssNarration } from '../validators/narrationValidator.js';
+import { isOssMinimalNarrationEnabled } from '../../config/ossMinimalNarration.js';
+import {
+    OssMinimalNarrationSchema,
+    mapMinimalToGameMasterShape,
+} from '../schemas/minimalNarration.schema.js';
+import type { ActionDomain } from '../actions/registry.js';
 import {
     recordLocalRepairSuccess,
     recordOssGenerationAttempt,
 } from '../telemetry/requestMetrics.js';
+import { recordJsonRepairOutcome } from '../../telemetry/pipelineLatency.js';
+import { recordJsonRepairOutcome } from '../../telemetry/pipelineLatency.js';
 import { logOssPromptBundle } from '../telemetry/ossPromptLog.js';
 
 type GenerationConfig = z.infer<typeof GenerationConfigSchema>;
@@ -50,6 +58,9 @@ type GenerationConfig = z.infer<typeof GenerationConfigSchema>;
 const DEFAULT_MAX_API_ATTEMPTS = 2;
 
 function resolveMaxApiAttempts(): number {
+    if (isOssMinimalNarrationEnabled()) {
+        return 1;
+    }
     const fromEnv = Number(process.env.OSS_MAX_API_ATTEMPTS ?? DEFAULT_MAX_API_ATTEMPTS);
     return Number.isFinite(fromEnv) && fromEnv >= 1 ? Math.min(fromEnv, 3) : DEFAULT_MAX_API_ATTEMPTS;
 }
@@ -115,6 +126,35 @@ function extractNarrationText(data: OssNarrationResponse): string {
     return typeof c === 'string' ? c : (c as { text?: string; content?: string })?.text ?? '';
 }
 
+function validateMinimalOssPayload(
+    data: unknown,
+    domain: ActionDomain,
+): {
+    ok: boolean;
+    response?: GameMasterResponse;
+    issues: string[];
+} {
+    const check = OssMinimalNarrationSchema.safeParse(data);
+    if (!check.success) {
+        return {
+            ok: false,
+            issues: check.error.issues.map(i => `${i.path.join('.')}: ${i.message}`),
+        };
+    }
+    const mapped = mapMinimalToGameMasterShape(check.data, domain);
+    const candidate: GameMasterResponse = {
+        logEntries: mapped.logEntries as GameMasterResponse['logEntries'],
+        actionOptions: mapped.actionOptions,
+        systemLog: mapped.systemLog ?? null,
+        ...(mapped.newFacts?.length ? { newFacts: mapped.newFacts } : {}),
+    } as GameMasterResponse;
+    const legacyCheck = validateByPhaseFocus(candidate, 'narrative');
+    if (!legacyCheck.valid) {
+        return { ok: false, issues: legacyCheck.issues };
+    }
+    return { ok: true, response: legacyCheck.data ?? candidate, issues: [] };
+}
+
 function validateOssPayload(
     data: unknown,
     opts: { combatActive: boolean; playerAction: string },
@@ -124,7 +164,21 @@ function validateOssPayload(
     issues: string[];
     ossData?: OssNarrationResponse;
 } {
-    const domain = opts.combatActive ? 'combat' : 'exploration';
+    const domain: ActionDomain = opts.combatActive
+        ? 'combat'
+        : /falar|conversar|persuadir|intimidar|negociar/i.test(opts.playerAction)
+          ? 'social'
+          : 'exploration';
+
+    if (isOssMinimalNarrationEnabled()) {
+        const minimal = validateMinimalOssPayload(data, domain);
+        return {
+            ok: minimal.ok,
+            response: minimal.response,
+            issues: minimal.issues,
+        };
+    }
+
     let working = data;
     let ossCheck = validateOssNarration(working, {
         combatActive: opts.combatActive,
@@ -138,11 +192,14 @@ function validateOssPayload(
         });
         if (local) {
             recordLocalRepairSuccess();
+            recordJsonRepairOutcome(true);
             working = local;
             ossCheck = validateOssNarration(local, {
                 combatActive: opts.combatActive,
                 domain,
             });
+        } else {
+            recordJsonRepairOutcome(false);
         }
     }
     if (!ossCheck.valid || !ossCheck.data) {

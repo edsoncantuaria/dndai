@@ -27,10 +27,12 @@ import { incrementStateVersion } from '../services/stateVersionService.js';
 import { enforceWorldStateLocation } from './regionMapValidation.js';
 import { prepareLogPayload } from './logPayload.js';
 import { buildWorldStateSnapshot } from './worldStateSnapshot.js';
+import { instrumentGameEvent } from '../services/gameEventInstrumentation.js';
 
 export interface PersistNarrationTurnParams {
     sessao: SessaoIA;
     userId: number;
+    actionId?: string | null;
     apiKey: string;
     aiResponse: GameMasterResponse;
     playerAction: string;
@@ -47,6 +49,7 @@ export interface PersistNarrationTurnParams {
     motorOwnsState: boolean;
     latestNarrationSummary: string | null;
     sessionCacheKey: string;
+    actionSequence?: number | null;
 }
 
 /** Transação de logs, homebrew, merge de personagem e memória vetorial (extraído de narrarService). */
@@ -54,6 +57,7 @@ export async function persistNarrationTurn(params: PersistNarrationTurnParams): 
     const {
         sessao,
         userId,
+        actionId,
         apiKey,
         aiResponse,
         playerAction,
@@ -70,6 +74,7 @@ export async function persistNarrationTurn(params: PersistNarrationTurnParams): 
         motorOwnsState,
         latestNarrationSummary,
         sessionCacheKey,
+        actionSequence,
     } = params;
 
     const queryRunner = AppDataSource.createQueryRunner();
@@ -77,6 +82,30 @@ export async function persistNarrationTurn(params: PersistNarrationTurnParams): 
     await queryRunner.startTransaction();
 
     try {
+        if (actionId) {
+            const { tryClaimNarrationPersistenceTx } = await import(
+                '../services/narrationIdempotencyService.js'
+            );
+            const claimed = await tryClaimNarrationPersistenceTx(
+                queryRunner.manager,
+                sessao.id,
+                actionId,
+                actionSequence ?? null,
+            );
+            if (!claimed) {
+                await queryRunner.rollbackTransaction();
+                console.warn('[persistNarrationTurn] narração já persistida — skip', {
+                    sessionId: sessao.id,
+                    actionId,
+                    actionSequence: actionSequence ?? null,
+                });
+                return {
+                    ...aiResponse,
+                    stateVersion: sessao.stateVersion ?? undefined,
+                    actionSequence: actionSequence ?? undefined,
+                };
+            }
+        }
         const logRepository = queryRunner.manager.getRepository(SessionLog);
         let persistedStateVersion: number | null = null;
 
@@ -324,6 +353,12 @@ export async function persistNarrationTurn(params: PersistNarrationTurnParams): 
         persistedStateVersion = await incrementStateVersion(sessao.id);
         aiResponse.stateVersion = persistedStateVersion;
 
+        instrumentGameEvent(sessao.id, 'NarrationCompleted', {
+            actionId: actionId ?? null,
+            stateVersion: persistedStateVersion,
+            characterId: sessao.characterId ?? null,
+        });
+
         try {
             const { syncSessionCastFromWorld } = await import('../services/sessionCastService.js');
             await syncSessionCastFromWorld(sessao.id, userId, {
@@ -382,6 +417,18 @@ export async function persistNarrationTurn(params: PersistNarrationTurnParams): 
             } catch (journalErr) {
                 console.warn('[persistence] Falha ao indexar journal:', journalErr);
             }
+        }
+
+        if (sessao.id > 0) {
+            const { refreshNarrativeSnapshotIfDue } = await import('../services/narrativeSnapshotService.js');
+            void refreshNarrativeSnapshotIfDue({
+                sessionId: sessao.id,
+                character: sessao.character ?? null,
+                characterForAI: (sessao.character ?? {}) as Record<string, unknown>,
+                stateVersion: persistedStateVersion ?? sessao.stateVersion ?? 0,
+            }).catch(err => {
+                console.warn('[persistence] snapshot narrativo:', err);
+            });
         }
 
         return aiResponse;

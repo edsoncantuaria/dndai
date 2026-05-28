@@ -65,6 +65,8 @@ export interface GameStateContextType {
     setSessionId: React.Dispatch<React.SetStateAction<number | null>>;
     actionPhaseLabel: string | null;
     isRollPending: boolean;
+    /** F.1 — idle | rolling | mechanical | narrating */
+    turnPipelinePhase: 'idle' | 'rolling' | 'mechanical' | 'narrating';
     // Debug Triggers
     triggerTestShop: (processPlayerAction?: (action: string) => void) => void;
     triggerTestCombat: (

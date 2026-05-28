@@ -24,6 +24,9 @@ jobs:
       - run: npm test
         env:
           REDIS_URL: mock
+      - run: npm run session:smoke
+        env:
+          REDIS_URL: mock
 
   frontend-check:
     name: Frontend — lint e typecheck

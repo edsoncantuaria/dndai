@@ -7,6 +7,7 @@
 #
 # Stack completa em container (teste de produção):
 #   docker compose --profile full up -d --build
+# Narração: BullMQ no Redis; worker sobe junto com o backend (sem serviço extra).
 #
 # URLs (dev local): http://localhost:9002 · http://localhost:8071/api/health
 
@@ -22,6 +23,7 @@ x-media-env: &media-env
   MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-chronicles}
   PIPER_HTTP_URL: http://piper:5500
   API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:8071/api}
+  NARRATION_BULL_CONCURRENCY: ${NARRATION_BULL_CONCURRENCY:-2}
 
 services:
   mysql:
