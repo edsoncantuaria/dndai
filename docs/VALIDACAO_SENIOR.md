@@ -56,6 +56,7 @@
 
 - [ ] Tokens `dnd.*` (ember/gold/obsidian) vs legado stone/amber
 - [ ] `turnPipeline`: idle → rolling → mechanical → narrating
+- [ ] **InputGate (BG3-like):** ações state-changing bloqueadas até `narrationComplete` (dock + free actions)
 - [ ] `latestActionSequenceRef` descarta WS antigo
 - [ ] Homebrew: instalar na sessão reflete em listas unificadas
 

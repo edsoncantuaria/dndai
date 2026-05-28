@@ -214,7 +214,7 @@ flowchart TB
 
 ---
 
-## 7. Pipeline visual do turno
+## 7. Pipeline visual do turno (BG3-like)
 
 Espelha o backend (ECOSSISTEMA §5).
 
@@ -235,7 +235,22 @@ stateDiagram-v2
 | `idle` | Dock ativo; usuário pode agir |
 | `rolling` | Modal `DiceRollModal` + dice-box 3D |
 | `mechanical` | Toast / patch ficha visível |
-| `narrating` | Spinner/log “Mestre escreve…”; dock bloqueado |
+| `narrating` | “Motor validou” + DM narrando; dock e ações state-changing bloqueadas |
+
+### 7.1 InputGate (hard-lock até `narrationComplete`)
+
+Inspirado no ritmo de combate de jogos como **Baldur’s Gate 3**: após uma ação ser aceita, a UI **não** deve permitir empilhar novas intenções mecânicas enquanto o turno está “fechando” (hot path mecânico + worker narrativo).
+
+Estado `InputGate` (derivado do pipeline + sinais WS):
+
+| Gate | Quando | Efeito |
+|------|--------|--------|
+| `OPEN` | `idle` e sem pendências | permite intents (dock/free action) |
+| `LOCKED_MECHANICAL` | ação aceita / loading / `mechanical` | bloqueia ações state-changing |
+| `LOCKED_ROLLING` | `playerRollRequest` pendente | só o modal de dados pode enviar roll |
+| `LOCKED_NARRATING` | `narrating` | bloqueia até `narrationComplete` |
+
+**Regra de ouro:** liberar input state-changing **apenas** em `narrationComplete` (ou falha final + `stopLoading`).
 
 **Regra:** nunca commitar `gameStateUpdate` com `actionSequence` menor que `latestActionSequenceRef`.
 
@@ -252,6 +267,7 @@ stateDiagram-v2
 | `useGameActions` | `processPlayerAction`, intents |
 | `useGameWebSocket` | Listeners WS |
 | `turnPipelineStore` | Fase UI do turno |
+| `InputGate` | “Hard-lock” do input state-changing |
 | `SettingsContext` | API key, TTS, modelo |
 
 ### 8.2 Eventos WS ouvidos (mesa)
@@ -266,6 +282,7 @@ stateDiagram-v2
 | `narrationStream` | Preview opcional — **não canônico** |
 | `startLoading` / `stopLoading` | Spinner global |
 | `actionResolution` | Caminhos híbridos legados |
+| `pendingRollState` | Heal: reabre rolagem pendente após reconnect |
 
 ### 8.3 Fluxo envio de ação
 
