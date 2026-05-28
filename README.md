@@ -89,9 +89,7 @@ Configure `backend/.env` (`DB_HOST=localhost`) e `.env.local` (veja `.env.local.
 npm run docker:up              # docker compose --profile full up -d --build
 ```
 
-Detalhes: [`docs/DOCKER.md`](docs/DOCKER.md).
-
-Documentação detalhada: [`docs/architecture.md`](docs/architecture.md).
+Documentação viva: [`docs/VALIDACAO_SENIOR.md`](docs/VALIDACAO_SENIOR.md) (índice) · [`docs/ECOSSISTEMA.md`](docs/ECOSSISTEMA.md) · [`docs/DESIGN_FRONTEND.md`](docs/DESIGN_FRONTEND.md) · [`docs/README.md`](docs/README.md).
 
 ### Modo do pipeline de IA (`AI_PIPELINE_MODE`)
 

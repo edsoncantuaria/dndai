@@ -2,7 +2,7 @@
 
 > **Prioridade atual** (maio 2026): **P5** concluído em código — validar em staging (split Docker + ações rápidas).
 >
-> **Documentação:** `docs/ARQUITETURA_JOGO_COMPLETA.md`, `docs/ARQUITETURA_IA_COMPLETA.md`, `docs/ARQUITETURA_P4_DISTRIBUIDO.md`, `docs/ARQUITETURA_P5_RESILIENCIA.md`
+> **Documentação viva:** `docs/ECOSSISTEMA.md` · `docs/DESIGN_FRONTEND.md` · histórico em `docs/archive/`
 >
 > **Skills:** `.cursor/skills/` · **Agentes:** `.cursor/AGENTS.md`
 
@@ -13,7 +13,7 @@
 ## Como usar este arquivo
 
 1. Escolha um item pendente e marque 🔄.
-2. Abra a **skill** ou `docs/ARQUITETURA_P5_RESILIENCIA.md`.
+2. Abra a **skill** ou `docs/ECOSSISTEMA.md`.
 3. Ao concluir: ✅, `npm run test --prefix backend`, atualize este arquivo.
 4. **Uma subseção por PR** quando possível.
 
@@ -21,7 +21,7 @@
 
 ## P5 — Resiliência em produção ✅
 
-> Detalhe: `docs/ARQUITETURA_P5_RESILIENCIA.md`
+> Detalhe: `docs/ECOSSISTEMA.md` (seções P4/P5)
 
 ### P5.2 Isolamento do worker
 
@@ -81,7 +81,7 @@
 
 ## P4 — Sistema distribuído ✅
 
-> `docs/ARQUITETURA_P4_DISTRIBUIDO.md`
+> `docs/ECOSSISTEMA.md` (seção P4)
 
 | ID | Tarefa | Status |
 |----|--------|--------|

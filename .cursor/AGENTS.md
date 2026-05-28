@@ -6,7 +6,7 @@ Roteamento para implementar `TODO-ARQUITETURA.md` com Cursor (Agent, subagentes,
 
 1. Leia `TODO-ARQUITETURA.md` e escolha **um** ID (ex.: P0.2.2).
 2. Carregue a **skill** da coluna “Skill” (pasta `.cursor/skills/<nome>/SKILL.md`).
-3. Leia `docs/ARQUITETURA_JOGO_COMPLETA.md` ou `docs/ARQUITETURA_IA_COMPLETA.md` só se a skill mandar.
+3. Leia `docs/ECOSSISTEMA.md` ou `docs/DESIGN_FRONTEND.md` só se a skill mandar.
 4. PR pequena; `npm run test --prefix backend` antes de marcar ✅.
 
 ## Subagentes recomendados

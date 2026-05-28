@@ -1,0 +1,50 @@
+---
+description: Hub de documentação viva — ecossistema, design, skills e MOM
+alwaysApply: true
+---
+
+# Documentação viva — Crônicas de Aventuras
+
+## Fontes canônicas (atualizar aqui, não espalhar)
+
+| Documento | Conteúdo |
+|-----------|----------|
+| **`docs/VALIDACAO_SENIOR.md`** | Índice para revisão sênior + checklist |
+| **`docs/ECOSSISTEMA.md`** | Ecossistema técnico completo (diagramas, WS, schemas, P0–P5, RAG, …) |
+| **`docs/DESIGN_FRONTEND.md`** | Frontend, WotC-adjacent, GameplayShell, pipeline UI |
+| **`docs/MOM_DESENVOLVIMENTO.md`** | MOM = memória de **dev/docs** apenas |
+| **`TODO-ARQUITETURA.md`** | Itens pendentes e comandos |
+
+**Não usar** `docs/archive/` — histórico obsoleto. **Não** recriar ARQUITETURA_* dispersos.
+
+## MOM (`mom/` no repo)
+
+- **MOM** = memória para **agentes de código** (Cursor), não runtime da partida.
+- **Jogo** = Qdrant + SessionFact SQL + snapshot Redis — ver seção memória em `ECOSSISTEMA.md`.
+- Ao decidir memória/RAG no backend, alinhar princípios MOM sem chamar MCP mom no servidor de jogo.
+
+## Skills — quando usar
+
+| Tarefa | Skill |
+|--------|--------|
+| WS, fila, split mecânico | `dndai-mechanical-narrative-split` |
+| JSON OSS / prompts | `dndai-minimal-llm-json` |
+| Combate FSM | `dndai-combat-fsm` |
+| Event log | `dndai-event-log` |
+| Refator pipeline WS | `dndai-action-pipeline-refactor` |
+| Smoke sessão | `dndai-session-simulator` |
+| UI turno / dock | `dndai-frontend-turn-machine` |
+| Atualizar docs vivos | `dndai-documentation` |
+
+**Antes de implementar:** ler skill da área + trecho relevante de `ECOSSISTEMA.md` ou `DESIGN_FRONTEND.md`.
+
+## Invariantes (não reintroduzir)
+
+- `narration_only`, worker append-only, BullMQ, `actionSequence`
+- Sem flags `MECHANICAL_NARRATIVE_SPLIT`, `ASYNC_NARRATION_*`, fila redis-list legada
+
+## Após mudança significativa
+
+1. Atualizar `ECOSSISTEMA.md` e/ou `DESIGN_FRONTEND.md`
+2. Marcar `TODO-ARQUITETURA.md`
+3. `npm run test --prefix backend` (e `chaos:smoke` se tocar fila/worker)
