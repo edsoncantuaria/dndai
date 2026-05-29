@@ -35,7 +35,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, show, an
   const [status, setStatus] = useState<RollStatus>('normal');
   const [hasRolled, setHasRolled] = useState(false);
 
-  const fullscreenMobile = isV2 && isMobile && show;
+  const fullscreenMobile = isMobile && show;
 
   useEffect(() => {
     if (!show) {
@@ -80,7 +80,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, show, an
         diceBoxInstance.current = diceBox;
         setIsDiceboxReady(true);
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         console.error('[DiceRollModal] Falha ao inicializar DiceBox:', err);
         setIsDiceboxReady(false);
       });
@@ -112,12 +112,12 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, show, an
       const isAdvDis = (request.advantage || request.disadvantage) && request.dice === '1d20';
       const diceNotation = isAdvDis ? ['1d20', '1d20'] : [request.dice];
       const results = await diceBoxInstance.current.roll(diceNotation);
-      const diceValues = results.map((r) => r.value);
+      const diceValues = (results as Array<{ value: number }>).map((r) => r.value);
       let rawRoll: number;
       if (isAdvDis) {
         rawRoll = request.advantage ? Math.max(...diceValues) : Math.min(...diceValues);
       } else {
-        rawRoll = diceValues.reduce((sum, value) => sum + value, 0);
+        rawRoll = diceValues.reduce((sum: number, value: number) => sum + value, 0);
       }
 
       const total = rawRoll + (request.modifier || 0);

@@ -46,3 +46,7 @@ firestore-debug.log
 
 # tooling tmp
 backend/.tmp/
+
+# git worktrees (local dev)
+.worktrees/
+worktrees/

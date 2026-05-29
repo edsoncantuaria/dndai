@@ -1,17 +1,20 @@
 /** Tokens TypeScript — espelho de tokens.css para uso em JS/TS */
 
 export const dndColors = {
-  ember: '#C41E3A',
-  emberHover: '#D42A48',
-  gold: '#C9A227',
-  goldDim: '#8A7020',
-  obsidian: '#0A0A0C',
-  obsidianRaised: '#141418',
-  parchment: '#F4E8D0',
-  parchmentMuted: '#C9B89A',
-  mist: 'rgba(255, 255, 255, 0.08)',
-  success: '#2D8A4E',
-  danger: '#B91C1C',
+  ember: '#e40712',
+  emberHover: '#ff2430',
+  emberDeep: '#9b0610',
+  gold: '#d4af37',
+  goldBright: '#f0d878',
+  goldDim: '#7a6520',
+  obsidian: '#050506',
+  obsidianRaised: '#121216',
+  parchment: '#f7f0e3',
+  parchmentMuted: '#b8a88c',
+  mist: 'rgba(255, 255, 255, 0.07)',
+  mistStrong: 'rgba(255, 255, 255, 0.12)',
+  success: '#2d8a4e',
+  danger: '#e40712',
 } as const;
 
 export const dndSpacing = {
