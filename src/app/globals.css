@@ -147,67 +147,7 @@
 
 
 @layer components {
-  .menu-button {
-    @apply w-full inline-flex items-center justify-center max-w-sm px-8 py-4 text-xl font-bold text-stone-100 transition-all duration-300 ease-in-out;
-    @apply border-2 border-solid rounded-lg shadow-lg;
-    background-size: 200% 100%;
-    text-shadow: 1px 1px 4px rgba(0,0,0,0.7);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
-  .menu-button:hover {
-    @apply shadow-2xl;
-    transform: translateY(-2px) scale(1.02);
-    --tw-shadow-color: hsl(var(--primary) / 0.5);
-    --tw-shadow: 0 0 15px var(--tw-shadow-color);
-    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-  }
-
-  .btn-continue {
-    @apply bg-gradient-to-r from-red-800 via-red-700 to-red-900 border-red-600;
-  }
-  .btn-continue:hover {
-    @apply border-red-500 text-white;
-  }
-
-  .btn-import {
-    @apply bg-gradient-to-r from-stone-800 via-stone-700 to-stone-800 border-stone-600;
-  }
-  .btn-import:hover {
-    @apply border-stone-500 text-white;
-  }
-
-  .btn-new {
-    @apply bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 border-amber-500 text-stone-900;
-  }
-  .btn-new:hover {
-    @apply border-amber-400 text-black;
-  }
-
-  .tab-shell {
-    @apply space-y-5 text-sm text-stone-200;
-  }
-
-  .tab-shell .bg-stone-800\/50,
-  .tab-shell .bg-stone-800\/60,
-  .tab-shell .bg-stone-800\/70,
-  .tab-shell .bg-stone-900\/50,
-  .tab-shell .bg-stone-900\/60,
-  .tab-shell .bg-stone-900\/70,
-  .tab-shell .bg-stone-950\/50 {
-    @apply bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md;
-  }
-
-  .tab-shell .border-stone-700,
-  .tab-shell .border-stone-700\/50,
-  .tab-shell .border-stone-600 {
-    @apply border-white/10;
-  }
-
-  .tab-shell .text-stone-400 {
-    @apply text-stone-300;
-  }
+  /* (V3) Removido: classes utilitárias do hub legado (`menu-button`, `btn-*`, `tab-shell`). */
 }
 
 @layer utilities {

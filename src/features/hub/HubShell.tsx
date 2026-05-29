@@ -1,7 +1,6 @@
 'use client';
 
 import type { GameMenuContentProps } from '@/components/game-menu/GameMenuContent';
-import { getHubBackTarget, setHubBackTarget } from '@/lib/hubSession';
 import { HubMain } from './HubMain';
 import { SessionListPage } from './SessionListPage';
 import { HeroVault } from './vault/HeroVault';
@@ -23,7 +22,6 @@ type HubShellProps = Pick<
   | 'onOpenSettings'
   | 'onLogout'
   | 'isAdmin'
-  | 'onReturnToHubLanding'
 >;
 
 export function HubShell({
@@ -42,20 +40,10 @@ export function HubShell({
   onOpenSettings,
   onLogout,
   isAdmin,
-  onReturnToHubLanding,
 }: HubShellProps) {
   const goToMesa = () => onSetStage('main_menu');
 
-  const goBackFromSubHub = () => {
-    if (getHubBackTarget() === 'landing') {
-      onReturnToHubLanding();
-      return;
-    }
-    goToMesa();
-  };
-
   const openFromMesa = (stage: 'character_vault' | 'session_list' | 'homebrew_store' | 'translation_studio') => {
-    setHubBackTarget('mesa');
     onSetStage(stage);
   };
 
@@ -86,10 +74,9 @@ export function HubShell({
     return (
       <SessionListPage
         sessions={sessions}
-        onBack={goBackFromSubHub}
+        onBack={goToMesa}
         onContinueGame={onContinueGame}
         onCreateHero={() => {
-          setHubBackTarget('mesa');
           onSetStage('character_vault');
         }}
         onRequestRenameSession={onRequestRenameSession}
@@ -104,7 +91,7 @@ export function HubShell({
       <HeroVault
         characters={characters}
         sessions={sessions}
-        onBack={goBackFromSubHub}
+        onBack={goToMesa}
         onCreateHero={() => onSetStage('creating_character')}
         onStartWithHero={onStartFromVault}
         onDeleteHero={onRequestDeleteCharacter}

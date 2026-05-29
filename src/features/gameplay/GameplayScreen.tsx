@@ -192,7 +192,7 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
               },
             ]}
           >
-            <p className="text-stone-300 mb-2">Conteúdo homebrew necessário para esta sessão.</p>
+            <p className="mb-2 font-ui text-dnd-parchment-muted">Conteúdo homebrew necessário para esta sessão.</p>
           </ActionModal>
         )}
 

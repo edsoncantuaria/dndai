@@ -8,13 +8,11 @@ import NewSpellCard from '../components/Spells/NewSpellCard';
 import { rollDice } from '../utils/dice';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
 import { Loader2, Sparkles } from 'lucide-react';
-import { isUiV2Enabled } from '@/lib/uiV2';
 import { DndButton, DndCard } from '@/components/primitives';
 import { DndGameModalShell } from '@/features/gameplay/modals/DndGameModalShell';
 import { cn } from '@/lib/utils';
 
 const LevelUpModal: React.FC = () => {
-    const isV2 = isUiV2Enabled();
     const { levelUpState, applyLevelUp, isLoading, character } = useGameStateContext();
     const [selections, setSelections] = useState<LevelUpSelections>({});
     const [asiPoints, setAsiPoints] = useState(levelUpState?.choices?.asi?.count || 0);
@@ -138,9 +136,7 @@ const LevelUpModal: React.FC = () => {
     };
 
     const sectionTitle = (text: string) => (
-        <h4 className={cn('mb-2 font-semibold', isV2 ? 'font-ui text-sm uppercase tracking-wider text-dnd-gold' : 'text-stone-300')}>
-            {text}
-        </h4>
+        <h4 className="mb-2 font-ui text-sm font-semibold uppercase tracking-wider text-dnd-gold">{text}</h4>
     );
 
     const renderHpChoice = () => {
@@ -151,55 +147,52 @@ const LevelUpModal: React.FC = () => {
             <>
                 {sectionTitle('Aumento de pontos de vida')}
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    {isV2 ? (
-                        <>
-                            <DndButton type="button" variant="goldOutline" className="flex-1" disabled={!!hpChoice} onClick={() => handleHpChoice('average')}>
-                                Média ({average} + {modifier})
-                            </DndButton>
-                            <DndButton type="button" variant="ember" className="flex-1" disabled={!!hpChoice} onClick={() => handleHpChoice('roll')}>
-                                Rolar 1d{character.hitDie} + {modifier}
-                            </DndButton>
-                        </>
-                    ) : (
-                        <>
-                            <button type="button" onClick={() => handleHpChoice('average')} disabled={!!hpChoice} className="flex-1 rounded-md bg-stone-700 px-4 py-2 font-semibold text-stone-200 disabled:opacity-50">
-                                Pegar a Média ({average} + {modifier} Mod)
-                            </button>
-                            <button type="button" onClick={() => handleHpChoice('roll')} disabled={!!hpChoice} className="flex-1 rounded-md bg-amber-700 px-4 py-2 font-semibold text-stone-100 disabled:opacity-50">
-                                Rolar 1d{character.hitDie} + {modifier} Mod
-                            </button>
-                        </>
-                    )}
+                    <DndButton type="button" variant="goldOutline" className="flex-1" disabled={!!hpChoice} onClick={() => handleHpChoice('average')}>
+                        Média ({average} + {modifier})
+                    </DndButton>
+                    <DndButton type="button" variant="ember" className="flex-1" disabled={!!hpChoice} onClick={() => handleHpChoice('roll')}>
+                        Rolar 1d{character.hitDie} + {modifier}
+                    </DndButton>
                 </div>
                 {hpChoice && hpRollResult !== null && (
-                    <p className={cn('mt-3 text-center font-semibold', isV2 ? 'font-ui text-dnd-gold' : 'text-amber-300')}>
+                    <p className="mt-3 text-center font-ui font-semibold text-dnd-gold">
                         {hpChoice === 'roll' ? `Você rolou ${hpRollResult}!` : 'Você pegou a média.'} +{modifier} Const. Total: +{hpRollResult + modifier} PV.
                     </p>
                 )}
             </>
         );
 
-        return isV2 ? <DndCard padding="md" hover={false} className="border-dnd-gold/12">{inner}</DndCard> : <div>{inner}</div>;
+        return (
+            <DndCard padding="md" hover={false} className="border-dnd-gold/12">
+                {inner}
+            </DndCard>
+        );
     }
 
     const renderAsiChoices = () => {
         if (!choices?.asi) return null;
         return (
             <div>
-                <h4 className="font-semibold text-stone-300 mb-2">Aumento no Valor de Atributo ({asiPoints} pontos restantes)</h4>
-                <p className="text-sm text-stone-400 mb-3">Aumente um atributo em +2 ou dois atributos em +1.</p>
+                <h4 className="mb-2 font-ui text-sm font-semibold uppercase tracking-wider text-dnd-gold">
+                    Aumento no Valor de Atributo ({asiPoints} pontos restantes)
+                </h4>
+                <p className="mb-3 font-ui text-sm text-dnd-parchment-muted">
+                    Aumente um atributo em +2 ou dois atributos em +1.
+                </p>
                 <div className="grid grid-cols-3 gap-2">
                     {(Object.keys(character.attributes) as Array<keyof Attributes>).map(attr => (
-                        <div key={attr} className="bg-stone-800 p-2 rounded-md text-center">
-                            <label className="text-xs font-bold text-stone-400">{translateAttribute(attr).substring(0, 3).toUpperCase()}</label>
-                            <div className="font-bold text-lg text-stone-200">
+                        <div key={attr} className="rounded-md border border-dnd-gold/12 bg-dnd-obsidian-raised p-2 text-center">
+                            <label className="text-xs font-bold text-dnd-parchment-muted">
+                                {translateAttribute(attr).substring(0, 3).toUpperCase()}
+                            </label>
+                            <div className="font-ui text-lg font-bold text-dnd-parchment">
                                 {character.attributes[attr]}
-                                {tempAttributes[attr] ? <span className="text-green-400"> +{tempAttributes[attr]}</span> : ''}
+                                {tempAttributes[attr] ? <span className="text-dnd-gold"> +{tempAttributes[attr]}</span> : ''}
                             </div>
                             <button 
                                 onClick={() => handleAttributeIncrease(attr)} 
                                 disabled={asiPoints === 0 || (tempAttributes[attr] || 0) >= 2 || (character.attributes[attr] + (tempAttributes[attr] || 0) >= 20)}
-                                className="text-xs bg-stone-600 hover:bg-stone-500 rounded px-2 py-1 mt-1 disabled:opacity-50"
+                                className="mt-1 rounded border border-dnd-gold/20 bg-dnd-obsidian px-2 py-1 text-xs text-dnd-parchment hover:border-dnd-gold/40 disabled:opacity-50"
                             >
                                 +1
                             </button>
@@ -214,7 +207,7 @@ const LevelUpModal: React.FC = () => {
         if (!choices?.spellsToChoose) return null;
         if (isSpellsLoading || spellsLoadingProgress) {
             return (
-                <div className="flex items-center justify-center p-4 text-stone-400">
+                <div className="flex items-center justify-center p-4 font-ui text-dnd-parchment-muted">
                     <Loader2 className="animate-spin" />
                     <span className="ml-2">{spellsLoadingProgress || 'Consultando grimório...'}</span>
                 </div>
@@ -225,7 +218,9 @@ const LevelUpModal: React.FC = () => {
         const selectedCount = selections.spells?.length || 0;
         return (
             <div>
-                 <h4 className="font-semibold text-stone-300 mb-2">Aprender Novas Magias ({selectedCount}/{choices.spellsToChoose})</h4>
+                 <h4 className="mb-2 font-ui text-sm font-semibold uppercase tracking-wider text-dnd-gold">
+                    Aprender Novas Magias ({selectedCount}/{choices.spellsToChoose})
+                 </h4>
                  <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                     {spellOptions.map((spell) => {
                         const isSelected = selections.spells?.includes(spell.index);
@@ -250,7 +245,9 @@ const LevelUpModal: React.FC = () => {
         const selectedCount = featureSelections[choice.id]?.length || 0;
         return (
             <div key={choice.id}>
-                <h4 className="font-semibold text-stone-300 mb-2">{choice.desc} ({selectedCount}/{choice.choose})</h4>
+                <h4 className="mb-2 font-ui text-sm font-semibold uppercase tracking-wider text-dnd-gold">
+                    {choice.desc} ({selectedCount}/{choice.choose})
+                </h4>
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                     {choice.options.map(option => {
                         const isSelected = featureSelections[choice.id]?.includes(option.index);
@@ -258,19 +255,22 @@ const LevelUpModal: React.FC = () => {
                         const inputType = choice.choose === 1 ? 'radio' : 'checkbox';
 
                         return (
-                            <div key={option.index} className={`bg-stone-800 p-3 rounded-md border transition-all duration-300 ${isSelected ? 'border-amber-600' : 'border-stone-700'} ${isDisabled ? 'opacity-60' : ''}`}>
-                                <label className="flex items-start gap-3 cursor-pointer">
+                            <div
+                                key={option.index}
+                                className={`rounded-md border bg-dnd-obsidian-raised p-3 transition-all duration-300 ${isSelected ? 'border-dnd-gold' : 'border-dnd-gold/15'} ${isDisabled ? 'opacity-60' : ''}`}
+                            >
+                                <label className="flex cursor-pointer items-start gap-3">
                                     <input
                                         type={inputType}
                                         name={choice.id}
                                         checked={isSelected}
                                         disabled={isDisabled}
                                         onChange={() => handleFeatureSelection(choice.id, option.index, choice.choose)}
-                                        className="form-checkbox h-5 w-5 text-amber-500 bg-stone-800 border-stone-600 focus:ring-amber-500 rounded mt-1"
+                                        className="form-checkbox mt-1 h-5 w-5 rounded border-dnd-gold/30 bg-dnd-obsidian text-dnd-gold focus:ring-dnd-gold"
                                     />
                                     <div>
-                                        <h5 className="font-semibold text-stone-200">{option.name}</h5>
-                                        <p className="text-sm text-stone-400">{option.desc}</p>
+                                        <h5 className="font-ui font-semibold text-dnd-parchment">{option.name}</h5>
+                                        <p className="font-ui text-sm text-dnd-parchment-muted">{option.desc}</p>
                                     </div>
                                 </label>
                             </div>
@@ -286,20 +286,23 @@ const LevelUpModal: React.FC = () => {
         const choice = choices.subclassChoice;
         return (
             <div key={choice.id}>
-                 <h4 className="font-semibold text-stone-300 mb-2">{choice.desc}</h4>
+                 <h4 className="mb-2 font-ui text-sm font-semibold uppercase tracking-wider text-dnd-gold">{choice.desc}</h4>
                  <div className="space-y-2">
                     {choice.options.map(option => (
-                        <div key={option.index} className={`bg-stone-800 p-3 rounded-md border transition-all duration-300 ${subclassSelection === option.index ? 'border-amber-600' : 'border-stone-700'}`}>
-                             <label className="flex items-start gap-3 cursor-pointer">
+                        <div
+                            key={option.index}
+                            className={`rounded-md border bg-dnd-obsidian-raised p-3 transition-all duration-300 ${subclassSelection === option.index ? 'border-dnd-gold' : 'border-dnd-gold/15'}`}
+                        >
+                             <label className="flex cursor-pointer items-start gap-3">
                                  <input
                                     type="radio"
                                     name="subclass-choice"
                                     checked={subclassSelection === option.index}
                                     onChange={() => setSubclassSelection(option.index)}
-                                    className="form-radio h-5 w-5 text-amber-500 bg-stone-800 border-stone-600 focus:ring-amber-500 rounded-full mt-1"
+                                    className="form-radio mt-1 h-5 w-5 rounded-full border-dnd-gold/30 bg-dnd-obsidian text-dnd-gold focus:ring-dnd-gold"
                                 />
                                  <div>
-                                    <h5 className="font-semibold text-stone-200">{option.name}</h5>
+                                    <h5 className="font-ui font-semibold text-dnd-parchment">{option.name}</h5>
                                      {/* Description can be added if available */}
                                 </div>
                             </label>
@@ -311,7 +314,7 @@ const LevelUpModal: React.FC = () => {
     };
 
     const mainContent = (
-        <div className={cn('space-y-6', isV2 ? 'p-4 md:p-5' : 'p-4')}>
+        <div className="space-y-6 p-4 md:p-5">
             {renderHpChoice()}
             {renderSubclassChoice()}
             {renderAsiChoices()}
@@ -320,54 +323,35 @@ const LevelUpModal: React.FC = () => {
         </div>
     );
 
-    const confirmFooter = isV2 ? (
-        <DndButton variant="ember" size="lg" className="w-full" disabled={!isReadyToConfirm} loading={isLoading} onClick={handleSubmit}>
+    const confirmFooter = (
+        <DndButton
+            variant="ember"
+            size="lg"
+            className="w-full"
+            disabled={!isReadyToConfirm}
+            loading={isLoading}
+            onClick={handleSubmit}
+        >
             {isLoading ? null : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                Confirmar nível {newLevel}
-              </>
+                <>
+                    <Sparkles className="h-4 w-4" />
+                    Confirmar nível {newLevel}
+                </>
             )}
         </DndButton>
-    ) : (
-        <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!isReadyToConfirm}
-            className="w-full rounded-md bg-amber-600 py-3 text-lg font-bold text-stone-900 disabled:opacity-50"
-        >
-            {isLoading ? <Loader2 className="mx-auto animate-spin" /> : `Confirmar Nível ${newLevel}`}
-        </button>
     );
 
-    if (isV2) {
-        return (
-            <DndGameModalShell
-                maxWidth="max-w-2xl"
-                eyebrow="Progressão"
-                title={`Nível ${newLevel}`}
-                subtitle={`Parabéns, ${character.name}! Faça suas escolhas.`}
-                footer={confirmFooter}
-                closeOnBackdrop={false}
-            >
-                {mainContent}
-            </DndGameModalShell>
-        );
-    }
-
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-            <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-lg border border-amber-500 bg-stone-900 shadow-2xl">
-                <header className="border-b border-stone-700 p-4">
-                    <h2 className="font-garamond text-2xl font-bold text-amber-300">Subiu de nível!</h2>
-                    <p className="text-stone-400">
-                        Parabéns, {character.name}! Você alcançou o nível {newLevel}. Faça suas escolhas.
-                    </p>
-                </header>
-                <main className="overflow-y-auto">{mainContent}</main>
-                <footer className="mt-auto border-t border-stone-700 p-4">{confirmFooter}</footer>
-            </div>
-        </div>
+        <DndGameModalShell
+            maxWidth="max-w-2xl"
+            eyebrow="Progressão"
+            title={`Nível ${newLevel}`}
+            subtitle={`Parabéns, ${character.name}! Faça suas escolhas.`}
+            footer={confirmFooter}
+            closeOnBackdrop={false}
+        >
+            {mainContent}
+        </DndGameModalShell>
     );
 };
 

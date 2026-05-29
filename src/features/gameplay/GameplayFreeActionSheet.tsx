@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { DndButton, DndSheet, DndTextarea } from '@/components/primitives';
+import { cn } from '@/lib/utils';
 
 export interface GameplayFreeActionSheetProps {
   open: boolean;
@@ -36,6 +37,11 @@ export function GameplayFreeActionSheet({
 
   return (
     <DndSheet open={open} onOpenChange={onOpenChange} title="Ação livre">
+      {disabled ? (
+        <div className="mb-3 rounded-lg border border-dnd-gold/15 bg-dnd-obsidian/70 px-3 py-2 text-center font-ui text-xs text-dnd-parchment-muted">
+          Input bloqueado: aguarde o Mestre concluir a última ação.
+        </div>
+      ) : null}
       <p className="mb-4 font-narrative text-sm leading-relaxed text-dnd-parchment-muted">
         Descreva o que seu herói tenta fazer. O Mestre interpreta com base nas regras e na cena atual.
       </p>
@@ -46,7 +52,7 @@ export function GameplayFreeActionSheet({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={4}
-        className="min-h-[100px]"
+        className={cn('min-h-[100px]', disabled && 'opacity-60')}
         disabled={disabled}
         onKeyDown={(e) => {
           if (disabled) return;

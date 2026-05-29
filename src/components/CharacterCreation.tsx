@@ -3,9 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { ApiListItem } from '@/types';
 import * as DndApiService from '@/services/dndApiService';
-import NewCharacterCreation from './NewCreationCharacter/NewCharacterCreation';
 import PremiumLoader from '@/components/ui/PremiumLoader';
-import { isUiV2Enabled } from '@/lib/uiV2';
 import dynamic from 'next/dynamic';
 
 const CharacterCreationWizard = dynamic(
@@ -81,30 +79,32 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
     
     if (error) {
          return (
-            <div className="relative min-h-screen w-full overflow-hidden bg-[#03060f]">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.12),_transparent_55%)]" />
-                <div className="absolute -bottom-32 left-0 h-72 w-72 bg-rose-500/20 blur-[180px]" />
+            <div className="relative min-h-screen w-full overflow-hidden bg-dnd-obsidian">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(212,175,55,0.12),_transparent_55%)]" />
+                <div className="absolute -bottom-32 left-0 h-72 w-72 bg-dnd-ember/20 blur-[180px]" />
                 <div className="relative z-10 mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center px-6 py-16 text-center">
-                    <div className="rounded-[36px] border border-white/10 bg-white/5 p-10 backdrop-blur-2xl shadow-2xl shadow-black/40 space-y-6">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-400/30 bg-amber-500/10 text-[10px] uppercase tracking-[0.5em] text-amber-200">
+                    <div className="space-y-6 rounded-3xl border border-dnd-gold/15 bg-dnd-obsidian-raised p-10 shadow-2xl">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-dnd-ember/30 bg-dnd-ember/10 px-3 py-1 font-ui text-[10px] uppercase tracking-[0.5em] text-dnd-ember">
                             falha na sincronização
                         </div>
-                        <h2 className="text-3xl font-serif text-white">Não conseguimos carregar os tomos iniciais</h2>
-                        <p className="text-sm text-stone-400">{error}</p>
+                        <h2 className="font-display text-3xl text-dnd-parchment">Não conseguimos carregar os tomos iniciais</h2>
+                        <p className="font-ui text-sm text-dnd-parchment-muted">{error}</p>
                         <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                             <button
+                                type="button"
                                 onClick={loadInitialData}
-                                className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/80 to-rose-500/70 px-6 py-2 text-sm font-semibold text-stone-950 shadow-lg shadow-amber-500/30 transition hover:brightness-110"
+                                className="inline-flex items-center gap-2 rounded-full bg-dnd-ember px-6 py-2 font-ui text-sm font-semibold text-dnd-parchment transition hover:brightness-110"
                             >
                                 Tentar novamente
                             </button>
                             <button
+                                type="button"
                                 onClick={() => {
                                     if (typeof window !== 'undefined') {
                                         window.location.reload();
                                     }
                                 }}
-                                className="inline-flex items-center gap-2 rounded-full border border-white/20 px-6 py-2 text-sm font-semibold text-stone-200 hover:border-amber-300 hover:text-amber-200 transition"
+                                className="inline-flex items-center gap-2 rounded-full border border-dnd-gold/25 px-6 py-2 font-ui text-sm font-semibold text-dnd-parchment-muted transition hover:border-dnd-gold hover:text-dnd-parchment"
                             >
                                 Recarregar página
                             </button>
@@ -125,12 +125,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
         onCancel,
     };
 
-    if (isUiV2Enabled()) {
-        return <CharacterCreationWizard {...sharedProps} />;
-    }
-
-    /** @deprecated `NewCharacterCreation` — use `CharacterCreationWizard` em `@/features/character-create`. */
-    return <NewCharacterCreation {...sharedProps} />;
+    return <CharacterCreationWizard {...sharedProps} />;
 };
 
 export default CharacterCreation;

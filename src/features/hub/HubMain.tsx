@@ -62,31 +62,62 @@ function FeaturedChronicle({
         kenBurns
         className="min-h-[280px]"
       >
-      <div className="relative flex min-h-[280px] flex-col justify-end p-6 sm:p-8">
-        <div className="dnd-brand-accent-wide mb-4 max-w-[8rem]" aria-hidden />
-        <p className="font-ui text-[11px] font-bold uppercase tracking-[0.28em] text-dnd-ember">
-          Última mesa
-        </p>
-        <h2 className="mt-2 font-display text-3xl leading-tight text-dnd-parchment sm:text-4xl">
-          {session.nome}
-        </h2>
-        <p className="mt-1 font-ui text-xs text-dnd-parchment-muted">Atualizada em {updated}</p>
-
-        {summary ? (
-          <p className="mt-3 max-w-2xl font-narrative text-sm leading-relaxed text-dnd-parchment-muted line-clamp-3">
-            {summary}
+        <div className="relative flex min-h-[280px] flex-col justify-end p-6 sm:p-8">
+          <div className="dnd-brand-accent-wide mb-4 max-w-[8rem]" aria-hidden />
+          <p className="font-ui text-[11px] font-bold uppercase tracking-[0.28em] text-dnd-ember">
+            Featured Chronicle
           </p>
-        ) : (
-          <p className="mt-3 font-narrative text-sm text-dnd-parchment-muted">
-            Retome a aventura exatamente de onde você parou.
-          </p>
-        )}
+          <h2 className="mt-2 font-display text-3xl leading-tight text-dnd-parchment sm:text-4xl">
+            {session.nome}
+          </h2>
+          <p className="mt-1 font-ui text-xs text-dnd-parchment-muted">Atualizada em {updated}</p>
 
-        <DndButton variant="ember" size="lg" className="mt-6" onClick={onContinue}>
-          <Play className="h-4 w-4" />
-          Retomar agora
-        </DndButton>
-      </div>
+          {summary ? (
+            <p className="mt-3 max-w-2xl font-narrative text-sm leading-relaxed text-dnd-parchment-muted line-clamp-3">
+              {summary}
+            </p>
+          ) : (
+            <p className="mt-3 font-narrative text-sm text-dnd-parchment-muted">
+              Retome a aventura exatamente de onde você parou.
+            </p>
+          )}
+
+          <DndButton variant="ember" size="lg" className="mt-6" onClick={onContinue}>
+            <Play className="h-4 w-4" />
+            Continuar Jornada: {session.nome}
+          </DndButton>
+        </div>
+      </CinematicBackdrop>
+    </section>
+  );
+}
+
+function FeaturedChronicleEmpty({ onCreateHero }: { onCreateHero: () => void }) {
+  return (
+    <section className="relative mb-10 overflow-hidden rounded-2xl border border-dnd-gold/15 shadow-[var(--dnd-shadow-hero)]">
+      <CinematicBackdrop
+        image={cinematicImages.rpgStillLife}
+        imageAlt="Mesa vazia na taverna — comece uma crônica"
+        intensity="strong"
+        kenBurns
+        className="min-h-[280px]"
+      >
+        <div className="relative flex min-h-[280px] flex-col justify-end p-6 sm:p-8">
+          <div className="dnd-brand-accent-wide mb-4 max-w-[8rem]" aria-hidden />
+          <p className="font-ui text-[11px] font-bold uppercase tracking-[0.28em] text-dnd-ember">
+            Featured Chronicle
+          </p>
+          <h2 className="mt-2 font-display text-3xl leading-tight text-dnd-parchment sm:text-4xl">
+            Nenhuma crônica em andamento
+          </h2>
+          <p className="mt-3 max-w-2xl font-narrative text-sm leading-relaxed text-dnd-parchment-muted">
+            Forje seu primeiro herói e acenda a fogueira da sua jornada.
+          </p>
+          <DndButton variant="ember" size="lg" className="mt-6" onClick={onCreateHero}>
+            <Play className="h-4 w-4" />
+            Criar herói
+          </DndButton>
+        </div>
       </CinematicBackdrop>
     </section>
   );
@@ -151,7 +182,9 @@ export function HubMain({
           summary={featuredSessionFacts?.storySummary}
           onContinue={() => onContinueGame(featured.id)}
         />
-      ) : null}
+      ) : (
+        <FeaturedChronicleEmpty onCreateHero={onCreateHero} />
+      )}
 
       <HubSectionHeader
         title="Mesas recentes"

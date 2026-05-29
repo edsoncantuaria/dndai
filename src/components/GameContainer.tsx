@@ -15,15 +15,10 @@ import ArchitectureHelpModal from './system/ArchitectureHelpModal';
 import { loadTranslations } from '@/utils/translator';
 import type { SessionFactsResponse } from '@/services/gameService';
 import { useToast } from '@/hooks/use-toast';
-import { isUiV2Enabled } from '@/lib/uiV2';
 import { StageTransition } from '@/components/motion/StageTransition';
 import { AmbientAudioEngine } from '@/components/AmbientAudioEngine';
 import { useStageAmbientSound } from '@/hooks/useStageAmbientSound';
 import { useMenuMusicCrossfade } from '@/hooks/useMenuMusicCrossfade';
-import { consumeHubIntent } from '@/lib/hubIntentStorage';
-import { setHubBackTarget } from '@/lib/hubSession';
-import type { HubIntent } from '@/contexts/HubIntentContext';
-import { useHubNavigation } from '@/contexts/HubNavigationContext';
 import GameMenuContent from './game-menu/GameMenuContent';
 import { GameStage } from '@/types/gameStage';
 import { Loader2 } from 'lucide-react';
@@ -45,7 +40,6 @@ const GameContainer = () => {
     const { useAiHomebrew, playMenuMusic, volume, isMuted } = useSettingsContext();
     const { logout, user } = useAuth();
     const { toast } = useToast();
-    const hubNavigation = useHubNavigation();
 
     const [gameStage, setGameStage] = useState<GameStage>('loading');
     const [sessions, setSessions] = useState<SessaoIA[]>([]);
@@ -162,38 +156,7 @@ const GameContainer = () => {
         }
     }, [loadGameSession]);
 
-    const applyHubIntent = useCallback(
-        (intent: HubIntent) => {
-            setHubBackTarget('landing');
-            switch (intent.type) {
-                case 'continue':
-                    void handleContinueGame(intent.sessionId);
-                    break;
-                case 'session_list':
-                    setGameStage('session_list');
-                    break;
-                case 'character_vault':
-                    setGameStage('character_vault');
-                    break;
-                case 'creating_character':
-                    setGameStage('creating_character');
-                    break;
-                case 'homebrew_store':
-                    setGameStage('homebrew_store');
-                    break;
-                case 'translation_studio':
-                    setGameStage('translation_studio');
-                    break;
-            }
-        },
-        [handleContinueGame]
-    );
-
-    useEffect(() => {
-        if (!isUiV2Enabled() || isLoadingData || gameStage !== 'main_menu') return;
-        const intent = consumeHubIntent();
-        if (intent) applyHubIntent(intent);
-    }, [isLoadingData, gameStage, applyHubIntent]);
+    // V3-only: sem roteamento/intent legado via storage.
 
     const returnToMenu = useCallback(() => {
         clearGameState();
@@ -308,7 +271,6 @@ const GameContainer = () => {
                 isLoadingData={isLoadingData}
                 onSetStage={onSetStage}
                 onReturnToMenu={returnToMenu}
-                onReturnToHubLanding={hubNavigation?.returnToHubLanding}
                 onContinueGame={handleContinueGame}
                 onCharacterCreated={handleCharacterCreated}
                 onStartFromVault={handleNewGameFromVault}
@@ -330,13 +292,8 @@ const GameContainer = () => {
 
     return (
         <>
-            {isUiV2Enabled() ? (
-                <StageTransition stageKey={gameStage}>{menuContent}</StageTransition>
-            ) : (
-                menuContent
-            )}
-
-            {isUiV2Enabled() ? <AmbientAudioEngine /> : null}
+            <StageTransition stageKey={gameStage}>{menuContent}</StageTransition>
+            <AmbientAudioEngine />
 
             {characterToDelete && (
                 <ActionModal
@@ -348,7 +305,7 @@ const GameContainer = () => {
                         { text: 'Confirmar Deleção', onClick: confirmDeleteCharacter, variant: 'destructive' }
                     ]}
                 >
-                    <p className="text-stone-300">Esta ação é irreversível e irá apagar o personagem permanentemente. Tem certeza?</p>
+                    <p className="font-ui text-dnd-parchment-muted">Esta ação é irreversível e irá apagar o personagem permanentemente. Tem certeza?</p>
                 </ActionModal>
             )}
 
@@ -362,7 +319,7 @@ const GameContainer = () => {
                         { text: 'Confirmar Exclusão', onClick: confirmDeleteSession, variant: 'destructive' }
                     ]}
                 >
-                    <p className="text-stone-300">Tem certeza de que deseja apagar o progresso desta aventura? Esta ação não pode ser desfeita.</p>
+                    <p className="font-ui text-dnd-parchment-muted">Tem certeza de que deseja apagar o progresso desta aventura? Esta ação não pode ser desfeita.</p>
                 </ActionModal>
             )}
 
@@ -380,7 +337,7 @@ const GameContainer = () => {
                         type="text"
                         value={newSessionName}
                         onChange={(e) => setNewSessionName(e.target.value)}
-                        className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"
+                        className="w-full rounded-md border border-dnd-gold/20 bg-dnd-obsidian-raised p-2 font-ui text-dnd-parchment"
                         maxLength={42}
                     />
                 </ActionModal>
@@ -396,7 +353,7 @@ const GameContainer = () => {
                         { text: "Sim, Criar Linha do Tempo", onClick: confirmCloneSession, variant: 'primary', disabled: isActionLoading, icon: isActionLoading ? <Loader2 className="animate-spin h-4 w-4" /> : undefined }
                     ]}
                 >
-                    <p className="text-stone-300">
+                    <p className="font-ui text-dnd-parchment-muted">
                         Isso criará uma nova linha do tempo, independente da original. Você poderá explorar caminhos diferentes a partir deste exato momento. Deseja continuar?
                     </p>
                 </ActionModal>

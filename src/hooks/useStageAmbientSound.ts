@@ -3,7 +3,6 @@
 import { useEffect } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { HUB_AMBIENT_SOUND_ID, isHubGameStage } from '@/lib/stageAmbientSound';
-import { isUiV2Enabled } from '@/lib/uiV2';
 import type { GameStage } from '@/types/gameStage';
 
 /**
@@ -14,7 +13,6 @@ export function useStageAmbientSound(gameStage: GameStage) {
   const { setAmbientSound, ambientSound } = useGameStateContext();
 
   useEffect(() => {
-    if (!isUiV2Enabled()) return;
     if (gameStage === 'playing') return;
     if (!isHubGameStage(gameStage)) return;
     if (ambientSound !== HUB_AMBIENT_SOUND_ID) {

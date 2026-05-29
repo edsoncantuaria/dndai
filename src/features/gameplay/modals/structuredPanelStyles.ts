@@ -1,24 +1,18 @@
-import { cn } from '@/lib/utils';
+/** V3-only — o parâmetro `variant` é ignorado (compatibilidade com chamadas antigas). */
+type _LegacyVariant = 'legacy' | 'v2';
 
-export function structuredPanelFormClass(variant: 'legacy' | 'v2' = 'legacy') {
-  return variant === 'v2'
-    ? 'space-y-2'
-    : 'space-y-2 rounded-2xl border border-white/10 bg-black/30 p-3';
+export function structuredPanelFormClass(_variant?: _LegacyVariant) {
+  return 'space-y-2';
 }
 
-export function structuredPanelTitleClass(variant: 'legacy' | 'v2' = 'legacy') {
-  return cn(
-    'text-xs font-semibold uppercase tracking-wide',
-    variant === 'v2' ? 'font-ui text-dnd-gold' : 'text-amber-300'
-  );
+export function structuredPanelTitleClass(_variant?: _LegacyVariant) {
+  return 'font-ui text-xs font-semibold uppercase tracking-wide text-dnd-gold';
 }
 
-export function structuredFieldClass(variant: 'legacy' | 'v2' = 'legacy') {
-  return variant === 'v2'
-    ? 'mt-1 w-full min-h-[44px] rounded-md border border-dnd-gold/25 bg-dnd-obsidian-raised/90 px-3 py-2 font-ui text-sm text-dnd-parchment'
-    : 'mt-1 w-full rounded-xl border border-white/15 bg-black/40 p-2 text-stone-100';
+export function structuredFieldClass(_variant?: _LegacyVariant) {
+  return 'mt-1 w-full min-h-[44px] rounded-md border border-dnd-gold/25 bg-dnd-obsidian-raised/90 px-3 py-2 font-ui text-sm text-dnd-parchment';
 }
 
-export function structuredLabelClass(variant: 'legacy' | 'v2' = 'legacy') {
-  return variant === 'v2' ? 'flex-1 font-ui text-sm text-dnd-parchment' : 'flex-1 text-sm text-stone-300';
+export function structuredLabelClass(_variant?: _LegacyVariant) {
+  return 'flex-1 font-ui text-sm text-dnd-parchment';
 }

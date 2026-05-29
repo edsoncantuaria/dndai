@@ -10,13 +10,13 @@ import { Switch } from '@/components/ui/switch';
 import { useNarrationSpeech } from '@/hooks/useNarrationSpeech';
 import { apiClient } from '@/services/apiClient';
 import { generateSceneImage as requestSceneImage } from '@/services/imageService';
-import { isUiV2Enabled } from '@/lib/uiV2';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { NARRATION_SPEEDS, PIPER_VOICES } from '@/lib/narrationTts';
 
 const IMAGE_FEATURE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_IMAGE_GENERATION === 'true';
 
-const PANEL = 'rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-2xl shadow-[0_35px_90px_rgba(0,0,0,0.65)]';
+const PANEL =
+  'rounded-3xl border border-dnd-gold/15 bg-dnd-obsidian-raised/95 backdrop-blur-2xl shadow-[var(--dnd-shadow-elevated)]';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -37,16 +37,16 @@ interface SliderProps {
 const Slider: React.FC<SliderProps> = ({ id, label, tooltip, value, min, max, step, onChange }) => (
     <div>
         <div className="flex justify-between items-center mb-2">
-            <label htmlFor={id} className="text-stone-100 font-semibold flex items-center gap-2">
+            <label htmlFor={id} className="text-dnd-parchment font-semibold flex items-center gap-2">
                 {label}
                 <div className="relative group">
-                    <Info className="h-4 w-4 text-stone-500 cursor-help" />
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 bg-black/90 text-stone-200 text-xs rounded-2xl py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 shadow-lg border border-white/10">
+                    <Info className="h-4 w-4 text-dnd-parchment-muted/80 cursor-help" />
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 bg-black/90 text-dnd-parchment text-xs rounded-2xl py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 shadow-lg border border-white/10">
                         {tooltip}
                     </div>
                 </div>
             </label>
-            <span className="font-mono text-amber-300">{value}</span>
+            <span className="font-mono text-dnd-gold">{value}</span>
         </div>
         <input
             id={id}
@@ -56,7 +56,7 @@ const Slider: React.FC<SliderProps> = ({ id, label, tooltip, value, min, max, st
             step={step}
             value={value}
             onChange={onChange}
-            className="w-full h-2 rounded-full appearance-none cursor-pointer bg-white/10 accent-amber-400"
+            className="w-full h-2 rounded-full appearance-none cursor-pointer bg-white/10 accent-dnd-gold"
         />
     </div>
 );
@@ -79,9 +79,9 @@ const AudioControls: React.FC = () => {
     const { autoSpeak, setAutoSpeak } = useNarrationSpeech();
     return (
          <div className="space-y-4 pt-6 border-t border-white/10">
-            <h3 className="text-lg font-semibold text-stone-100">Áudio e narração</h3>
+            <h3 className="text-lg font-semibold text-dnd-parchment">Áudio e narração</h3>
             <div className="flex items-center gap-3">
-                 <button onClick={() => setIsMuted(m => !m)} className="text-stone-200 hover:text-white p-2 rounded-full bg-black/40 border border-white/10 hover:border-amber-400/40 transition-colors">
+                 <button onClick={() => setIsMuted(m => !m)} className="text-dnd-parchment hover:text-dnd-parchment p-2 rounded-full bg-black/40 border border-white/10 hover:border-dnd-gold/40 transition-colors">
                     {isMuted ? <VolumeX size={20}/> : <Volume2 size={20} />}
                 </button>
                  <Slider 
@@ -97,13 +97,13 @@ const AudioControls: React.FC = () => {
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
                 <div className="flex items-center justify-between bg-black/30 border border-white/10 p-4 rounded-2xl">
-                    <label htmlFor="menu-music-toggle" className="text-stone-200 font-semibold text-sm">
+                    <label htmlFor="menu-music-toggle" className="text-dnd-parchment font-semibold text-sm">
                         Música da Tela Principal
                     </label>
                     <button
                         id="menu-music-toggle"
                         onClick={() => setPlayMenuMusic(p => !p)}
-                        className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-amber-500 ${playMenuMusic ? 'bg-amber-500' : 'bg-stone-600'}`}
+                        className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-dnd-gold ${playMenuMusic ? 'bg-dnd-gold' : 'bg-dnd-obsidian-raised'}`}
                     >
                         <span
                             aria-hidden="true"
@@ -112,13 +112,13 @@ const AudioControls: React.FC = () => {
                     </button>
                 </div>
                 <div className="flex items-center justify-between bg-black/30 border border-white/10 p-4 rounded-2xl">
-                    <label htmlFor="ambient-music-toggle" className="text-stone-200 font-semibold text-sm">
+                    <label htmlFor="ambient-music-toggle" className="text-dnd-parchment font-semibold text-sm">
                         Música ambiente na aventura
                     </label>
                     <button
                         id="ambient-music-toggle"
                         onClick={() => setPlayAmbientMusic(p => !p)}
-                        className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-emerald-500 ${playAmbientMusic ? 'bg-emerald-500' : 'bg-stone-600'}`}
+                        className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-emerald-500 ${playAmbientMusic ? 'bg-emerald-500' : 'bg-dnd-obsidian-raised'}`}
                     >
                         <span
                             aria-hidden="true"
@@ -130,8 +130,8 @@ const AudioControls: React.FC = () => {
             <div className="space-y-3 rounded-2xl border border-white/10 bg-black/30 p-4">
                 <div className="flex items-center justify-between gap-3">
                     <div>
-                        <p className="text-sm font-semibold text-stone-100">Narração automática</p>
-                        <p className="text-xs text-stone-400">Usa o TTS do servidor para falar cada novo bloco assim que ele chega.</p>
+                        <p className="text-sm font-semibold text-dnd-parchment">Narração automática</p>
+                        <p className="text-xs text-dnd-parchment-muted">Usa o TTS do servidor para falar cada novo bloco assim que ele chega.</p>
                     </div>
                     <Switch checked={autoSpeak} onCheckedChange={setAutoSpeak} />
                 </div>
@@ -140,7 +140,7 @@ const AudioControls: React.FC = () => {
                         onClick={() => {
                             window.dispatchEvent(new Event('narration-play-request'));
                         }}
-                        className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-stone-100 hover:border-amber-300/50 hover:text-amber-200"
+                        className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-dnd-parchment hover:border-dnd-gold/50 hover:text-dnd-gold"
                     >
                         Ouvir última narração
                     </button>
@@ -148,14 +148,14 @@ const AudioControls: React.FC = () => {
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                    <label htmlFor="narration-voice" className="mb-2 block text-sm font-semibold text-stone-200">
+                    <label htmlFor="narration-voice" className="mb-2 block text-sm font-semibold text-dnd-parchment">
                         Voz do narrador (Piper)
                     </label>
                     <select
                         id="narration-voice"
                         value={narrationVoice}
                         onChange={e => setNarrationVoice(e.target.value as typeof narrationVoice)}
-                        className="w-full rounded-2xl border border-white/10 bg-black/40 p-3 text-sm text-stone-100 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/60"
+                        className="w-full rounded-2xl border border-white/10 bg-black/40 p-3 text-sm text-dnd-parchment focus:border-dnd-gold focus:ring-2 focus:ring-dnd-gold/60"
                     >
                         {PIPER_VOICES.map(v => (
                             <option key={v.id} value={v.id}>
@@ -163,19 +163,19 @@ const AudioControls: React.FC = () => {
                             </option>
                         ))}
                     </select>
-                    <p className="mt-1 text-xs text-stone-500">
+                    <p className="mt-1 text-xs text-dnd-parchment-muted/80">
                         {PIPER_VOICES.find(v => v.id === narrationVoice)?.description}
                     </p>
                 </div>
                 <div>
-                    <label htmlFor="narration-speed" className="mb-2 block text-sm font-semibold text-stone-200">
+                    <label htmlFor="narration-speed" className="mb-2 block text-sm font-semibold text-dnd-parchment">
                         Velocidade da fala
                     </label>
                     <select
                         id="narration-speed"
                         value={narrationSpeed}
                         onChange={e => setNarrationSpeed(e.target.value as typeof narrationSpeed)}
-                        className="w-full rounded-2xl border border-white/10 bg-black/40 p-3 text-sm text-stone-100 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/60"
+                        className="w-full rounded-2xl border border-white/10 bg-black/40 p-3 text-sm text-dnd-parchment focus:border-dnd-gold focus:ring-2 focus:ring-dnd-gold/60"
                     >
                         {NARRATION_SPEEDS.map(s => (
                             <option key={s.id} value={s.id}>
@@ -183,7 +183,7 @@ const AudioControls: React.FC = () => {
                             </option>
                         ))}
                     </select>
-                    <p className="mt-1 text-xs text-stone-500">
+                    <p className="mt-1 text-xs text-dnd-parchment-muted/80">
                         {NARRATION_SPEEDS.find(s => s.id === narrationSpeed)?.description}
                     </p>
                 </div>
@@ -193,7 +193,7 @@ const AudioControls: React.FC = () => {
 }
 
 const themeOptions: Array<{ id: ThemePreset; title: string; description: string; gradient: string }> = [
-    { id: 'classic', title: 'Stone', description: 'Âmbar + pedra (visual original)', gradient: 'from-stone-900 via-stone-800 to-amber-800' },
+    { id: 'classic', title: 'Obsidian', description: 'Ouro + obsidiana (V3)', gradient: 'from-dnd-obsidian via-dnd-obsidian-raised to-dnd-gold/40' },
     { id: 'aurora', title: 'Aurora', description: 'Crepúsculo vibrante e quente', gradient: 'from-rose-900 via-purple-700 to-sky-600' },
     { id: 'midnight', title: 'Midnight', description: 'Noite profunda com contraste frio', gradient: 'from-indigo-950 via-slate-900 to-cyan-900' },
 ];
@@ -207,13 +207,13 @@ const ToggleRow: React.FC<{
 }> = ({ id, label, description, enabled, onToggle }) => (
     <div className="flex items-start justify-between gap-4 bg-black/30 rounded-2xl p-4 border border-white/10">
         <div>
-            <p className="text-sm font-semibold text-stone-100">{label}</p>
-            {description && <p className="text-xs text-stone-400 mt-0.5">{description}</p>}
+            <p className="text-sm font-semibold text-dnd-parchment">{label}</p>
+            {description && <p className="text-xs text-dnd-parchment-muted mt-0.5">{description}</p>}
         </div>
         <button
             id={id}
             onClick={onToggle}
-            className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-amber-500 ${enabled ? 'bg-amber-500' : 'bg-stone-600'}`}
+            className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-dnd-gold ${enabled ? 'bg-dnd-gold' : 'bg-dnd-obsidian-raised'}`}
         >
             <span
                 aria-hidden="true"
@@ -241,13 +241,13 @@ const AppearanceControls: React.FC = () => {
 
     return (
         <div className="space-y-4 pt-6 border-t border-white/10">
-            <h3 className="text-lg font-semibold text-stone-100 flex items-center gap-2">
-                <Palette className="h-5 w-5 text-amber-400" /> Aparência & Acessibilidade
+            <h3 className="text-lg font-semibold text-dnd-parchment flex items-center gap-2">
+                <Palette className="h-5 w-5 text-dnd-gold" /> Aparência & Acessibilidade
             </h3>
             <div className="rounded-2xl border border-white/10 bg-black/30 p-4 space-y-3">
-                <div className="flex items-center justify-between gap-2 text-sm text-stone-200">
+                <div className="flex items-center justify-between gap-2 text-sm text-dnd-parchment">
                     <span>Paleta dinâmica</span>
-                    <Sparkles className="h-4 w-4 text-amber-300" />
+                    <Sparkles className="h-4 w-4 text-dnd-gold" />
                 </div>
                 <input
                     type="range"
@@ -259,7 +259,7 @@ const AppearanceControls: React.FC = () => {
                         const selected = themeOptions[nextIdx];
                         if (selected) setTheme(selected.id);
                     }}
-                    className="w-full accent-amber-400"
+                    className="w-full accent-dnd-gold"
                     aria-label="Selecionar tema visual"
                 />
                 <div className="grid grid-cols-3 gap-2 text-xs text-center">
@@ -269,13 +269,13 @@ const AppearanceControls: React.FC = () => {
                             onClick={() => setTheme(option.id)}
                             className={`rounded-xl border p-2 transition-all ${
                                 option.id === theme
-                                    ? 'border-amber-400 text-amber-200 bg-black/40'
-                                    : 'border-white/10 text-stone-400 hover:border-amber-500/60'
+                                    ? 'border-dnd-gold text-dnd-gold bg-black/40'
+                                    : 'border-white/10 text-dnd-parchment-muted hover:border-dnd-gold/60'
                             }`}
                         >
                             <div className={`h-8 rounded bg-gradient-to-r ${option.gradient} mb-1`} />
                             <p className="font-semibold">{option.title}</p>
-                            <p className="text-[10px] text-stone-400">{option.description}</p>
+                            <p className="text-[10px] text-dnd-parchment-muted">{option.description}</p>
                         </button>
                     ))}
                 </div>
@@ -304,15 +304,15 @@ const AppearanceControls: React.FC = () => {
                     onToggle={() => setHighContrast(!highContrast)}
                 />
                 <div className="flex flex-col gap-2 bg-black/30 rounded-2xl p-4 border border-white/10">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-stone-100">
-                        <Accessibility className="h-4 w-4 text-amber-300" /> Guia Interativo
+                    <div className="flex items-center gap-2 text-sm font-semibold text-dnd-parchment">
+                        <Accessibility className="h-4 w-4 text-dnd-gold" /> Guia Interativo
                     </div>
-                    <p className="text-xs text-stone-400">
+                    <p className="text-xs text-dnd-parchment-muted">
                         Reabra o tour guiado que explica cada painel da mesa virtual.
                     </p>
                     <button
                         onClick={() => setHasSeenGuidedTips(false)}
-                        className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full border border-amber-400 text-amber-200 hover:bg-amber-500/10 disabled:opacity-60"
+                        className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full border border-dnd-gold text-dnd-gold hover:bg-dnd-gold/10 disabled:opacity-60"
                         disabled={!hasSeenGuidedTips}
                     >
                         <Undo2 className="h-3.5 w-3.5" /> Rever dicas
@@ -327,8 +327,8 @@ const FeedbackControls: React.FC = () => {
     const { eventCuesEnabled, setEventCuesEnabled, hapticsEnabled, setHapticsEnabled } = useSettingsContext();
     return (
         <div className="space-y-4 pt-6 border-t border-white/10">
-            <h3 className="text-lg font-semibold text-stone-100 flex items-center gap-2">
-                <AudioWaveform className="h-5 w-5 text-amber-300" /> Feedback Sensorial
+            <h3 className="text-lg font-semibold text-dnd-parchment flex items-center gap-2">
+                <AudioWaveform className="h-5 w-5 text-dnd-gold" /> Feedback Sensorial
             </h3>
             <ToggleRow
                 id="audio-cues"
@@ -420,19 +420,19 @@ const CacheManagement: React.FC = () => {
 
     return (
         <div className="space-y-4 pt-6 border-t border-white/10">
-            <h3 className="text-lg font-semibold text-stone-100">Manutenção e Cache</h3>
+            <h3 className="text-lg font-semibold text-dnd-parchment">Manutenção e Cache</h3>
             <div className="flex flex-col sm:flex-row gap-3">
-                <button onClick={handleClearEquipmentCache} className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-full text-sm font-semibold transition bg-gradient-to-r from-sky-400 to-sky-600 text-stone-900 hover:from-sky-300 hover:to-sky-500">
+                <button onClick={handleClearEquipmentCache} className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-full text-sm font-semibold transition bg-gradient-to-r from-sky-400 to-sky-600 text-dnd-obsidian hover:from-sky-300 hover:to-sky-500">
                     <Eraser className="h-4 w-4" /> Limpar Cache de Equipamentos
                 </button>
-                 <button onClick={handleSyncHomebrew} className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-full text-sm font-semibold transition bg-gradient-to-r from-purple-400 to-purple-600 text-white hover:from-purple-300 hover:to-purple-500">
+                 <button onClick={handleSyncHomebrew} className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-full text-sm font-semibold transition bg-gradient-to-r from-purple-400 to-purple-600 text-dnd-parchment hover:from-purple-300 hover:to-purple-500">
                     <RefreshCw className="h-4 w-4" /> Sincronizar Dados de Homebrew
                 </button>
             </div>
             <button
                 onClick={handleClearPendingRolls}
                 disabled={isClearingRolls}
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-full text-sm font-semibold transition bg-gradient-to-r from-emerald-500 to-teal-600 text-white disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-full text-sm font-semibold transition bg-gradient-to-r from-emerald-500 to-teal-600 text-dnd-parchment disabled:opacity-50"
             >
                 {isClearingRolls ? <Loader2 className="h-4 w-4 animate-spin" /> : <Dice5 className="h-4 w-4" />}
                 Limpar Rolagens Pendentes
@@ -441,14 +441,14 @@ const CacheManagement: React.FC = () => {
                 <button
                     onClick={handleFlushRedis}
                     disabled={isFlushingRedis}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-full text-sm font-semibold transition bg-gradient-to-r from-rose-500 to-red-600 text-white disabled:opacity-50"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-full text-sm font-semibold transition bg-gradient-to-r from-dnd-ember to-dnd-ember/90 text-dnd-parchment disabled:opacity-50"
                     title="Limpa todos os caches compartilhados (Redis). Use apenas quando necessário."
                 >
                     {isFlushingRedis ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                     Limpar Caches Globais
                 </button>
             )}
-             <p className="text-xs text-stone-400 text-center">Use estas opções se notar que itens, equipamentos ou conteúdos homebrew não estão aparecendo ou atualizando corretamente.</p>
+             <p className="text-xs text-dnd-parchment-muted text-center">Use estas opções se notar que itens, equipamentos ou conteúdos homebrew não estão aparecendo ou atualizando corretamente.</p>
         </div>
     );
 };
@@ -456,7 +456,7 @@ const CacheManagement: React.FC = () => {
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     const { isMdUp } = useBreakpoint();
-    const useSheetLayout = isUiV2Enabled();
+    const useSheetLayout = true;
     const { useAiHomebrew, setUseAiHomebrew } = useSettingsContext();
     const { toast } = useToast();
     const [imageTestPrompt, setImageTestPrompt] = useState('Retrate a cena atual como uma ilustração dramática.');
@@ -498,37 +498,37 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             >
                 <header className="p-6 border-b border-white/10 flex justify-between items-start gap-4">
                     <div className="space-y-2">
-                        <p className="text-[11px] uppercase tracking-[0.35em] text-amber-200 flex items-center gap-2">
+                        <p className="text-[11px] uppercase tracking-[0.35em] text-dnd-gold flex items-center gap-2">
                             <Shield className="h-4 w-4" /> Configurações Avançadas
                         </p>
-                        <h2 className="text-3xl font-serif text-white leading-tight">Painel do Mestre Virtual</h2>
-                        <p className="text-sm text-stone-400">Personalize áudio, IA, aparências e integrações para toda a mesa.</p>
+                        <h2 className="text-3xl font-serif text-dnd-parchment leading-tight">Painel do Mestre Virtual</h2>
+                        <p className="text-sm text-dnd-parchment-muted">Personalize áudio, IA, aparências e integrações para toda a mesa.</p>
                     </div>
-                    <button onClick={handleSaveAndClose} className="rounded-full border border-white/15 p-2 text-stone-300 hover:text-white hover:border-white/40 transition" aria-label="Fechar configurações">
+                    <button onClick={handleSaveAndClose} className="rounded-full border border-white/15 p-2 text-dnd-parchment-muted hover:text-dnd-parchment hover:border-white/40 transition" aria-label="Fechar configurações">
                         &times;
                     </button>
                 </header>
                 <main className="p-6 space-y-6 overflow-y-auto min-h-0">
-                    <p className="text-sm text-stone-400 rounded-2xl border border-white/10 bg-black/30 p-4">
+                    <p className="text-sm text-dnd-parchment-muted rounded-2xl border border-white/10 bg-black/30 p-4">
                         A IA e a voz do Mestre rodam no servidor — basta entrar e jogar. Ajuste áudio e aparência abaixo.
                     </p>
                     {IMAGE_FEATURE_ENABLED && (
                         <div className="rounded-3xl border border-white/10 bg-black/30 p-4 space-y-3">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-semibold text-stone-100 flex items-center gap-2">
-                                        <ImageIcon className="h-4 w-4 text-amber-400" />
+                                    <p className="text-sm font-semibold text-dnd-parchment flex items-center gap-2">
+                                        <ImageIcon className="h-4 w-4 text-dnd-gold" />
                                         Teste de geração de imagem
                                     </p>
-                                    <p className="text-xs text-stone-400">Use o prompt abaixo para validar rapidamente se sua chave está habilitada para o modelo de imagens.</p>
+                                    <p className="text-xs text-dnd-parchment-muted">Use o prompt abaixo para validar rapidamente se sua chave está habilitada para o modelo de imagens.</p>
                                 </div>
-                                {imageTestLoading && <Loader2 className="h-4 w-4 animate-spin text-amber-200" />}
+                                {imageTestLoading && <Loader2 className="h-4 w-4 animate-spin text-dnd-gold" />}
                             </div>
                             <textarea
                                 value={imageTestPrompt}
                                 onChange={e => setImageTestPrompt(e.target.value)}
                                 rows={3}
-                                className="w-full rounded-2xl border border-white/10 bg-black/40 p-3 text-sm text-stone-100 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/60"
+                                className="w-full rounded-2xl border border-white/10 bg-black/40 p-3 text-sm text-dnd-parchment focus:border-dnd-gold focus:ring-2 focus:ring-dnd-gold/60"
                                 placeholder="Descreva a cena que deseja visualizar..."
                             />
                             <div className="flex flex-col gap-3">
@@ -536,7 +536,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                                     type="button"
                                     onClick={handleTestImageGeneration}
                                     disabled={imageTestLoading}
-                                    className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-500 to-pink-500 py-2.5 px-4 text-sm font-semibold text-white transition hover:from-amber-400 hover:to-pink-400 disabled:opacity-50"
+                                    className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-dnd-gold to-dnd-ember py-2.5 px-4 text-sm font-semibold text-dnd-parchment transition hover:brightness-110 disabled:opacity-50"
                                 >
                                     {imageTestLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                                     Gerar imagem de teste
@@ -553,7 +553,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                                     </a>
                                 )}
                                 {imageTestResult?.error && (
-                                    <p className="text-xs text-rose-300">
+                                    <p className="text-xs text-dnd-ember">
                                         {imageTestResult.error}
                                     </p>
                                 )}
@@ -566,19 +566,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     <FeedbackControls />
 
                     <div className="space-y-4 pt-6 border-t border-white/10">
-                        <h3 className="text-lg font-semibold text-stone-100">Homebrew e IA</h3>
+                        <h3 className="text-lg font-semibold text-dnd-parchment">Homebrew e IA</h3>
                          <div className="flex items-center justify-between bg-black/30 border border-white/10 p-4 rounded-2xl">
-                            <label htmlFor="ai-homebrew-toggle" className="flex flex-col cursor-pointer text-stone-200">
+                            <label htmlFor="ai-homebrew-toggle" className="flex flex-col cursor-pointer text-dnd-parchment">
                                 <span className="font-semibold flex items-center gap-2">
                                     <FlaskConical className="h-4 w-4 text-purple-400" />
                                     Permitir que a IA crie Homebrew
                                 </span>
-                                <span className="text-xs text-stone-400">Permitir que a IA crie e reutilize itens, NPCs e locais em suas sessões.</span>
+                                <span className="text-xs text-dnd-parchment-muted">Permitir que a IA crie e reutilize itens, NPCs e locais em suas sessões.</span>
                             </label>
                             <button
                                 id="ai-homebrew-toggle"
                                 onClick={() => setUseAiHomebrew(p => !p)}
-                                className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-amber-500 ${useAiHomebrew ? 'bg-amber-500' : 'bg-stone-600'}`}
+                                className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-dnd-gold ${useAiHomebrew ? 'bg-dnd-gold' : 'bg-dnd-obsidian-raised'}`}
                             >
                                 <span
                                     aria-hidden="true"
@@ -595,7 +595,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                 <footer className="p-5 flex justify-end items-center gap-4 border-t border-white/10 bg-black/30">
                     <button
                         onClick={handleSaveAndClose}
-                        className="px-6 py-2.5 rounded-full font-semibold text-stone-900 bg-gradient-to-r from-amber-300 to-amber-500 hover:from-amber-200 hover:to-amber-400 transition-colors"
+                        className="px-6 py-2.5 rounded-full font-semibold text-dnd-obsidian bg-dnd-gold hover:brightness-110 transition-colors"
                     >
                         Fechar
                     </button>

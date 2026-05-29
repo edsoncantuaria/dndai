@@ -41,25 +41,25 @@ const DiceTestSection: React.FC = () => {
     };
 
     return (
-        <div className="p-4 border border-stone-700 rounded-lg">
-            <h3 className="font-semibold text-stone-300 mb-3">Teste de Rolagem 3D (Isolado)</h3>
+        <div className="rounded-lg border border-dnd-gold/15 p-4">
+            <h3 className="mb-3 font-ui font-semibold text-dnd-parchment">Teste de Rolagem 3D (Isolado)</h3>
             <div className="grid grid-cols-2 gap-4 mb-4">
                  <div>
-                    <label className="block text-sm font-medium text-stone-300 mb-1">Qtd.</label>
-                    <input type="number" value={numDice} onChange={e => setNumDice(parseInt(e.target.value))} min="1" max="10" className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"/>
+                    <label className="block text-sm font-medium text-dnd-parchment-muted mb-1">Qtd.</label>
+                    <input type="number" value={numDice} onChange={e => setNumDice(parseInt(e.target.value))} min="1" max="10" className="w-full bg-dnd-obsidian-raised border border-dnd-gold/20 rounded-md p-2 font-ui text-dnd-parchment"/>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-stone-300 mb-1">Tipo</label>
-                    <select value={dieType} onChange={e => setDieType(e.target.value)} className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200">
+                    <label className="block text-sm font-medium text-dnd-parchment-muted mb-1">Tipo</label>
+                    <select value={dieType} onChange={e => setDieType(e.target.value)} className="w-full bg-dnd-obsidian-raised border border-dnd-gold/20 rounded-md p-2 font-ui text-dnd-parchment">
                         {DICE_TYPES.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                 </div>
             </div>
             <div className="mb-4">
-                <label className="block text-sm font-medium text-stone-300 mb-1">Modificador</label>
-                <input type="number" value={modifier} onChange={e => setModifier(parseInt(e.target.value) || 0)} className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"/>
+                <label className="block text-sm font-medium text-dnd-parchment-muted mb-1">Modificador</label>
+                <input type="number" value={modifier} onChange={e => setModifier(parseInt(e.target.value) || 0)} className="w-full bg-dnd-obsidian-raised border border-dnd-gold/20 rounded-md p-2 font-ui text-dnd-parchment"/>
             </div>
-            <div className="flex justify-around text-stone-300 mb-4">
+            <div className="flex justify-around text-dnd-parchment-muted mb-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={advantage} onChange={e => { setAdvantage(e.target.checked); if (e.target.checked) setDisadvantage(false); }} disabled={numDice > 1 || dieType !== 'd20'} className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded disabled:opacity-50"/>
                     Vantagem
@@ -71,7 +71,7 @@ const DiceTestSection: React.FC = () => {
             </div>
             <button
                 onClick={handlePrepareRoll}
-                className="w-full px-4 py-2 rounded-md font-semibold text-stone-900 bg-amber-600 hover:bg-amber-700 transition-colors flex items-center justify-center gap-2"
+                className="w-full px-4 py-2 rounded-md font-semibold text-dnd-parchment bg-dnd-ember hover:brightness-110 transition-colors flex items-center justify-center gap-2"
             >
                 Rolar o Dado <Dices className="h-4 w-4"/>
             </button>
@@ -129,7 +129,7 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
 
     return (
         <div className="p-4 border border-stone-700 rounded-lg space-y-4">
-            <h3 className="font-semibold text-stone-300 mb-3 flex items-center gap-2"><Bot className="h-5 w-5"/>Testar Interações da IA</h3>
+            <h3 className="font-semibold text-dnd-parchment-muted mb-3 flex items-center gap-2"><Bot className="h-5 w-5"/>Testar Interações da IA</h3>
             
             <div className="space-y-2">
                 <label htmlFor="ia-model-test-select" className="block text-sm font-medium text-stone-400">1. Selecione o Modelo de IA</label>
@@ -137,7 +137,7 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
                     id="ia-model-test-select"
                     value={tempModel}
                     onChange={(e) => setTempModel(e.target.value)}
-                    className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"
+                    className="w-full bg-dnd-obsidian-raised border border-dnd-gold/20 rounded-md p-2 font-ui text-dnd-parchment"
                 >
                     {AVAILABLE_MODELS.map(modelName => (
                         <option key={modelName} value={modelName}>{modelName}</option>
@@ -151,7 +151,7 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
                     id="character-test-select"
                     value={selectedCharacterId}
                     onChange={(e) => handleCharacterSelect(e.target.value)}
-                    className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"
+                    className="w-full bg-dnd-obsidian-raised border border-dnd-gold/20 rounded-md p-2 font-ui text-dnd-parchment"
                 >
                     <option value="">Nenhum (usar herói padrão)</option>
                     {characters.map(char => (
@@ -167,7 +167,7 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
                         id="skill-test-select"
                         value={selectedSkill}
                         onChange={(e) => setSelectedSkill(e.target.value)}
-                        className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"
+                        className="w-full bg-dnd-obsidian-raised border border-dnd-gold/20 rounded-md p-2 font-ui text-dnd-parchment"
                     >
                         {characterUtils.ALL_SKILLS.map(skill => (
                             <option key={skill} value={skill}>{skill}</option>
@@ -188,7 +188,7 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
                         value={customAction}
                         onChange={(e) => setCustomAction(e.target.value)}
                         placeholder="Ex: Eu chuto a porta"
-                        className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"
+                        className="w-full bg-dnd-obsidian-raised border border-dnd-gold/20 rounded-md p-2 font-ui text-dnd-parchment"
                     />
                     <button onClick={handleTestAction} disabled={!customAction.trim()} className="px-3 py-2 rounded-md font-semibold text-stone-900 bg-amber-500 hover:bg-amber-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
                         <Send className="h-4 w-4"/> Enviar

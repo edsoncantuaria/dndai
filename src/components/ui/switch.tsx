@@ -29,8 +29,8 @@ export const Switch: React.FC<SwitchProps> = ({
       disabled={disabled}
       onClick={handleToggle}
       className={cn(
-        'relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border border-white/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:cursor-not-allowed disabled:opacity-50',
-        checked ? 'bg-amber-400/80' : 'bg-stone-600/80',
+        'relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border border-dnd-gold/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-dnd-gold disabled:cursor-not-allowed disabled:opacity-50',
+        checked ? 'bg-dnd-gold/80' : 'bg-dnd-obsidian-raised/90',
         className
       )}
     >

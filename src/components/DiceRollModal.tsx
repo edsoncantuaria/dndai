@@ -5,7 +5,6 @@ import type { PlayerRollRequest } from '../types';
 import DiceBox from '@3d-dice/dice-box';
 import { Dice5, Loader2, Target, Sparkles } from 'lucide-react';
 import { DndButton } from '@/components/primitives';
-import { isUiV2Enabled } from '@/lib/uiV2';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useEventFeedback } from '@/hooks/useEventFeedback';
 import { cn } from '@/lib/utils';
@@ -23,7 +22,7 @@ type RollStatus = 'normal' | 'critical-success' | 'critical-failure' | 'success'
 const DICEBOX_CONTAINER_ID = 'dicebox-premium';
 
 const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, show, anchorId = 'dice-roll-modal-anchor' }) => {
-  const isV2 = isUiV2Enabled();
+  const isV2 = true;
   const { isMobile } = useBreakpoint();
   const { playCue } = useEventFeedback();
 

@@ -1,16 +1,6 @@
 'use client';
 
-import CharacterSheet from '@/components/CharacterSheet';
-import Inventory from '@/components/Inventory';
-import Spellbook from '@/components/Spellbook';
-import NewJournal from '@/components/NewJournal';
-import NewRelationships from '@/components/NewRelationships';
-import ProgressionTab from '@/components/ProgressionTab';
-import LocationHud from '@/components/LocationHud';
-import DailyRecapPanel from '@/components/DailyRecapPanel';
-import StoryHighlightsCard from '@/components/StoryHighlightsCard';
 import type { Character } from '@/types';
-import { isUiV2Enabled } from '@/lib/uiV2';
 import { GameplayInventoryPanel } from '../inventory/GameplayInventoryPanel';
 import { GameplayMapPanel } from '../map/GameplayMapPanel';
 import { GameplayStoryPanel } from '../story/GameplayStoryPanel';
@@ -29,61 +19,22 @@ export function GameplaySidePanelContent({
   sessionId,
   onOpenWorldMap,
 }: GameplaySidePanelContentProps) {
-  if (isUiV2Enabled()) {
-    switch (tab) {
-      case 'map':
-        return (
-          <GameplayMapPanel
-            character={character}
-            sessionId={sessionId}
-            onOpenWorldMap={onOpenWorldMap}
-          />
-        );
-      case 'story':
-        return <GameplayStoryPanel sessionId={sessionId} />;
-      case 'inventory':
-        return <GameplayInventoryPanel />;
-      case 'sheet':
-        return <GameplayCharacterSheetPanel />;
-      default:
-        return <GameplayCharacterSheetPanel />;
-    }
-  }
-
   switch (tab) {
     case 'map':
       return (
-        <div className="space-y-4">
-          <LocationHud
-            sessionId={sessionId}
-            regionLabel={character.worldState?.currentRegion || character.currentRegion || 'Região desconhecida'}
-            poiLabel={(character.worldState as { poiName?: string })?.poiName ?? null}
-            timeLabel={character.worldState?.timeOfDay}
-            weatherLabel={character.worldState?.weather}
-            onOpenMap={onOpenWorldMap}
-          />
-          <DailyRecapPanel />
-        </div>
+        <GameplayMapPanel
+          character={character}
+          sessionId={sessionId}
+          onOpenWorldMap={onOpenWorldMap}
+        />
       );
     case 'story':
-      return (
-        <div className="space-y-4">
-          <NewJournal />
-          <StoryHighlightsCard variant="compact" />
-        </div>
-      );
+      return <GameplayStoryPanel sessionId={sessionId} />;
     case 'inventory':
-      return <Inventory />;
+      return <GameplayInventoryPanel />;
     case 'sheet':
-      return (
-        <div className="space-y-4">
-          <CharacterSheet />
-          <Spellbook />
-          <ProgressionTab />
-          <NewRelationships />
-        </div>
-      );
+      return <GameplayCharacterSheetPanel />;
     default:
-      return <CharacterSheet />;
+      return <GameplayCharacterSheetPanel />;
   }
 }

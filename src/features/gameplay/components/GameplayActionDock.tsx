@@ -72,6 +72,10 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
     !!pendingHitDiceRequest ||
     isLoading;
 
+  const gateOverlay = isStateChangingBlocked(gate) ? (
+    <div className="pointer-events-none absolute inset-0 z-20 rounded-2xl bg-dnd-obsidian/55 backdrop-blur-[1px]" />
+  ) : null;
+
   const statusLabel = useMemo(() => {
     if (gate === 'LOCKED_NARRATING') return 'O motor validou. O Mestre descreve o desfecho…';
     if (gate === 'LOCKED_MECHANICAL') return 'Resolvendo a ação…';
@@ -139,7 +143,8 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
 
   if (combatState.isActive && !isPlayerTurn) {
     return (
-      <div className="pointer-events-auto mx-3 mb-2 max-w-lg rounded-2xl border border-dnd-gold/15 dnd-surface-glass px-4 py-3 max-md:mb-16 md:mx-auto md:mb-0 md:max-w-none md:rounded-none md:border-x-0 md:border-b-0 md:px-4 md:pb-[calc(0.75rem+var(--dnd-safe-bottom))]">
+      <div className="pointer-events-auto relative mx-3 mb-2 max-w-lg rounded-2xl border border-dnd-gold/15 dnd-surface-glass px-4 py-3 max-md:mb-16 md:mx-auto md:mb-0 md:max-w-none md:rounded-none md:border-x-0 md:border-b-0 md:px-4 md:pb-[calc(0.75rem+var(--dnd-safe-bottom))]">
+        {gateOverlay}
         <p className="mb-3 text-center font-narrative text-sm italic text-dnd-parchment-muted">
           Aguardando turno dos outros combatentes…
         </p>
@@ -152,7 +157,8 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
 
   if (playerRollRequest) {
     return (
-      <div className="pointer-events-auto mx-3 mb-2 max-w-lg rounded-2xl border border-dnd-gold/15 dnd-surface-glass px-4 py-4 max-md:mb-16 md:mx-auto md:mb-0 md:max-w-none md:rounded-none md:border-x-0 md:border-b-0 md:px-4 md:pb-[calc(1rem+var(--dnd-safe-bottom))]">
+      <div className="pointer-events-auto relative mx-3 mb-2 max-w-lg rounded-2xl border border-dnd-gold/15 dnd-surface-glass px-4 py-4 max-md:mb-16 md:mx-auto md:mb-0 md:max-w-none md:rounded-none md:border-x-0 md:border-b-0 md:px-4 md:pb-[calc(1rem+var(--dnd-safe-bottom))]">
+        {gateOverlay}
         <div className="flex items-center justify-center gap-2 font-ui text-sm text-dnd-gold">
           <Dice5 className="h-5 w-5" />
           Aguardando sua rolagem de dados…
@@ -163,7 +169,8 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
 
   if (pendingLootOffer) {
     return (
-      <div className="pointer-events-auto mx-3 mb-2 max-w-lg rounded-2xl border border-dnd-gold/15 dnd-surface-glass px-4 py-3 max-md:mb-16 md:mx-auto md:mb-0 md:max-w-none md:rounded-none md:border-x-0 md:border-b-0 md:px-4 md:pb-[calc(0.75rem+var(--dnd-safe-bottom))]">
+      <div className="pointer-events-auto relative mx-3 mb-2 max-w-lg rounded-2xl border border-dnd-gold/15 dnd-surface-glass px-4 py-3 max-md:mb-16 md:mx-auto md:mb-0 md:max-w-none md:rounded-none md:border-x-0 md:border-b-0 md:px-4 md:pb-[calc(0.75rem+var(--dnd-safe-bottom))]">
+        {gateOverlay}
         <p className="font-display text-center text-dnd-gold">Tesouro encontrado</p>
         <DndButton variant="ember" className="mt-3 w-full" disabled={isLoading} onClick={() => takeLoot(true)}>
           Recolher tudo
@@ -175,7 +182,8 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
   if (pendingHitDiceRequest && character) {
     const maxDice = Math.min(pendingHitDiceRequest.maxDice || 0, character.hitDice.current || 0);
     return (
-      <div className="pointer-events-auto mx-3 mb-2 max-w-lg rounded-2xl border border-dnd-gold/15 dnd-surface-glass px-4 py-3 max-md:mb-16 md:mx-auto md:mb-0 md:max-w-none md:rounded-none md:border-x-0 md:border-b-0 md:px-4 md:pb-[calc(0.75rem+var(--dnd-safe-bottom))]">
+      <div className="pointer-events-auto relative mx-3 mb-2 max-w-lg rounded-2xl border border-dnd-gold/15 dnd-surface-glass px-4 py-3 max-md:mb-16 md:mx-auto md:mb-0 md:max-w-none md:rounded-none md:border-x-0 md:border-b-0 md:px-4 md:pb-[calc(0.75rem+var(--dnd-safe-bottom))]">
+        {gateOverlay}
         <p className="font-ui text-sm text-dnd-parchment">Gastar dados de vida (máx. {maxDice})</p>
         <div className="mt-3 flex gap-2">
           <DndButton variant="ember" className="flex-1" disabled={isLoading || maxDice < 1} onClick={() => spendHitDice(1)}>
@@ -191,7 +199,8 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
 
   if (isLoading && !actionPhaseLabel) {
     return (
-      <div className="pointer-events-auto mx-3 mb-2 max-w-lg overflow-hidden rounded-2xl border border-dnd-gold/15 dnd-surface-glass max-md:mb-16 md:mx-auto md:mb-0 md:max-w-none md:rounded-none md:border-x-0 md:border-b-0 md:pb-[calc(0.75rem+var(--dnd-safe-bottom))]">
+      <div className="pointer-events-auto relative mx-3 mb-2 max-w-lg overflow-hidden rounded-2xl border border-dnd-gold/15 dnd-surface-glass max-md:mb-16 md:mx-auto md:mb-0 md:max-w-none md:rounded-none md:border-x-0 md:border-b-0 md:pb-[calc(0.75rem+var(--dnd-safe-bottom))]">
+        {gateOverlay}
         <LoadingOracle label={loadingState.shortLabel ?? 'O mestre pensa…'} />
       </div>
     );

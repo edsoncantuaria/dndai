@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react';
 import { AMBIENT_CROSSFADE_MS, fadeAudioVolume } from '@/lib/ambientSoundCrossfade';
-import { isUiV2Enabled } from '@/lib/uiV2';
 import type { GameStage } from '@/types/gameStage';
 
 const MENU_TRACK_URL = '/audios/index/inicio.mp3';
@@ -37,16 +36,6 @@ export function useMenuMusicCrossfade({
 
     const shouldPlay = playMenuMusic && gameStage !== 'playing';
     const targetVolume = isMuted ? 0 : volume;
-
-    if (!isUiV2Enabled()) {
-      audio.volume = targetVolume;
-      if (shouldPlay && audio.paused) {
-        audio.play().catch((e) => console.warn('Menu audio auto-play was prevented.', e));
-      } else if (!shouldPlay && !audio.paused) {
-        audio.pause();
-      }
-      return;
-    }
 
     cancelFadeRef.current?.();
     cancelFadeRef.current = null;

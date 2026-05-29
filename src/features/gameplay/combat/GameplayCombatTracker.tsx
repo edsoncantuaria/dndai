@@ -33,20 +33,24 @@ export function GameplayCombatTracker() {
       className={cn(
         'dnd-border-gold dnd-surface-glass relative overflow-hidden rounded-lg',
         isPlayerTurn
-          ? 'shadow-[0_0_20px_var(--dnd-gold-glow)]'
+          ? 'shadow-[0_0_20px_var(--dnd-gold-glow)] ring-1 ring-dnd-ember/25'
           : 'shadow-[0_0_12px_rgba(196,30,58,0.2)]'
       )}
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       layout
     >
-      <div
-        className={cn(
-          'pointer-events-none absolute inset-0 bg-gradient-to-r opacity-30',
-          isPlayerTurn ? 'from-dnd-gold/15 to-transparent' : 'from-dnd-ember/15 to-transparent'
-        )}
-        aria-hidden
-      />
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <div
+          className={cn(
+            'absolute inset-0 bg-gradient-to-r opacity-30',
+            isPlayerTurn ? 'from-dnd-gold/15 to-transparent' : 'from-dnd-ember/15 to-transparent'
+          )}
+        />
+        {isPlayerTurn ? (
+          <div className="absolute inset-0 animate-pulse bg-dnd-ember/10" />
+        ) : null}
+      </div>
 
       <div className="relative space-y-3 p-3">
         <button

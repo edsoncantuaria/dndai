@@ -9,7 +9,7 @@ import { GameplayTopBar } from './components/GameplayTopBar';
 import { GameplayMobileMenuPanel } from './components/GameplayMobileMenuPanel';
 import { DndTabs, type DndTabItem } from '@/components/primitives';
 import { BookOpen, Map, Menu, Package, User } from 'lucide-react';
-import NewCombatTracker from '@/components/NewCombatTracker';
+import { GameplayCombatTracker } from './combat/GameplayCombatTracker';
 import { cn } from '@/lib/utils';
 import Vignette from '@/components/Vignette';
 
@@ -63,7 +63,7 @@ export function GameplayShell({
     <>
       {showCombat ? (
         <div className="shrink-0 border-b border-dnd-gold/10 px-2 py-2 pl-[max(0.5rem,var(--dnd-safe-left))] pr-[max(0.5rem,var(--dnd-safe-right))]">
-          <NewCombatTracker />
+          <GameplayCombatTracker />
         </div>
       ) : null}
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">{narrative}</div>
