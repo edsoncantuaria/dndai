@@ -136,7 +136,7 @@ services:
       context: ./docker/piper
       dockerfile: Dockerfile
     environment:
-      PIPER_LENGTH_SCALE: ${PIPER_LENGTH_SCALE:-2.5}
+      PIPER_LENGTH_SCALE: ${PIPER_LENGTH_SCALE:-1.0}
     restart: unless-stopped
     # Porta host só para debug local; backend usa http://piper:5500 na rede Docker.
     ports:

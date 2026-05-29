@@ -27,11 +27,17 @@ export const getUserProfile = async (userId: number) => {
 
 export const updateUserSettings = async (userId: number, newSettings: z.infer<typeof SettingsSchema>) => {
     const userRepository = AppDataSource.getRepository(User);
-    // A chave de API agora é gerenciada pelo frontend, então vamos garantir que ela não seja salva aqui.
     const { apiKey, ...settingsToSave } = newSettings;
-    const result = await userRepository.update(userId, { settings: settingsToSave });
 
-    if(result.affected === 0) {
+    const user = await userRepository.findOneBy({ id: userId });
+    if (!user) {
+        throw createError(404, 'Usuário não encontrado para atualizar as configurações.');
+    }
+
+    const merged = { ...(user.settings ?? {}), ...settingsToSave };
+    const result = await userRepository.update(userId, { settings: merged });
+
+    if (result.affected === 0) {
         throw createError(404, 'Usuário não encontrado para atualizar as configurações.');
     }
 };

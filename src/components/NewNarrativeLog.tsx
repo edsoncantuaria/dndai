@@ -7,7 +7,12 @@ import type { LogEntry as LogEntryType, ImageLogEntryContent } from '../types';
 import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Volume2, VolumeX, Loader2, Image as ImageIcon, RefreshCcw } from 'lucide-react';
 import { useNarrationSpeech } from '@/hooks/useNarrationSpeech';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { getPlaybackRateForSpeed, buildNarrationTtsCacheKey } from '@/lib/narrationTts';
+import {
+    getPlaybackRateForSpeed,
+    getInterSegmentGapMs,
+    getPunctuationPauseMs,
+    buildNarrationTtsCacheKey,
+} from '@/lib/narrationTts';
 import { useToast } from '@/hooks/use-toast';
 import {
     generateNarrationAudio,
@@ -51,7 +56,7 @@ const extractEntryText = (value: any): string | null => {
 const NARRATABLE_TYPES: LogEntryType['type'][] = ['narration', 'system', 'combat', 'insight', 'roll'];
 
 /** Pausa antes da primeira narração ao abrir/entrar na sessão (ms). */
-const AUTO_SPEAK_ENTER_DELAY_MS = 3000;
+const AUTO_SPEAK_ENTER_DELAY_MS = 350;
 
 const isNarratableEntry = (entry?: LogEntryType | null) =>
     Boolean(entry && NARRATABLE_TYPES.includes(entry.type));
@@ -827,28 +832,31 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
         [setLog, getEntryTtsCacheKey],
     );
 
-    const splitNarrationByPunctuation = useCallback((text: string) => {
-        const chunks = String(text)
-            .replace(/\s+/g, ' ')
-            .trim()
-            .match(/[^,.!?…]+[,.!?…]?/g);
+    const splitNarrationByPunctuation = useCallback(
+        (text: string) => {
+            const chunks = String(text)
+                .replace(/\s+/g, ' ')
+                .trim()
+                .match(/[^,.!?…]+[,.!?…]?/g);
 
-        const items = (chunks ?? [text])
-            .map(s => s.trim())
-            .filter(Boolean)
-            .map(segment => {
-                const last = segment.slice(-1);
-                const pauseMs =
-                    last === ','
-                        ? 360
-                        : last === '.' || last === '!' || last === '?' || last === '…'
-                          ? 650
-                          : 0;
-                return { segment, pauseMs };
-            });
+            const items = (chunks ?? [text])
+                .map(s => s.trim())
+                .filter(Boolean)
+                .map(segment => {
+                    const last = segment.slice(-1);
+                    const pauseMs =
+                        last === ','
+                            ? getPunctuationPauseMs(narrationSpeed, 'comma')
+                            : last === '.' || last === '!' || last === '?' || last === '…'
+                              ? getPunctuationPauseMs(narrationSpeed, 'sentence')
+                              : 0;
+                    return { segment, pauseMs };
+                });
 
-        return items.length ? items : [{ segment: text, pauseMs: 0 }];
-    }, []);
+            return items.length ? items : [{ segment: text, pauseMs: 0 }];
+        },
+        [narrationSpeed],
+    );
 
     const requestEntryAudio = useCallback(
         async (entry: LogEntryType, { silent = false }: { silent?: boolean } = {}) => {
@@ -1007,7 +1015,7 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
                 }
                 const next = items[index++];
                 const nextUrl = typeof next === 'string' ? next : next.url;
-                const defaultGapMs = index < items.length ? 420 : 0;
+                const defaultGapMs = index < items.length ? getInterSegmentGapMs(narrationSpeed) : 0;
                 const delayMs = typeof next === 'string' ? defaultGapMs : next.delayMs ?? defaultGapMs;
                 audioElementRef.current.src = nextUrl;
                 audioElementRef.current
@@ -1040,7 +1048,7 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
             playNext();
             return true;
         },
-        [stopAudioPlayback, announceSpeechState, applyNarrationAudioPrefs]
+        [stopAudioPlayback, announceSpeechState, applyNarrationAudioPrefs, narrationSpeed]
     );
 
     const currentBlock = useMemo(() => {
@@ -1108,7 +1116,10 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
                 if (audioUrls.length > 1) {
                     stopAudioPlayback();
                     playAudioQueue(
-                        audioUrls.map((url, idx) => ({ url, delayMs: idx === audioUrls.length - 1 ? 0 : 420 })),
+                        audioUrls.map((url, idx) => ({
+                            url,
+                            delayMs: idx === audioUrls.length - 1 ? 0 : getInterSegmentGapMs(narrationSpeed),
+                        })),
                     );
                     return;
                 }

@@ -457,7 +457,7 @@ const CacheManagement: React.FC = () => {
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     const { isMdUp } = useBreakpoint();
     const useSheetLayout = true;
-    const { useAiHomebrew, setUseAiHomebrew } = useSettingsContext();
+    const { useAiHomebrew, setUseAiHomebrew, persistSettingsNow } = useSettingsContext();
     const { toast } = useToast();
     const [imageTestPrompt, setImageTestPrompt] = useState('Retrate a cena atual como uma ilustração dramática.');
     const [imageTestLoading, setImageTestLoading] = useState(false);
@@ -465,9 +465,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     
     if (!isOpen) return null;
     
-    const handleSaveAndClose = () => {
+    const handleSaveAndClose = async () => {
+        try {
+            await persistSettingsNow();
+        } catch (error) {
+            console.error('[SettingsModal] Falha ao salvar configurações:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Não foi possível salvar',
+                description: 'Suas preferências ficaram neste dispositivo, mas não sincronizaram com a conta. Tente de novo.',
+            });
+        }
         onClose();
-    }
+    };
 
     const handleTestImageGeneration = async () => {
         if (!IMAGE_FEATURE_ENABLED) return;
@@ -597,7 +607,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                         onClick={handleSaveAndClose}
                         className="px-6 py-2.5 rounded-full font-semibold text-dnd-obsidian bg-dnd-gold hover:brightness-110 transition-colors"
                     >
-                        Fechar
+                        Salvar e fechar
                     </button>
                 </footer>
             </div>

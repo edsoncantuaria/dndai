@@ -42,16 +42,16 @@ export type NarrationSpeedMeta = {
     playbackRate: number;
 };
 
-/** length_scale Piper: maior = fala mais devagar. playbackRate no `<audio>`. */
+/** length_scale Piper: maior = fala mais devagar (1.0 ≈ ritmo natural). playbackRate no `<audio>`. */
 export const NARRATION_SPEEDS: NarrationSpeedMeta[] = [
-    { id: 'rapido', label: 'Rápido', description: 'Narração ágil.', lengthScale: 1.75, playbackRate: 1.12 },
-    { id: 'normal', label: 'Normal', description: 'Ritmo equilibrado.', lengthScale: 2.5, playbackRate: 1.0 },
-    { id: 'lento', label: 'Lento', description: 'Mais tempo entre frases.', lengthScale: 3.0, playbackRate: 0.9 },
-    { id: 'pausado', label: 'Pausado', description: 'Fala deliberada, ideal para ouvir com calma.', lengthScale: 3.6, playbackRate: 0.82 },
+    { id: 'rapido', label: 'Rápido', description: 'Narração ágil.', lengthScale: 0.82, playbackRate: 1.15 },
+    { id: 'normal', label: 'Normal', description: 'Ritmo equilibrado.', lengthScale: 1.0, playbackRate: 1.0 },
+    { id: 'lento', label: 'Lento', description: 'Mais tempo entre frases.', lengthScale: 1.22, playbackRate: 0.95 },
+    { id: 'pausado', label: 'Pausado', description: 'Fala deliberada, ideal para ouvir com calma.', lengthScale: 1.45, playbackRate: 0.88 },
 ];
 
 const DEFAULT_VOICE: PiperVoiceId = 'faber';
-const DEFAULT_SPEED: NarrationSpeedPreset = 'lento';
+const DEFAULT_SPEED: NarrationSpeedPreset = 'normal';
 
 export const isPiperVoiceId = (value: unknown): value is PiperVoiceId =>
     typeof value === 'string' && (PIPER_VOICE_IDS as readonly string[]).includes(value);

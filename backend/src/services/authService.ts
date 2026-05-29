@@ -14,7 +14,7 @@ const defaultSettings = {
     ttsModel: "gemini-2.5-flash-preview-tts",
     ttsVoice: "Charon",
     narrationVoice: "faber",
-    narrationSpeed: "lento",
+    narrationSpeed: "normal",
     generationConfig: {
         temperature: 0.9,
         topP: 0.9,

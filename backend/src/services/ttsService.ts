@@ -20,7 +20,7 @@ const PIPER_BIN_PATH = process.env.PIPER_BIN_PATH ?? '';
 const PIPER_MODEL_PATH = process.env.PIPER_MODEL_PATH ?? '';
 const MAX_TTS_LENGTH = Number(process.env.PIPER_MAX_CHARACTERS ?? 600);
 /** Fallback quando o cliente não envia lengthScale. */
-const LENGTH_SCALE = Number(process.env.PIPER_LENGTH_SCALE ?? 2.5);
+const LENGTH_SCALE = Number(process.env.PIPER_LENGTH_SCALE ?? 1.0);
 
 const hasLocalPiper = Boolean(PIPER_BIN_PATH && PIPER_MODEL_PATH);
 const hasHttpPiper = Boolean(PIPER_HTTP_URL);

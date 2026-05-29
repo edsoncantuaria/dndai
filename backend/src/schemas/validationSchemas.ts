@@ -54,7 +54,14 @@ export const SettingsSchema = z.object({
     isMuted: z.boolean(),
     playMenuMusic: z.boolean(),
     playAmbientMusic: z.boolean().default(true),
-    useAiHomebrew: z.boolean().default(true), // Novo campo
+    useAiHomebrew: z.boolean().default(true),
+    theme: z.enum(['classic', 'aurora', 'midnight']).optional(),
+    fontScale: z.enum(['normal', 'reading']).optional(),
+    reducedMotion: z.boolean().optional(),
+    highContrast: z.boolean().optional(),
+    hasSeenGuidedTips: z.boolean().optional(),
+    eventCuesEnabled: z.boolean().optional(),
+    hapticsEnabled: z.boolean().optional(),
 });
 
 // --- Sessao ---

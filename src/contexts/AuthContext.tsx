@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import * as authService from '@/services/authService';
 import { ApiError } from '@/services/apiClient';
 import type { ApiFieldErrors } from '@/services/apiClient';
-import { useSettingsContext } from './SettingsContext';
+import { mergeSettingsForHydration, useSettingsContext } from './SettingsContext';
 import { useToast } from '@/hooks/use-toast';
 import { readGeminiApiKey, writeGeminiApiKey } from '@/lib/geminiApiKeyStorage';
 
@@ -86,8 +86,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     const userData: User = await response.json();
                     setUser(userData);
                     setIsLicenseActive(userData.licenseKey?.isActivated || false);
-                    if (userData.settings) {
-                        loadSettings(userData.settings);
+                    const merged = mergeSettingsForHydration(
+                        userData.settings as Record<string, unknown> | undefined,
+                    );
+                    if (merged) {
+                        loadSettings(merged);
                     }
                     const storedKey = readGeminiApiKey();
                     if (storedKey) {
@@ -121,13 +124,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [toast]);
     
     useEffect(() => {
+        if (!isSettingsLoaded) return;
         const validateSession = async () => {
             setIsLoading(true);
             await revalidateUserSession();
             setIsLoading(false);
         };
         validateSession();
-    }, [revalidateUserSession]);
+    }, [revalidateUserSession, isSettingsLoaded]);
 
     const login = async (credentials: authService.LoginCredentials): Promise<AuthActionResult> => {
         const sanitizedCredentials = {

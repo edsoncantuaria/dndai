@@ -115,8 +115,31 @@ interface SettingsContextType {
     hapticsEnabled: boolean;
     setHapticsEnabled: (value: boolean) => void;
     getApiKey: () => string | undefined;
-    saveSettingsToDB: (settings: Partial<Omit<SettingsContextType, 'saveSettingsToDB' | 'loadSettings' | 'isLoaded' | 'getApiKey' | 'getSettingsObject'>>) => Promise<void>;
+    saveSettingsToDB: (settings: Partial<Omit<SettingsContextType, 'saveSettingsToDB' | 'loadSettings' | 'isLoaded' | 'getApiKey' | 'getSettingsObject' | 'persistSettingsNow'>>) => Promise<void>;
+    /** Grava localStorage + API imediatamente (ex.: ao fechar o modal). */
+    persistSettingsNow: () => Promise<void>;
 }
+
+export const readStoredUserSettings = (): Record<string, unknown> | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+        const raw = localStorage.getItem('userSettings');
+        return raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
+    } catch {
+        return null;
+    }
+};
+
+/** Preferência local (última sessão) sobre valores do servidor ao hidratar. */
+export const mergeSettingsForHydration = (
+    serverSettings: Record<string, unknown> | null | undefined,
+): Record<string, unknown> | null => {
+    const local = readStoredUserSettings();
+    if (!serverSettings && !local) return null;
+    if (!local) return serverSettings ?? null;
+    if (!serverSettings) return local;
+    return { ...serverSettings, ...local };
+};
 
 export const defaultGenerationConfig: GenerationConfig = {
     temperature: 0.9,
@@ -157,19 +180,12 @@ const clampGenerationConfigValues = (config: GenerationConfig): GenerationConfig
 });
 
 const saveSettingsToDB = async (settings: Partial<any>) => {
-    // A chamada só deve acontecer se houver um token, indicando um usuário logado.
     if (typeof window !== 'undefined' && localStorage.getItem('token')) {
-        try {
-            const payload = { ...settings };
-            if (payload.generationConfig) {
-                payload.generationConfig = clampGenerationConfigValues(payload.generationConfig);
-            }
-            await authService.saveUserSettings(payload);
-        } catch (error) {
-            console.error("Failed to save settings to DB:", error);
+        const payload = { ...settings };
+        if (payload.generationConfig) {
+            payload.generationConfig = clampGenerationConfigValues(payload.generationConfig);
         }
-    } else {
-        // console.log("User not logged in, skipping DB save for settings.");
+        await authService.saveUserSettings(payload);
     }
 };
 
@@ -314,11 +330,22 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
     }, []);
 
+    const persistSettingsNow = useCallback(async () => {
+        if (!isLoaded) return;
+        const settingsToSave = getSettingsObject();
+        localStorage.setItem('userSettings', JSON.stringify(settingsToSave));
+        await saveSettingsToDB(settingsToSave);
+    }, [getSettingsObject, isLoaded]);
+
     // Save settings to DB when they change (debounced)
     useEffect(() => {
-        if(isLoaded) {
+        if (isLoaded) {
             const settingsToSave = getSettingsObject();
-            const handler = setTimeout(() => saveSettingsToDB(settingsToSave), 1500); // Debounce DB saves
+            const handler = setTimeout(() => {
+                void saveSettingsToDB(settingsToSave).catch(error => {
+                    console.error('Failed to save settings to DB:', error);
+                });
+            }, 500);
             return () => clearTimeout(handler);
         }
     }, [getSettingsObject, isLoaded]);
@@ -373,6 +400,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         hapticsEnabled, setHapticsEnabled,
         getApiKey,
         saveSettingsToDB,
+        persistSettingsNow,
     };
 
     return (
