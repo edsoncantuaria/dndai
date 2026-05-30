@@ -165,7 +165,7 @@ export const CreateBundleSchema = z.object({
 export const UpdateBundleSchema = CreateBundleSchema.partial();
 
 const HomebrewContentTypeEnum = z.enum([
-    'race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'skill',
+    'race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'skill', 'feature', 'trait',
 ]);
 
 export const BundleExportContentSchema = z.object({

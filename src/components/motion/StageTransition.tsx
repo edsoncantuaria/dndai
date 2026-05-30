@@ -16,7 +16,7 @@ export function StageTransition({ stageKey, children, className }: StageTransiti
   const reducedMotion = usePrefersReducedMotion();
 
   const isPlaying = stageKey === 'playing';
-  const isCreating = stageKey === 'creating_character';
+  const isCreating = stageKey === 'creating_character' || stageKey === 'editing_character';
   const stageClass = isPlaying
     ? 'dnd-gameplay-root'
     : isCreating

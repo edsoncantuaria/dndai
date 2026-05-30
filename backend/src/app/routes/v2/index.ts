@@ -10,6 +10,7 @@ import { dataRoutes } from './data.js';
 import { characterRoutes } from './characters.js';
 import { licenseRoutes } from './licenses.js';
 import { ttsRoutes } from './tts.js';
+import { translationRoutes } from './translations.js';
 
 export async function registerV2Routes(app: FastifyInstance): Promise<void> {
     await healthRoutes(app);
@@ -19,6 +20,7 @@ export async function registerV2Routes(app: FastifyInstance): Promise<void> {
     await ttsRoutes(app);
     await homebrewRoutes(app);
     await dataRoutes(app);
+    await translationRoutes(app);
     await characterRoutes(app);
     await sessionRoutes(app);
     await worldRoutes(app);

@@ -7,10 +7,10 @@ import {
     CreateFromSrdSchema,
     ImportBundleSchema,
 } from '../../../schemas/validationSchemas.js';
-import * as HomebrewService from '../../GameMaster/homebrew/homebrewServicePenai.js';
+import * as HomebrewService from '../../GameMaster/homebrew/homebrewService.js';
 import * as SrdApi from '../../../services/srdApiAdapter.js';
 import { HOMEBREW_TYPE_TO_SRD_RESOURCE } from '../../../types/homebrewSource.js';
-import type { PenaiHomebrewContentType } from '../../GameMaster/database/entities/HomebrewContentPenai.js';
+import type { PenaiHomebrewContentType } from '../../GameMaster/database/entities/HomebrewContent.js';
 
 function sendErr(reply: FastifyReply, err: unknown) {
     if (createError.isHttpError(err)) {

@@ -1,7 +1,7 @@
 import { PenaiDataSource } from '../database/data-source.js';
 import { GameSession } from '../database/entities/GameSession.js';
 import { addHeroInventoryItem } from '../character/heroInventory.js';
-import { applyCharacterStateDeltaPenai } from '../character/applyStateDeltaPenai.js';
+import { applyCharacterStateDeltaPenai } from '../character/applyStateDelta.js';
 import { getSessionHeroEntityId } from '../character/heroStats.js';
 import type { PenaiCoinPurse } from '../character/heroStats.js';
 

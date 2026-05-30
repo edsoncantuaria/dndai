@@ -1,6 +1,7 @@
 import { PenaiDataSource } from '../database/data-source.js';
 import { SessionInstalledModule } from '../database/entities/SessionInstalledModule.js';
 import { penaiEnv } from '../../config/penaiEnv.js';
+import { validateModuleCompatibility } from './compatibilityMatrix.js';
 
 const SRD_CLASS_INDICES = new Set([
     'barbarian',
@@ -27,6 +28,19 @@ export async function canInstallResourceModule(sessionId: number): Promise<boole
         ['race', 'spellbook', 'rule_patch'].includes(m.kind),
     ).length;
     return resourceCount < penaiEnv.PENAI_MAX_RESOURCE_MODULES;
+}
+
+export async function validateModuleInstall(
+    sessionId: number,
+    candidate: { moduleId: string; version: string; kind?: string },
+): Promise<{ ok: boolean; reason?: string }> {
+    const modules = await listInstalledModules(sessionId);
+    const refs = modules.map(m => ({
+        moduleId: m.moduleId,
+        version: m.version ?? '1.0.0',
+        kind: m.kind,
+    }));
+    return validateModuleCompatibility(refs, candidate);
 }
 
 export async function assertResourceAllowedForSession(

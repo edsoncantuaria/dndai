@@ -5,7 +5,8 @@ import {
     deleteVaultHero,
     getVaultHero,
     listVaultHeroes,
-} from '../../../GameMaster/character/heroVaultPenai.js';
+    updateVaultHero,
+} from '../../../GameMaster/character/vault.js';
 import createError from 'http-errors';
 
 function sendErr(reply: FastifyReply, err: unknown) {
@@ -38,6 +39,20 @@ export async function characterRoutes(app: FastifyInstance): Promise<void> {
         const character = await getVaultHero(request.userId, id);
         if (!character) return reply.notFound('Personagem não encontrado.');
         return { character };
+    });
+
+    app.put('/api/v2/characters/:id', auth, async (request, reply) => {
+        try {
+            const { id } = request.params as { id: string };
+            const parsed = NewCharacterInfoSchema.parse(request.body);
+            const character = await updateVaultHero(request.userId, id, parsed);
+            return {
+                message: 'Personagem atualizado no cofre. Campanhas em andamento não são alteradas.',
+                character,
+            };
+        } catch (err) {
+            return sendErr(reply, err);
+        }
     });
 
     app.delete('/api/v2/characters/:id', auth, async (request, reply) => {

@@ -5,7 +5,7 @@ import { HomebrewContentType } from "../entities/HomebrewContent.js";
 import type { InventoryLike } from './inventoryService.js';
 import { trackNormalization } from './normalizationRegistry.js';
 
-const VALID_HOMEBREW_TYPES: HomebrewContentType[] = ['race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'];
+const VALID_HOMEBREW_TYPES: HomebrewContentType[] = ['race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'feature'];
 export const VALID_RELATIONSHIP_STATUSES = new Set(['hostile', 'unfriendly', 'neutral', 'friendly', 'ally']);
 const LOG_ENTRY_ALLOWED_TYPES = new Set(['narration', 'action', 'system', 'combat', 'insight', 'roll']);
 export const LOG_ENTRY_TYPE_ALIASES: Record<string, string> = {

@@ -2,11 +2,11 @@ import { penaiEnv } from '../../config/penaiEnv.js';
 import { getGameSession } from '../sessions/sessionService.js';
 import { getRegionBySlug } from '../world/travelCanon.js';
 import { listCanonicalRegions } from '../world/mapCatalog.js';
-import { loadPenaiCharacterSnapshot } from './penaiCharacterSnapshot.js';
+import { loadPenaiCharacterSnapshot } from './characterSnapshot.js';
 import { classifyPenaiIntent, classifyPenaiIntentFromText } from './classifyIntent.js';
 import type { PenaiActionIntent } from './types.js';
 import { inferSkillCheckFromFreeText } from '../../services/dm/freeActionClassifier.js';
-import { checkActionPlausibilityGemini } from '../ai/geminiActionSense.js';
+import { defaultProviders } from '../adapters/index.js';
 import { recallMemoryForTurn } from '../memory/recall.js';
 
 export type ActionSenseResult = {
@@ -22,6 +22,12 @@ const META_CHAT =
 
 const IMPOSSIBLE_PHYSICS =
     /\b(voo sem magia|teletransporte instantâneo|destruo o (?:mundo|planeta)|matar todos de uma vez|invencível|imortal)\b/i;
+
+const RESOURCE_CLAIM =
+    /\b(encontro|encontrei|acho|achei|pego|pegar|ganho|ganhei|crio|criei|invento|inventei|aparece|surge)\b.{0,40}\b(ouro|gp|moed|tesouro|item|espada|armadura|nível|nivel|xp|experiência|experiencia|loot)\b/i;
+
+const META_ROLL =
+    /\b(rola|role|tiro|tirei|deu)\s*(20|critico|crítico|crit)\b/i;
 
 const TOO_VAGUE = /^(sim|não|nao|ok|continua|segue|hm+|ah+)$/i;
 
@@ -160,6 +166,20 @@ export async function validateActionSense(opts: {
             hint: 'Tente algo que seu personagem poderia tentar com os recursos da sessão.',
         };
     }
+    if (RESOURCE_CLAIM.test(text)) {
+        return {
+            ok: false,
+            reason: 'Isso não altera o estado do jogo — descreva uma ação que seu personagem tenta fazer.',
+            hint: 'O Mestre decide recompensas. Ex.: "Procuro moedas nos destroços" (pode exigir Percepção).',
+        };
+    }
+    if (META_ROLL.test(text)) {
+        return {
+            ok: false,
+            reason: 'Você não pode declarar o resultado da rolagem — o Mestre rola por você.',
+            hint: 'Descreva a tentativa; quando pedido, use o modal de dados.',
+        };
+    }
 
     let intent = classifyPenaiIntent(text, payload);
     const declared = intentFromPayload(payload);
@@ -240,7 +260,7 @@ export async function validateActionSense(opts: {
             query: text,
             limit: 4,
         });
-        const gemini = await checkActionPlausibilityGemini({
+        const gemini = await defaultProviders.actionSense.checkPlausibility({
             playerAction: text,
             regionSlug: currentRegionSlug,
             intentType: intent.type,

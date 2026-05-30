@@ -42,6 +42,7 @@ const PUBLIC_ROUTES = [
     '/v2/auth/register',
     '/v2/data',
     '/data',
+    '/v2/translations',
     '/translations',
     '/health',
     '/v2/health',

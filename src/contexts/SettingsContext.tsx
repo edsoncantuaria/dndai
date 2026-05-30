@@ -196,7 +196,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [eventCuesEnabled, setEventCuesEnabled] = useState(defaultSettings.eventCuesEnabled);
     const [hapticsEnabled, setHapticsEnabled] = useState(defaultSettings.hapticsEnabled);
 
-    /** BYOK: chave Gemini/OpenRouter no dispositivo (não persiste no servidor). */
+    /** BYOK: chave Gemini no dispositivo; também sincronizada via saveInferenceApiKey. */
     const getApiKey = useCallback(() => {
         const trimmed = apiKey?.trim() || readGeminiApiKey().trim();
         return trimmed || undefined;

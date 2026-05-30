@@ -348,6 +348,25 @@ export function useGameSession(options: UseGameSessionOptions) {
         }
     }, [setIsLoading, setApiError]);
 
+    const updateCharacter = useCallback(
+        async (characterId: string | number, info: NewCharacterInfo): Promise<Character | null> => {
+            setIsLoading(true);
+            setApiError(null);
+            try {
+                const savedCharacterResponse = await GameService.updateVaultCharacter(characterId, info);
+                return savedCharacterResponse.character ?? null;
+            } catch (error: unknown) {
+                const message =
+                    error instanceof Error ? error.message : 'Falha ao atualizar o personagem no cofre.';
+                setApiError(message);
+                return null;
+            } finally {
+                setIsLoading(false);
+            }
+        },
+        [setIsLoading, setApiError],
+    );
+
     const deleteCharacter = useCallback(
         async (characterId: number): Promise<boolean> => {
             setIsLoading(true);
@@ -394,6 +413,7 @@ export function useGameSession(options: UseGameSessionOptions) {
         startGame,
         loadGameSession,
         createCharacter,
+        updateCharacter,
         deleteCharacter,
         deleteSession,
     };

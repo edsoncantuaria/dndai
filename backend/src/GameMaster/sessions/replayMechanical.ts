@@ -1,7 +1,7 @@
 import { PenaiDataSource } from '../database/data-source.js';
 import { WorldEvent } from '../database/entities/WorldEvent.js';
 import { GameSession } from '../database/entities/GameSession.js';
-import { getPenaiCombatState } from '../combat/combatPenai.js';
+import { getPenaiCombatState } from '../combat/engine.js';
 
 export async function buildMechanicalReplaySnapshot(sessionId: number): Promise<Record<string, unknown>> {
     const session = await PenaiDataSource.getRepository(GameSession).findOne({

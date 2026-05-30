@@ -80,18 +80,23 @@ O servidor estará rodando em `http://localhost:8071`.
 
 ### 5. Populando o Banco de Dados (Seeding)
 
-Para que o jogo funcione com as traduções e os dados base (antecedentes, magias, itens), você precisa popular o banco de dados. Isso é feito através de um script que lê os arquivos de dados e os insere na tabela de conteúdo "homebrew".
-
-**Importante:** Execute este comando sempre que você limpar ou recriar o banco de dados.
+**Path ativo (PENAI / Postgres):**
 
 ```bash
-npm run seed:data
+npm run penai:seed:srd-ptbr
 ```
 
-Este comando irá:
-- Garantir que um usuário "Sistema" exista.
-- Ler os arquivos de tradução de magias, equipamentos e os dados de antecedentes.
-- Inserir ou atualizar esses dados na tabela `homebrew_content`, marcando-os como públicos para que possam ser usados no jogo.
+Opcional — extrair textos PT do Livro do Jogador (Biblioteca Élfica) para `backend/data/srdPtBr/overrides/`:
+
+```bash
+pdftotext backend/.tmp/phb-ptbr.pdf backend/.tmp/phb-ptbr.txt
+npm run penai:extract:phb-overrides
+npm run penai:seed:srd-ptbr
+```
+
+Ver **`docs/DATA_SRD.md`** — toda leitura SRD na UI passa por `GET /api/v2/data`.
+
+**Legado MySQL:** `npm run seed:data` está **deprecated** (exige `ALLOW_LEGACY_MYSQL_SEED=1`). Migração one-shot: `npm run penai:migrate:homebrew-mysql`.
 
 ### 6. Templates oficiais de inimigos
 

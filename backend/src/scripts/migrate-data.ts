@@ -1,6 +1,24 @@
 // backend/src/scripts/migrate-data.ts
+/**
+ * @deprecated Use `npm run penai:seed:srd-ptbr --prefix backend` (Postgres PENAI).
+ * Este script popula MySQL legado — mantido só para migração pontual.
+ * Para copiar homebrew MySQL → Postgres: `npm run penai:migrate:homebrew-mysql --prefix backend`
+ */
 import 'reflect-metadata';
 import 'dotenv/config';
+
+if (process.env.ALLOW_LEGACY_MYSQL_SEED !== '1') {
+    console.error(`
+[migrate-data] DEPRECATED — path MySQL legado desativado por padrão.
+
+  Seed PENAI (Postgres):  npm run penai:seed:srd-ptbr --prefix backend
+  Migrar homebrew MySQL:  npm run penai:migrate:homebrew-mysql --prefix backend
+
+  Para forçar este script legado: ALLOW_LEGACY_MYSQL_SEED=1 npm run seed:data --prefix backend
+`);
+    process.exit(1);
+}
+
 import { AppDataSource } from '../database/data-source.js';
 import { User } from '../entities/User.js';
 import { HomebrewContent } from '../entities/HomebrewContent.js';

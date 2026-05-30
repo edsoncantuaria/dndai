@@ -1,13 +1,14 @@
 import redisClient from '../../database/redis-client.js';
 import { PenaiDataSource } from '../database/data-source.js';
-import { PenaiHomebrewContent } from '../database/entities/HomebrewContentPenai.js';
+import { PenaiHomebrewContent } from '../database/entities/HomebrewContent.js';
 import { PenaiUser } from '../database/entities/PenaiUser.js';
 import crypto from 'crypto';
-import { Brackets, Raw } from 'typeorm';
+import { Brackets } from 'typeorm';
 
 import * as DndApiModule from '../../services/dndApiService.js';
 import { mergeOfficialWithHomebrew, resolveOfficialIndex } from '../../services/homebrewMergeService.js';
 import { inferSourceKind } from '../../services/srdHomebrewValidator.js';
+import { SYSTEM_AUTHOR_ID } from '../database/seed/seedSrdPtBrHomebrew.js';
 const DndApi = DndApiModule.default || DndApiModule.DndApi || DndApiModule;
 
 type HomebrewContent = PenaiHomebrewContent;
@@ -42,6 +43,37 @@ const TYPE_MAP: Record<string, string> = {
   'damage-types': 'damage-type',
   'magic-schools': 'magic-school',
 };
+
+function applySystemHomebrewToMap(
+  map: Map<string, any>,
+  homebrews: HomebrewContent[],
+  normalizedResource: string,
+): void {
+  for (const hb of homebrews) {
+    const content = typeof hb.content === 'string' ? JSON.parse(hb.content) : hb.content;
+    const key = homebrewMatchKey(hb, content, normalizedResource);
+    if (!map.has(key)) continue;
+    const officialItem = map.get(key);
+    const mergedContent = mergeHomebrewEntry(officialItem, hb, content, normalizedResource);
+    map.set(key, {
+      ...mergedContent,
+      source: 'homebrew',
+      isHomebrew: true,
+      id: hb.id,
+      sourceKind: hb.sourceKind,
+      locale: hb.locale,
+    });
+  }
+}
+
+async function loadSystemHomebrewOverlays(dbType: string): Promise<HomebrewContent[]> {
+  return repo().find({
+    where: {
+      authorId: SYSTEM_AUTHOR_ID,
+      type: dbType as PenaiHomebrewContent['type'],
+    },
+  });
+}
 
 function mergeHomebrewEntry(
   officialItem: Record<string, unknown> | undefined,
@@ -252,6 +284,13 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
       }
   }
 
+  const systemOverlays = await loadSystemHomebrewOverlays(dbType);
+  applySystemHomebrewToMap(
+    map,
+    systemOverlays.filter(hb => hb.sourceKind === 'translation' || hb.sourceKind === 'fork'),
+    normalizedResource,
+  );
+
   if (!userId) return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   const hex = await ensureUserHex(userId);
@@ -325,19 +364,26 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
   
   let officialData = await getOfficialDetails(normalizedResource, normalizedIndex);
 
-  // Aplica tradução se houver
-  if(officialData) {
-      const translation = await repo().findOne({
-        where: {
-            type: 'translation',
-            authorId: 1, // Apenas traduções do sistema
-            content: Raw(alias => `JSON_UNQUOTE(JSON_EXTRACT(${alias}, '$.official_index')) = :index`, { index: normalizedIndex })
-        }
-      });
-      if(translation) {
-          const content = typeof translation.content === 'string' ? JSON.parse(translation.content) : translation.content;
-          officialData = { ...officialData, ...content, name: content.name || officialData.name, desc: content.desc || officialData.desc };
-      }
+  if (officialData) {
+    const systemOverlay = await repo().findOne({
+      where: {
+        authorId: SYSTEM_AUTHOR_ID,
+        type: dbType as PenaiHomebrewContent['type'],
+        sourceIndex: normalizedIndex,
+      },
+    });
+    if (systemOverlay && systemOverlay.sourceKind !== 'original') {
+      const content =
+        typeof systemOverlay.content === 'string'
+          ? JSON.parse(systemOverlay.content)
+          : systemOverlay.content;
+      officialData = mergeOfficialWithHomebrew(
+        officialData as Record<string, unknown>,
+        content,
+        systemOverlay.sourceKind ?? 'translation',
+        systemOverlay.sourceResource ?? normalizedResource,
+      );
+    }
   }
 
   let homebrew: HomebrewContent | null = null;

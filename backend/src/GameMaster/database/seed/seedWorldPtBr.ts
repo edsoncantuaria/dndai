@@ -4,6 +4,7 @@ import { CanonicalRegion } from '../entities/CanonicalRegion.js';
 import { CanonicalPoi } from '../entities/CanonicalPoi.js';
 import { CanonicalRegionLink } from '../entities/CanonicalRegionLink.js';
 import { TravelModeCatalog } from '../entities/TravelModeCatalog.js';
+import { WorldEntity } from '../entities/WorldEntity.js';
 
 export async function seedPenaiWorld(): Promise<void> {
     const regionRepo = PenaiDataSource.getRepository(CanonicalRegion);
@@ -33,6 +34,7 @@ export async function seedPenaiWorld(): Promise<void> {
                 }),
             );
         }
+        await seedMajorCanonNpcs(regionRepo, poiRepo);
         return;
     }
 
@@ -105,7 +107,58 @@ export async function seedPenaiWorld(): Promise<void> {
 
     await seedTravelModes(modeRepo);
 
+    await seedMajorCanonNpcs(regionRepo, poiRepo);
+
     console.log('[PENAI] Seed mapa canônico PT-BR + rotas de viagem aplicado.');
+}
+
+async function seedMajorCanonNpcs(
+    _regionRepo: ReturnType<typeof PenaiDataSource.getRepository<CanonicalRegion>>,
+    poiRepo: ReturnType<typeof PenaiDataSource.getRepository<CanonicalPoi>>,
+): Promise<void> {
+    const entityRepo = PenaiDataSource.getRepository(WorldEntity);
+    const existing = await entityRepo.count({ where: { entityTier: 'MAJOR' } });
+    if (existing > 0) return;
+
+    const taverna = await poiRepo.findOne({ where: { slug: 'taverna-lua-rubra' } });
+    const ponte = await poiRepo.findOne({ where: { slug: 'ponte-sul' } });
+
+    const majors = [
+        {
+            slug: 'aerk-guardiao-ponte',
+            displayName: 'Aerk, Guardião da Ponte',
+            poiId: ponte?.id ?? null,
+            personality: { planner: 'goap', goals: [{ id: 'patrol-bridge', label: 'Patrulhar a ponte' }] },
+        },
+        {
+            slug: 'mira-dona-taverna',
+            displayName: 'Mira, Dona da Lua Rubra',
+            poiId: taverna?.id ?? null,
+            personality: { planner: 'goap', goals: [{ id: 'serve-tavern', label: 'Gerir a taverna' }] },
+        },
+    ];
+
+    for (const npc of majors) {
+        const found = await entityRepo.findOne({ where: { slug: npc.slug } });
+        if (found) continue;
+        await entityRepo.save(
+            entityRepo.create({
+                id: randomUUID(),
+                entityType: 'npc',
+                entityTier: 'MAJOR',
+                canonical: true,
+                slug: npc.slug,
+                displayName: npc.displayName,
+                description: null,
+                stats: { level: 5 },
+                personality: npc.personality,
+                visual: {},
+                poiId: npc.poiId,
+                source: 'admin',
+                locale: 'pt-BR',
+            }),
+        );
+    }
 }
 
 async function seedTravelModes(modeRepo: ReturnType<typeof PenaiDataSource.getRepository<TravelModeCatalog>>) {

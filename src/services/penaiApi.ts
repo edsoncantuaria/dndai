@@ -76,6 +76,33 @@ export type PenaiSessionSummary = {
     actionSequence: number;
 };
 
+export type PenaiSessionCampaign = {
+    sessionId: number;
+    regionSlug: string | null;
+    regionState: {
+        fear: number;
+        prosperity: number;
+        crime: number;
+        resources?: Record<string, number>;
+    } | null;
+    activeQuests: Array<{
+        questSlug: string;
+        title: string;
+        stage: number;
+        status: string;
+    }>;
+    heroReputation: Array<{ targetSlug: string; score: number }>;
+    knowledgeCount: number;
+    knowledgeSnippets: string[];
+    gameClock: { day: number; hour: number; weather: string };
+    lastPulseAt: string | null;
+    campaignDigest: { questCount: number; regionFear: number };
+};
+
+export async function fetchSessionCampaignState(sessionId: number) {
+    return apiClient<PenaiSessionCampaign>(`/v2/sessions/${sessionId}/campaign`);
+}
+
 export async function fetchPenaiSessionSummary(sessionId: number) {
     return apiClient<PenaiSessionSummary>(`/v2/sessions/${sessionId}/summary`);
 }

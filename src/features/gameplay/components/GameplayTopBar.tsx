@@ -3,14 +3,18 @@
 import { MapPin, Volume2, VolumeX, Menu } from 'lucide-react';
 import { DndBadge } from '@/components/primitives';
 import { cn } from '@/lib/utils';
+import { HeroVitalsStrip } from './HeroVitalsStrip';
+import type { Character, CombatState } from '@/types';
 
 export interface GameplayTopBarProps {
   region?: string;
   timeLabel?: string;
+  character?: Character | null;
+  combatState?: CombatState;
   onMenuClick?: () => void;
   onNarrationToggle?: () => void;
   isNarrationActive?: boolean;
-  /** Em mobile a aba Menu da bottom nav substitui o botão do header */
+  /** Em mobile a aba Mais da bottom nav substitui o botão do header */
   hideMenuOnMobile?: boolean;
   className?: string;
 }
@@ -18,6 +22,8 @@ export interface GameplayTopBarProps {
 export function GameplayTopBar({
   region = 'Floresta das Sombras',
   timeLabel = 'Anoitecer',
+  character,
+  combatState,
   onMenuClick,
   onNarrationToggle,
   isNarrationActive = false,
@@ -27,7 +33,7 @@ export function GameplayTopBar({
   return (
     <header
       className={cn(
-        'relative z-20 flex min-h-[52px] items-center justify-between gap-3 border-b border-dnd-gold/12 px-3 py-2 md:px-4',
+        'relative z-20 flex min-h-[52px] flex-col gap-2 border-b border-dnd-gold/12 px-3 py-2 md:flex-row md:items-center md:justify-between md:gap-3 md:px-4',
         'dnd-surface-glass pt-[var(--dnd-safe-top)]',
         'shadow-[0_4px_24px_rgba(0,0,0,0.45)]',
         className
@@ -46,7 +52,16 @@ export function GameplayTopBar({
           </DndBadge>
         ) : null}
       </div>
-      <div className="flex items-center gap-1">
+
+      {character ? (
+        <HeroVitalsStrip
+          character={character}
+          combatState={combatState}
+          className="w-full md:w-auto md:flex-1 md:justify-center"
+        />
+      ) : null}
+
+      <div className="absolute right-3 top-[calc(var(--dnd-safe-top)+0.5rem)] flex items-center gap-1 md:static md:shrink-0">
         {onNarrationToggle ? (
           <button
             type="button"

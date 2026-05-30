@@ -291,13 +291,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const saveApiKey = async (newApiKey: string) => {
         const trimmed = newApiKey.trim();
         if (!trimmed) return false;
-        writeGeminiApiKey(trimmed);
-        setApiKey(trimmed);
-        toast({
-            title: "Chave de API Salva!",
-            description: "Sua chave ficou salva neste navegador.",
-        });
-        return true;
+        setIsActionLoading(true);
+        try {
+            writeGeminiApiKey(trimmed);
+            setApiKey(trimmed);
+            await authService.saveInferenceApiKey(trimmed);
+            await revalidateUserSession();
+            toast({
+                title: 'Chave de API salva!',
+                description: 'Sua chave Gemini está pronta para a mesa.',
+            });
+            return true;
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Não foi possível salvar a chave.';
+            toast({
+                variant: 'destructive',
+                title: 'Erro ao salvar chave',
+                description: message,
+            });
+            return false;
+        } finally {
+            setIsActionLoading(false);
+        }
     };
     
      const acknowledgeHomebrew = async () => {

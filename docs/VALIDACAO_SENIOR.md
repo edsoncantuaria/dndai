@@ -27,6 +27,53 @@
 
 ---
 
+## Checklist PENAI (GameMaster greenfield)
+
+### Motor e IA
+
+- [ ] `GAME_MOTOR.validateAndApply` autoritativo — IA não persiste HP/inventário
+- [ ] Adapters Gemini isolados em `GameMaster/adapters/` — domínio usa `defaultProviders`
+- [ ] `turnPipeline` orquestrador enxuto (<120 linhas) — spawn/compactação fora
+- [ ] `actionSense` heurísticas locais + Gemini opcional via adapter
+
+### Mundo e simulação
+
+- [ ] Event log + projector registry (`events/types.ts`, `EVENT_PROJECTORS`)
+- [ ] `world/simulation/engine.tick()` — rumor, faction, npc, economy
+- [ ] `entityLifecycle` pós-mecânico no WS (não no pipeline narrativo)
+- [ ] GOAP para NPCs com `personality.planner = 'goap'`
+
+### Memória e dados
+
+- [ ] Três bancos lógicos: `globalMemory`, `sessionMemory`, `narrativeMemory`
+- [ ] Qdrant via `adapters/qdrant/vectorStore.ts`; fallback SQL
+- [ ] Postgres fonte da verdade; Temporal para narração/pulso/canon
+
+### Homebrew e canon
+
+- [ ] `validateModuleInstall` rejeita conflitos semver na instalação
+- [ ] Canon: proposta → admin approve → `canonApprovalWorkflow`
+
+### P7 — Survival Systems (campanha, não MMO)
+
+- [x] Overlays `session_*` com `sessionId` + FK cascade — sem estado global cross-jogador
+- [x] `entityTier` filtra GOAP (MAJOR+) e cap no `npcTick`
+- [x] `campaignGc` arquiva INCIDENTAL idle; `WorldEntity` global intacto
+- [x] Memory decay: `importanceScore`, recall exclui `decayedAt`
+- [x] `CREATURE_SLAIN` altera `wolfStock`/preços na **mesma** sessão
+- [x] Knowledge: combate social propaga `WITNESSED` para presentes
+- [x] Quest avança via `questTick` sem ação do jogador
+- [x] `sessionAggregate` snapshot em long-rest
+- [x] UI aba **Campanha** expõe mood, quests, reputação (`GET /campaign`)
+- [x] GC usa dias in-game (`lastSeenGameDay`); rumor popula `session_knowledge`
+- [x] CI Postgres roda `penaiCampaignSurvival` integration
+
+### P8 futuro (fora do escopo atual)
+
+- [ ] `session_members` + WS party 4–5 jogadores
+
+---
+
 ## Checklist de validação (marcar na revisão)
 
 ### Arquitetura core
@@ -84,43 +131,44 @@
 ```mermaid
 flowchart TB
     subgraph Cliente["Cliente Next.js"]
-        Hub[Hub / cofre / homebrew]
-        Mesa[GameplayShell + WS]
+        Hub[Hub / homebrew]
+        Mesa[GameplayShell + WS PENAI]
     end
 
-    subgraph API["API Node"]
-        WS[WebSocket handlers]
-        REST[REST sessões / homebrew / SRD]
-        Motor[Motor 5e + FSM combate]
-        DM[DM orchestrator]
+    subgraph PENAI["API Fastify :8071"]
+        WS[wsHandlers]
+        Motor[GAME_MOTOR]
+        Engine[turnPipeline]
+        Sim[world/simulation/engine]
     end
 
-    subgraph Async["Worker narração"]
-        Bull[BullMQ consumer]
-        IA[OSS / legacy LLM]
-        Persist[Persist append-only]
+    subgraph Async["Temporal"]
+        Narration[narrationWorkflow]
+        Pulse[worldPulseWorkflow]
+        Canon[canonApprovalWorkflow]
+    end
+
+    subgraph Adapters["Adapters"]
+        Gemini[Gemini]
+        Qdrant[Qdrant]
     end
 
     subgraph Dados["Persistência"]
-        MySQL[(MySQL)]
-        Redis[(Redis fila + snapshot)]
-        Qdrant[(Qdrant opcional)]
-        SRD[(Mongo SRD)]
+        Postgres[(PostgreSQL)]
+        Redis[(Redis WS pub/sub)]
     end
 
-  Hub --> REST
-  Mesa --> WS
-  WS --> Motor
-  WS --> DM
-  Motor --> MySQL
-  DM --> Redis
-  Redis --> Bull
-  Bull --> IA
-  IA --> Persist
-  Persist --> MySQL
-  IA --> Qdrant
-  REST --> SRD
-  Motor --> Redis
+    Hub --> WS
+    Mesa --> WS
+    WS --> Motor
+    Motor --> Postgres
+    WS --> Engine
+    Engine --> Adapters
+    Engine --> Narration
+    Sim --> Pulse
+    Pulse --> Postgres
+    Narration --> Gemini
+    Adapters --> Qdrant
 ```
 
 ---

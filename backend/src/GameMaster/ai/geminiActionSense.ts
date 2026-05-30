@@ -1,61 +1,6 @@
-import { GoogleGenAI } from '@google/genai';
-import { z } from 'zod';
-import { penaiEnv } from '../../config/penaiEnv.js';
-import { PT_BR_SYSTEM_PREFIX } from '../locale/defaultLocale.js';
-
-const ActionSenseSchema = z.object({
-    acceptable: z.boolean(),
-    reason: z.string().min(1),
-    playerFacingHint: z.string().optional(),
-});
-
-export type ActionPlausibilityResult = z.infer<typeof ActionSenseSchema>;
-
-export async function checkActionPlausibilityGemini(opts: {
-    playerAction: string;
-    regionSlug: string | null;
-    intentType: string;
-    sessionFacts?: string[];
-}): Promise<ActionPlausibilityResult> {
-    const apiKey = penaiEnv.GEMINI_API_KEY.trim();
-    if (!apiKey) {
-        return { acceptable: true, reason: 'Gemini desligado — heurística local.' };
-    }
-
-    try {
-        const client = new GoogleGenAI({ apiKey });
-        const prompt = JSON.stringify(
-            {
-                tarefa: 'Julgar se a ação do jogador faz sentido na cena D&D 5e.',
-                regiaoAtual: opts.regionSlug,
-                tipoIntent: opts.intentType,
-                acao: opts.playerAction,
-                fatos: opts.sessionFacts ?? [],
-                regras: [
-                    'Rejeite meta-chat, pedidos OOC, comandos ao sistema, impossibilidades físicas claras.',
-                    'Aceite ações criativas mas tentáveis pelo personagem aventureiro.',
-                    'Responda reason em português brasileiro, curto e claro.',
-                ],
-            },
-            null,
-            2,
-        );
-
-        const response = await client.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            config: {
-                systemInstruction: `${PT_BR_SYSTEM_PREFIX}\nVocê é o árbitro mecânico-narrativo. Não narre — só julgue plausibilidade.`,
-                responseMimeType: 'application/json',
-                temperature: 0.2,
-                maxOutputTokens: 256,
-            },
-        });
-
-        const raw = response.text ?? '{"acceptable":true,"reason":"ok"}';
-        return ActionSenseSchema.parse(JSON.parse(raw));
-    } catch (e) {
-        console.warn('[PENAI][actionSense] Gemini falhou, aceitando por heurística:', e);
-        return { acceptable: true, reason: 'Validação local (Gemini indisponível).' };
-    }
-}
+/** @deprecated import from ../adapters/gemini/actionSense.js */
+export {
+    checkActionPlausibilityGemini,
+    geminiActionSenseProvider,
+    type ActionPlausibilityResult,
+} from '../adapters/gemini/actionSense.js';

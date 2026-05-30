@@ -1,37 +1,51 @@
 // components/ItemCard.tsx
 import React, { useState, useMemo, useEffect } from 'react';
 import type { InventoryItem, Proficiency } from '../types';
-import { Shield, ChevronDown, Hand, Check, X, Loader2 } from 'lucide-react';
+import { ChevronDown, Hand, Check, X, Loader2 } from 'lucide-react';
 import * as DndApiService from '../services/dndApiService';
+import { DndButton } from '@/components/primitives';
+import { cn } from '@/lib/utils';
 
 interface ItemCardProps {
   item: InventoryItem;
   variant?: 'legacy' | 'v2';
+  onEquip?: (itemId: string) => void;
+  onUnequip?: (itemId: string) => void;
+  /** @deprecated use onEquip / onUnequip */
   onToggleEquip?: (itemId: string) => void;
   onUseConsumable?: (itemId: string) => void;
   actionDisabled?: boolean;
+  equipPending?: boolean;
   defaultExpanded?: boolean;
   proficiencies: Proficiency[];
 }
 
 const ProficiencyIndicator: React.FC<{ proficient: boolean }> = ({ proficient }) => {
   const Icon = proficient ? Check : X;
-  const color = proficient ? 'text-green-400' : 'text-red-500';
-  const text = proficient ? 'Proficiente' : 'Não Proficiente';
+  const color = proficient ? 'text-dnd-success' : 'text-dnd-danger';
 
   return (
-    <div className={`flex items-center gap-1 text-xs font-semibold ${color}`} title={text}>
+    <div className={`flex items-center gap-1 text-xs font-semibold ${color}`} title={proficient ? 'Proficiente' : 'Não proficiente'}>
       <Icon className="h-4 w-4" />
     </div>
   );
 };
 
+function isPenaiEquipType(item: InventoryItem): boolean {
+  const data = item as InventoryItem & { itemData?: { type?: string } };
+  const t = data.itemData?.type;
+  return t === 'weapon' || t === 'armor' || t === 'shield';
+}
+
 const ItemCard: React.FC<ItemCardProps> = ({
   item,
   variant = 'legacy',
+  onEquip,
+  onUnequip,
   onToggleEquip,
   onUseConsumable,
   actionDisabled,
+  equipPending = false,
   defaultExpanded = false,
   proficiencies = [],
 }) => {
@@ -40,7 +54,6 @@ const ItemCard: React.FC<ItemCardProps> = ({
   const [detailedItem, setDetailedItem] = useState<InventoryItem | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
-  // 🔄 Lazy load dos detalhes quando o item é expandido
   useEffect(() => {
     if (isExpanded && !detailedItem && item.index) {
       setLoadingDetails(true);
@@ -59,39 +72,37 @@ const ItemCard: React.FC<ItemCardProps> = ({
 
   const isProficient = useMemo(() => {
     if (!currentItem) return true;
-  
+
     const normalizeKey = (str: string) => str.toLowerCase().replace(/\s+/g, '-');
-  
-    const characterProficiencies = new Set(
-      proficiencies.map((p) => normalizeKey(p.index))
-    );
-  
+
+    const characterProficiencies = new Set(proficiencies.map((p) => normalizeKey(p.index)));
+
     const checkProficiency = (key?: string): boolean => {
       if (!key) return false;
       const normalizedKey = normalizeKey(key);
       const singularKey = normalizedKey.endsWith('s') ? normalizedKey.slice(0, -1) : normalizedKey;
       const pluralKey = singularKey + 's';
-      
-      return characterProficiencies.has(normalizedKey) || characterProficiencies.has(singularKey) || characterProficiencies.has(pluralKey);
+
+      return (
+        characterProficiencies.has(normalizedKey) ||
+        characterProficiencies.has(singularKey) ||
+        characterProficiencies.has(pluralKey)
+      );
     };
-  
-    // 1. General proficiencies
+
     if (currentItem.armor_category && checkProficiency('all-armor')) return true;
     if (currentItem.weapon_category === 'Martial' && checkProficiency('martial-weapons')) return true;
     if (currentItem.weapon_category === 'Simple' && checkProficiency('simple-weapons')) return true;
     if (currentItem.equipment_category?.index === 'shields' && checkProficiency('shields')) return true;
-  
-    // 2. Specific category proficiencies
+
     if (currentItem.armor_category && checkProficiency(`${currentItem.armor_category.toLowerCase()}-armor`)) {
       return true;
     }
-  
-    // 3. Specific item proficiency by index (e.g., 'longsword')
+
     if (currentItem.index && checkProficiency(currentItem.index)) {
       return true;
     }
-  
-    // 4. Default to not proficient for items requiring proficiency, if no match found
+
     if (
       currentItem.armor_category ||
       currentItem.weapon_category ||
@@ -99,118 +110,145 @@ const ItemCard: React.FC<ItemCardProps> = ({
     ) {
       return false;
     }
-  
-    // True for items that don't require proficiency (like general gear)
+
     return true;
   }, [currentItem, proficiencies]);
-
 
   const canBeEquipped = !!(
     currentItem.weapon_category ||
     currentItem.armor_category ||
-    currentItem.equipment_category?.index === 'shields'
+    currentItem.equipment_category?.index === 'shields' ||
+    isPenaiEquipType(currentItem)
   );
   const canBeUsed = currentItem.consumable || currentItem.usable;
-  const canEquipNow = canBeEquipped && isProficient && !actionDisabled;
+  const canEquipNow = canBeEquipped && isProficient && !actionDisabled && !equipPending;
+
+  const handleEquip = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canEquipNow || currentItem.equipped) return;
+    if (onEquip) onEquip(String(currentItem.id));
+    else onToggleEquip?.(String(currentItem.id));
+  };
+
+  const handleUnequip = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canEquipNow || !currentItem.equipped) return;
+    if (onUnequip) onUnequip(String(currentItem.id));
+    else onToggleEquip?.(String(currentItem.id));
+  };
 
   const handleCastClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onUseConsumable && canBeUsed && !actionDisabled) {
-      onUseConsumable(currentItem.id);
-    }
-  };
-
-  const handleToggleEquipClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onToggleEquip && canEquipNow) {
-      onToggleEquip(currentItem.id);
+      onUseConsumable(String(currentItem.id));
     }
   };
 
   return (
     <div
-      className={
+      className={cn(
         isV2
-          ? 'rounded-md border border-dnd-gold/15 bg-dnd-obsidian-raised/60 p-2.5'
-          : 'rounded-lg border border-stone-700 bg-stone-800/70 p-3'
-      }
+          ? 'rounded-md border bg-dnd-obsidian-raised/60 p-2.5'
+          : 'rounded-lg border border-stone-700 bg-stone-800/70 p-3',
+        isV2 && currentItem.equipped && canBeEquipped
+          ? 'border-dnd-gold/50 ring-1 ring-dnd-gold/20'
+          : isV2
+            ? 'border-dnd-gold/15'
+            : ''
+      )}
     >
       <div
-        className="flex justify-between items-start cursor-pointer"
+        className="flex cursor-pointer items-start justify-between"
         onClick={() => setIsExpanded((prev) => !prev)}
       >
-        <div className="flex-grow">
-          <h4 className="font-semibold text-stone-200">
+        <div className="min-w-0 flex-grow">
+          <h4 className={cn('font-semibold', isV2 ? 'text-dnd-parchment' : 'text-stone-200')}>
             {currentItem.name} {currentItem.quantity > 1 ? `(x${currentItem.quantity})` : ''}
           </h4>
-          <div className="flex items-center gap-2 text-xs text-stone-400 mt-1">
+          <div
+            className={cn(
+              'mt-1 flex flex-wrap items-center gap-2 text-xs',
+              isV2 ? 'text-dnd-parchment-muted' : 'text-stone-400'
+            )}
+          >
             {currentItem.weight !== undefined && <span>{currentItem.weight} lbs</span>}
             {canBeEquipped && <ProficiencyIndicator proficient={isProficient} />}
-            {canBeEquipped && (
-              <span
-                className={`px-2 py-0.5 rounded-full ${
-                  currentItem.equipped
-                    ? 'bg-amber-800 text-amber-200'
-                    : 'bg-stone-600 text-stone-300'
-                }`}
-              >
-                {currentItem.equipped ? 'Equipado' : 'Desequipado'}
-              </span>
+            {canBeEquipped && currentItem.equipped && (
+              <span className="rounded-full bg-dnd-gold/20 px-2 py-0.5 text-dnd-gold">Equipado</span>
             )}
             {canBeUsed && (
-              <span className="px-2 py-0.5 rounded-full bg-blue-900/60 text-blue-300">
-                Consumível/Usável
+              <span className="rounded-full bg-dnd-ember/15 px-2 py-0.5 text-dnd-ember-hover">
+                Consumível
               </span>
             )}
           </div>
         </div>
-        <div className="flex items-center">
+        <div className="flex shrink-0 items-center gap-1">
           {canBeUsed && onUseConsumable && (
             <button
               onClick={handleCastClick}
               disabled={actionDisabled}
-              className="p-1 text-stone-400 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Usar Item"
+              className="flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-dnd-parchment-muted hover:text-dnd-gold disabled:cursor-not-allowed disabled:opacity-50"
+              title="Usar item"
+              type="button"
             >
-              <Hand />
+              <Hand className="h-4 w-4" />
             </button>
           )}
-          {canBeEquipped && onToggleEquip && (
-            <button
-              onClick={handleToggleEquipClick}
-              disabled={!canEquipNow}
-              className="p-1 text-stone-400 hover:text-amber-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              title={
-                isProficient
-                  ? currentItem.equipped
-                    ? 'Desequipar'
-                    : 'Equipar'
-                  : 'Proficiência necessária'
-              }
-            >
-              <Shield />
-            </button>
-          )}
-          <div className="p-1 text-stone-400 hover:text-amber-300 flex-shrink-0">
+          <div className="flex shrink-0 p-1 text-dnd-parchment-muted">
             <ChevronDown
-              className={`h-5 w-5 transition-transform ${
-                isExpanded ? 'rotate-180' : ''
-              }`}
+              className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
             />
           </div>
         </div>
       </div>
 
+      {canBeEquipped && (onEquip || onUnequip || onToggleEquip) && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {equipPending ? (
+            <DndButton variant="ghost" size="sm" disabled className="min-h-[44px]">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Aguardando motor…
+            </DndButton>
+          ) : currentItem.equipped ? (
+            <DndButton
+              variant="ghost"
+              size="sm"
+              className="min-h-[44px]"
+              disabled={!canEquipNow}
+              onClick={handleUnequip}
+            >
+              Desequipar
+            </DndButton>
+          ) : (
+            <DndButton
+              variant="goldOutline"
+              size="sm"
+              className="min-h-[44px]"
+              disabled={!canEquipNow}
+              onClick={handleEquip}
+            >
+              Equipar
+            </DndButton>
+          )}
+        </div>
+      )}
+
       {isExpanded && (
-        <div className="mt-2 text-sm text-stone-300 space-y-2 pt-2 border-t border-stone-600/50">
+        <div
+          className={cn(
+            'mt-2 space-y-2 border-t pt-2 text-sm',
+            isV2 ? 'border-dnd-gold/15 text-dnd-parchment' : 'border-stone-600/50 text-stone-300'
+          )}
+        >
           {loadingDetails && (
-            <div className="flex items-center text-xs text-stone-500 italic">
-              <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> Carregando detalhes...
+            <div className="flex items-center text-xs italic text-dnd-parchment-muted">
+              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Carregando detalhes…
             </div>
           )}
 
           {currentItem.desc && currentItem.desc.length > 0 && (
-            <div className="text-stone-400 text-xs italic space-y-1">
+            <div className="space-y-1 text-xs italic text-dnd-parchment-muted">
               {currentItem.desc.map((d, i) => (
                 <p key={i}>{d}</p>
               ))}
@@ -219,45 +257,15 @@ const ItemCard: React.FC<ItemCardProps> = ({
 
           {currentItem.damage && (
             <p>
-              <strong className="font-semibold text-stone-400">Dano:</strong>{' '}
+              <strong className="font-semibold text-dnd-parchment-muted">Dano:</strong>{' '}
               {currentItem.damage?.damage_dice} {currentItem.damage?.damage_type?.name}
             </p>
           )}
-          {currentItem.two_handed_damage && (
-            <p>
-              <strong className="font-semibold text-stone-400">Dano (2 Mãos):</strong>{' '}
-              {currentItem.two_handed_damage?.damage_dice}{' '}
-              {currentItem.two_handed_damage?.damage_type?.name}
-            </p>
-          )}
-          {currentItem.properties && currentItem.properties.length > 0 && (
-            <p>
-              <strong className="font-semibold text-stone-400">Propriedades:</strong>{' '}
-              {currentItem.properties.map((p) => p.name).join(', ')}
-            </p>
-          )}
-
           {currentItem.armor_class && (
             <p>
-              <strong className="font-semibold text-stone-400">Classe de Armadura (CA):</strong>{' '}
-              {currentItem.armor_class.base}{' '}
-              {currentItem.armor_class.dex_bonus
-                ? `+ Mod de Destreza${
-                    currentItem.armor_class.max_bonus
-                      ? ` (máx ${currentItem.armor_class.max_bonus})`
-                      : ''
-                  }`
-                : ''}
+              <strong className="font-semibold text-dnd-parchment-muted">CA base:</strong>{' '}
+              {currentItem.armor_class.base}
             </p>
-          )}
-          {!!currentItem.str_minimum && currentItem.str_minimum > 0 && (
-            <p>
-              <strong className="font-semibold text-stone-400">Força Mínima:</strong>{' '}
-              {currentItem.str_minimum}
-            </p>
-          )}
-          {currentItem.stealth_disadvantage && (
-            <p className="text-red-400">Desvantagem em testes de Furtividade.</p>
           )}
         </div>
       )}

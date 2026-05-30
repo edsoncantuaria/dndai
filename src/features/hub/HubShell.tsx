@@ -16,6 +16,7 @@ type HubShellProps = Pick<
   | 'onContinueGame'
   | 'onStartFromVault'
   | 'onRequestDeleteCharacter'
+  | 'onRequestEditCharacter'
   | 'onRequestDeleteSession'
   | 'onRequestRenameSession'
   | 'onRequestCloneSession'
@@ -34,6 +35,7 @@ export function HubShell({
   onContinueGame,
   onStartFromVault,
   onRequestDeleteCharacter,
+  onRequestEditCharacter,
   onRequestDeleteSession,
   onRequestRenameSession,
   onRequestCloneSession,
@@ -93,6 +95,7 @@ export function HubShell({
         sessions={sessions}
         onBack={goToMesa}
         onCreateHero={() => onSetStage('creating_character')}
+        onEditHero={onRequestEditCharacter}
         onStartWithHero={onStartFromVault}
         onDeleteHero={onRequestDeleteCharacter}
         onViewSessions={() => openFromMesa('session_list')}

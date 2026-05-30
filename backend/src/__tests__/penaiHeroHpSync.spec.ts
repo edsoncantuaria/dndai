@@ -2,12 +2,12 @@ import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { ensurePenaiTestDb } from './helpers/penaiTestDb.js';
 import { createGameSession } from '../GameMaster/sessions/sessionService.js';
-import { startPenaiCombat } from '../GameMaster/combat/combatPenai.js';
+import { startPenaiCombat } from '../GameMaster/combat/engine.js';
 import { loadHeroSessionStats, saveHeroSessionStats } from '../GameMaster/character/heroStats.js';
 import { getSessionHeroEntityId } from '../GameMaster/character/heroStats.js';
-import { syncHeroHpPenai } from '../GameMaster/character/syncHeroHpPenai.js';
-import { applyCharacterStateDeltaPenai } from '../GameMaster/character/applyStateDeltaPenai.js';
-import { getPenaiCombatState } from '../GameMaster/combat/combatPenai.js';
+import { syncHeroHpPenai } from '../GameMaster/character/syncHeroHp.js';
+import { applyCharacterStateDeltaPenai } from '../GameMaster/character/applyStateDelta.js';
+import { getPenaiCombatState } from '../GameMaster/combat/engine.js';
 import { formatMechanicalPack } from '../GameMaster/character/formatMechanicalPack.js';
 
 const dbDescribe = process.env.DATABASE_URL ? describe : describe.skip;

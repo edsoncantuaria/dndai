@@ -7,10 +7,10 @@ import {
     resolveEffectAmount,
     rollResolutionShouldNarrate,
 } from '../../rules/rollResolutionCore.js';
-import { applyCharacterStateDeltaPenai } from '../character/applyStateDeltaPenai.js';
-import { syncHeroHpPenai, syncHeroHpToCanonical } from '../character/syncHeroHpPenai.js';
-import { applyCombatEntityDeltaPenai } from './combatPenai.js';
-import type { StoredPenaiRoll } from '../motor/penaiRollStore.js';
+import { applyCharacterStateDeltaPenai } from '../character/applyStateDelta.js';
+import { syncHeroHpPenai, syncHeroHpToCanonical } from '../character/syncHeroHp.js';
+import { applyCombatEntityDeltaPenai } from './engine.js';
+import type { StoredPenaiRoll } from '../motor/rollStore.js';
 
 export interface PenaiRollResolutionResult {
     updatedCharacter?: Awaited<ReturnType<typeof applyCharacterStateDeltaPenai>>;
@@ -189,7 +189,7 @@ async function applyPenaiDamage(
         hints.push(
             `${target.name ?? 'Inimigo'} perde ${dmg} HP${metadata?.source?.name ? ` (${metadata.source.name})` : ''}.`,
         );
-        const { getPenaiCombatState } = await import('./combatPenai.js');
+        const { getPenaiCombatState } = await import('./engine.js');
         const after = await getPenaiCombatState(sessionId);
         const entity = after.combatants.find(c => c.entityKey === entityId);
         return {
@@ -243,7 +243,7 @@ async function applyPenaiHealing(
         hints.push(
             `${target.name ?? 'Inimigo'} recupera ${heal} HP${metadata?.source?.name ? ` (${metadata.source.name})` : ''}.`,
         );
-        const { getPenaiCombatState } = await import('./combatPenai.js');
+        const { getPenaiCombatState } = await import('./engine.js');
         const after = await getPenaiCombatState(sessionId);
         const entity = after.combatants.find(c => c.entityKey === entityId);
         return {

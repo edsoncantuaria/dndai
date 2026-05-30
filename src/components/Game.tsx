@@ -30,16 +30,17 @@ const CharacterCreation = dynamic(
 );
 
 
-export type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 'creating_character' | 'playing' | 'homebrew_store';
+export type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 'creating_character' | 'editing_character' | 'playing' | 'homebrew_store';
 
 
 interface GameProps {
   onCharacterCreated: () => void;
   returnToMenu: () => void;
   gameStage: GameStage;
+  editCharacterId?: string | number | null;
 }
 
-export default function Game({ onCharacterCreated, returnToMenu, gameStage }: GameProps) {
+export default function Game({ onCharacterCreated, returnToMenu, gameStage, editCharacterId }: GameProps) {
     const { character, isLoading } = useGameStateContext();
 
     // Se o estágio é 'playing', e o personagem está carregado, mostre a tela de jogo.
@@ -47,12 +48,13 @@ export default function Game({ onCharacterCreated, returnToMenu, gameStage }: Ga
         return <GameScreen returnToMenu={returnToMenu} />;
     }
 
-    // Se o estágio é criando personagem, mostre o criador.
-    if(gameStage === 'creating_character') {
+    // Se o estágio é criando ou editando personagem, mostre o criador.
+    if (gameStage === 'creating_character' || gameStage === 'editing_character') {
       return (
           <CharacterCreation
               onCharacterCreated={onCharacterCreated}
               onCancel={returnToMenu}
+              editCharacterId={gameStage === 'editing_character' ? editCharacterId ?? undefined : undefined}
           />
       );
     }

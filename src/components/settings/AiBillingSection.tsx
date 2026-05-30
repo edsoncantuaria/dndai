@@ -5,19 +5,18 @@ import { Coins, ExternalLink, KeyRound } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { DndButton, DndInput } from '@/components/primitives';
-import { writeAiApiKey } from '@/lib/aiApiKeyStorage';
 
 const GEMINI_STUDIO_URL = 'https://aistudio.google.com/apikey';
 
 export function AiBillingSection() {
-  const { aiAccess } = useAuth();
-  const { apiKey, setApiKey } = useSettingsContext();
+  const { aiAccess, saveApiKey, isActionLoading } = useAuth();
+  const { apiKey } = useSettingsContext();
   const [draft, setDraft] = useState(apiKey);
 
-  const saveKey = () => {
+  const saveKey = async () => {
     const trimmed = draft.trim();
-    setApiKey(trimmed);
-    writeAiApiKey(trimmed);
+    if (!trimmed) return;
+    await saveApiKey(trimmed);
   };
 
   return (
@@ -68,7 +67,7 @@ export function AiBillingSection() {
         onChange={(e) => setDraft(e.target.value)}
       />
       <p className="font-ui text-xs text-dnd-parchment-muted -mt-2">
-        Fica apenas neste navegador.{' '}
+        Também fica neste navegador.{' '}
         <a
           href={GEMINI_STUDIO_URL}
           target="_blank"
@@ -80,8 +79,8 @@ export function AiBillingSection() {
         </a>
         . Com BYOK ativo, créditos inclusos não são consumidos.
       </p>
-      <DndButton variant="ghost" size="sm" onClick={saveKey}>
-        Salvar chave localmente
+      <DndButton variant="ghost" size="sm" onClick={saveKey} loading={isActionLoading}>
+        Salvar chave Gemini
       </DndButton>
     </div>
   );

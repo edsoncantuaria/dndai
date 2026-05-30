@@ -4,7 +4,8 @@ import { registerLocalSocket, publishWsToUser } from './wsPubSub.js';
 import { allocateActionSequence, getGameSession } from '../sessions/sessionService.js';
 import { appendWorldEvent } from '../events/store.js';
 import { startNarrationWorkflow } from '../../temporal/client.js';
-import { PENAI_MOTOR } from '../motor/index.js';
+import { GAME_MOTOR } from '../motor/index.js';
+import { runPostMechanicalEntityLifecycle } from '../world/entityLifecycle.js';
 import { PenaiDataSource } from '../database/data-source.js';
 import { GameSession } from '../database/entities/GameSession.js';
 import { formatMechanicalPack } from '../character/formatMechanicalPack.js';
@@ -83,7 +84,7 @@ async function handleWsMessage(
     }
 
     if (msg.type === 'syncPendingRoll' && msg.sessionId) {
-        const pending = await import('../motor/penaiRollStore.js').then(m =>
+        const pending = await import('../motor/rollStore.js').then(m =>
             m.getPendingPenaiRoll(msg.sessionId!),
         );
         if (pending) {
@@ -106,7 +107,7 @@ async function emitMechanicalUpdate(
     sessionId: number,
     actionId: string,
     actionSequence: number,
-    motor: Awaited<ReturnType<typeof PENAI_MOTOR.validateAndApply>>,
+    motor: Awaited<ReturnType<typeof GAME_MOTOR.validateAndApply>>,
     extra?: Record<string, unknown>,
 ): Promise<void> {
     const session = await getGameSession(sessionId);
@@ -176,8 +177,16 @@ async function handleProcessAction(
         await publishWsToUser(userId, { type: 'error', message: 'Sessão não encontrada' });
         return;
     }
+    if (Number(session.userId) !== userId) {
+        await publishWsToUser(userId, {
+            type: 'error',
+            message: 'Sessão não pertence a este usuário.',
+            locale: 'pt-BR',
+        });
+        return;
+    }
 
-    const lock = await PENAI_MOTOR.isTurnLocked(sessionId);
+    const lock = await GAME_MOTOR.isTurnLocked(sessionId);
     if (lock.locked) {
         await publishWsToUser(userId, {
             type: 'actionRejected',
@@ -206,7 +215,7 @@ async function handleProcessAction(
         payload: { playerAction, actionId, actionSequence },
     });
 
-    const motor = await PENAI_MOTOR.validateAndApply({
+    const motor = await GAME_MOTOR.validateAndApply({
         sessionId,
         userId,
         playerAction,
@@ -230,6 +239,7 @@ async function handleProcessAction(
     }
 
     const mechanicalPack = await formatMechanicalPack(sessionId);
+    await runPostMechanicalEntityLifecycle({ sessionId, userId, playerAction });
     await emitMechanicalUpdate(userId, sessionId, actionId, actionSequence, motor, mechanicalPack);
 
     await publishWsToUser(userId, {
@@ -272,25 +282,35 @@ async function handleSubmitRollResult(
     payload: Record<string, unknown>,
 ): Promise<void> {
     const requestId = String(payload.requestId ?? '');
-    const rolls = Array.isArray(payload.rolls)
-        ? (payload.rolls as unknown[]).map(n => Number(n)).filter(Number.isFinite)
-        : [];
 
-    if (!requestId || !rolls.length) {
+    if (!requestId) {
         await publishWsToUser(userId, {
             type: 'error',
-            message: 'requestId e rolls são obrigatórios',
+            message: 'requestId é obrigatório',
             locale: 'pt-BR',
         });
         return;
     }
 
-    const resolved = await PENAI_MOTOR.resolveRoll({
+    const session = await getGameSession(sessionId);
+    if (!session) {
+        await publishWsToUser(userId, { type: 'error', message: 'Sessão não encontrada', locale: 'pt-BR' });
+        return;
+    }
+    if (Number(session.userId) !== userId) {
+        await publishWsToUser(userId, {
+            type: 'error',
+            message: 'Sessão não pertence a este usuário.',
+            locale: 'pt-BR',
+        });
+        return;
+    }
+
+    const resolved = await GAME_MOTOR.resolveRoll({
         sessionId,
         userId,
         requestId,
-        rolls,
-        rawRoll: typeof payload.rawRoll === 'number' ? payload.rawRoll : undefined,
+        rolls: [],
     });
 
     if (!resolved.ok) {

@@ -172,7 +172,7 @@ Orquestrador: `GameContainer` + `GameStateProvider`.
 
 ---
 
-## 6. GameplayShell — layout
+## 6. GameplayShell — layout (v3)
 
 ### 6.1 Árvore de composição
 
@@ -180,44 +180,55 @@ Orquestrador: `GameContainer` + `GameStateProvider`.
 flowchart TB
     GS[GameplayShell]
     GS --> TB[GameplayTopBar]
+    TB --> VIT[HeroVitalsStrip HP CA FOR DES CON]
     GS --> CT[Coluna narrativa]
-    GS --> SP[GameplaySidePanel desktop]
-    GS --> MN[Nav mobile DndTabs]
+    GS --> SP[GameplaySidePanel desktop 38%]
+    GS --> MN[Nav mobile 4 tabs]
 
-    CT --> COM[NewCombatTracker se combate]
-    CT --> LOG[NewNarrativeLog]
+    CT --> COM[GameplayCombatTracker se combate]
+    CT --> LOG[GameplayNarrativeLog]
     CT --> DOCK[GameplayActionDock]
 
     SP --> MAP[Mapa]
-    SP --> INV[Inventário]
-    SP --> SHEET[Ficha]
+    SP --> CAMP[Campanha]
+    SP --> BAG[Bolsa]
+
+    MN --> MAIS[Drawer Mais: ficha magias XP campanha config]
 ```
 
 ### 6.2 Desktop (lg+)
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│ GameplayTopBar — região, hora, TTS, settings, menu         │
-├──────────────────────────────┬─────────────────────────────┤
-│ [Combate tracker se ativo]   │  Side panel (tabs)          │
-│                              │  Mapa | Inv | Ficha         │
-│  NewNarrativeLog (scroll)    │                             │
-│                              │                             │
-│  GameplayActionDock          │                             │
-└──────────────────────────────┴─────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│ TopBar: região + tempo │ HeroVitalsStrip (PV, CA, atributos) │ TTS │
+├─────────────────────────────────────┬──────────────────────────────┤
+│ [Combate tracker se ativo]          │  Side panel (3 tabs)         │
+│                                     │  Mapa | Campanha | Bolsa     │
+│  GameplayNarrativeLog (scroll)      │                              │
+│  GameplayActionDock                 │                              │
+└─────────────────────────────────────┴──────────────────────────────┘
 ```
+
+Proporção: narrativa **62%** · painel **38%**.
 
 ### 6.3 Mobile (< lg)
 
-- Abas inferiores: **Narrativa | Mapa | Inventário | Ficha | Menu**
-- Dock de ações **sobreposto** na coluna narrativa (`pointer-events` + safe bottom)
-- Teclado virtual: `useKeyboardViewportInset` ajusta padding do dock
+- Abas inferiores: **Narração | Mapa | Bolsa | Mais** (4 itens)
+- **Mais:** magias, progressão, campanha, config, sair — ficha completa não ocupa aba dedicada
+- **HeroVitalsStrip** no header (PV + CA sempre visíveis; atributos a partir de `sm`)
+- Dock sobreposto na coluna narrativa; `useKeyboardViewportInset` ajusta padding
+- **Registro WS** (`GameplaySessionLogPanel`): só dev — `NEXT_PUBLIC_DEBUG_WS=1` ou `?debug=ws`
 
-### 6.4 Primitivos visuais
+### 6.4 Equipar / desequipar (PENAI)
+
+Intent `equip-item` com `inventoryItemId` (UUID) ou `itemKey`; UI com botões explícitos **Equipar** / **Desequipar** em `ItemCard` v2. Estado autoritativo via `mechanicalStateUpdate` → `usePenaiMechanicalSync`.
+
+### 6.5 Primitivos visuais
 
 - `AmbientBackground` — gradiente vivo
 - `Vignette` — bordas escurecidas
 - `DndTabs`, `DndButton` — família UI v2
+- `HeroVitalsStrip` — PV barra, badge CA (tooltip itens equipados)
 
 ---
 
@@ -316,8 +327,16 @@ sequenceDiagram
 |------------|--------|
 | `NewNarrativeLog` | Scroll log; destaques; TTS por entrada |
 | `GameplayActionDock` | Botões contextuais (exploração, social, combate) |
-| `GameplayTopBar` | Região, relógio, toggle narração/TTS |
-| `GameplaySidePanel` | Tabs desktop |
+| `GameplayTopBar` | Região, relógio, **HeroVitalsStrip**, toggle narração/TTS |
+| `HeroVitalsStrip` | PV (barra), CA (badge + tooltip equipado), FOR/DES/CON compactos |
+| `GameplaySidePanel` | Tabs desktop — **Mapa | Campanha | Bolsa** (3 abas) |
+| `GameplayMobileMenuPanel` | Drawer **Mais** — ficha (magias/XP), campanha, config |
+| `GameplayMaisSheetSection` | Magias + progressão dentro de Mais |
+| `GameplayInventoryPanel` | Bolsa + seção **Equipado agora** + `ItemCard` v2 |
+| `ItemCard` v2 | Botões **Equipar** / **Desequipar** (intent `inventoryItemId`) |
+| `CampanhaPanel` | Mood, quests, reputação, pulso PENAI |
+| `GameplaySessionLogPanel` | Debug WS — **dev only** (`NEXT_PUBLIC_DEBUG_WS`) |
+| `PenaiEngineIntro` | Hub — onboarding leigo (motor / narrador / mundo offline) |
 | `DiceRollModal` | Integração dice-box |
 | `ShopModal` / level-up modais | Motor disparou estado |
 | `StoryHighlightsCard` | Resumo momentos (hub/log) |
@@ -330,6 +349,23 @@ Ações derivadas de `contextualDockActions` — mudam com região, combate, fas
 ### 9.2 Combate na mesa
 
 `showCombat` no shell → faixa `NewCombatTracker` acima do log — iniciativa e HP visíveis sem cobrir narrativa.
+
+### 9.3 Aba Campanha (P7.5)
+
+Side panel tab **`campanha`** (substitui História legado):
+
+| Bloco | Dados |
+|-------|--------|
+| `PenaiExplainerAccordion` | Copy estática — motor, IA, mundo offline |
+| `RegionMoodCard` | `GET /v2/sessions/:id/campaign` → `regionState` |
+| `QuestTrackerCard` | `activeQuests[]` |
+| `ReputationStrip` | `heroReputation[]` |
+| `MundoVivoPanel` | WS `worldPulse` + REST eventos |
+| `PenaiStoryFeed` / journal | WS + REST journal |
+
+Hook: `useSessionCampaign(sessionId)` — refetch em `worldPulse` e fim de narração.
+
+Hub: `PenaiIntroModal` (first visit `localStorage penai_intro_seen`) + `PenaiEngineIntro`.
 
 ---
 

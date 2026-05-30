@@ -6,6 +6,7 @@ import {
     UpdateDateColumn,
     Index,
 } from 'typeorm';
+import type { EntityTier } from './types/EntityTier.js';
 
 export type WorldEntityType = 'hero' | 'npc' | 'monster' | 'faction' | 'item_legendary';
 
@@ -54,6 +55,9 @@ export class WorldEntity {
 
     @Column({ type: 'varchar', length: 32, default: 'alive' })
     statusGlobal!: 'alive' | 'missing' | 'retired';
+
+    @Column({ type: 'varchar', length: 16, default: 'INCIDENTAL' })
+    entityTier!: EntityTier;
 
     @Column({ type: 'varchar', length: 64, nullable: true })
     embeddingPointId!: string | null;

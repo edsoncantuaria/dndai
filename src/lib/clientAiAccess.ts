@@ -30,7 +30,7 @@ export function aiKeyRequiredMessage(aiAccess?: AiAccessStatus | null): string {
   if (aiAccess?.platformBillingEnabled && (aiAccess.creditsRemaining ?? 0) <= 0) {
     return 'Seus créditos de narração acabaram. Adicione sua chave Gemini (BYOK) para continuar jogando.';
   }
-  return 'O Mestre precisa da sua chave Gemini (Google AI Studio). Ela fica só neste aparelho — não enviamos para o servidor.';
+  return 'O Mestre precisa da sua chave Gemini (Google AI Studio). Ela fica associada à sua conta para a narração funcionar.';
 }
 
 export function isInferenceKeyError(message: string): boolean {

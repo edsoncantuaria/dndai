@@ -43,12 +43,12 @@ export function GameplayFreeActionSheet({
         </div>
       ) : null}
       <p className="mb-4 font-narrative text-sm leading-relaxed text-dnd-parchment-muted">
-        Descreva o que seu herói tenta fazer. O Mestre interpreta com base nas regras e na cena atual.
+        Descreva o que seu personagem tenta fazer — o Mestre decide o resultado. Você influencia a cena; não altera o mundo por decreto.
       </p>
       <DndTextarea
         ref={textareaRef}
         label="Descreva sua ação"
-        placeholder="Ex.: investigo os símbolos na porta da taverna…"
+        placeholder="Ex.: procuro moedas nos destroços (pode exigir Percepção)…"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={4}

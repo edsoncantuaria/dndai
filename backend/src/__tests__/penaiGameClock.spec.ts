@@ -4,7 +4,7 @@ import {
     advanceGameClock,
     defaultGameClock,
     timeOfDayFromHour,
-} from '../GameMaster/world/gameClockPenai.js';
+} from '../GameMaster/world/gameClock.js';
 
 describe('penai game clock', () => {
     it('timeOfDayFromHour mapeia períodos do dia', () => {

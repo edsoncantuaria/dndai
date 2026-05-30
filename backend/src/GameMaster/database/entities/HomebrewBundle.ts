@@ -6,7 +6,7 @@ import {
     UpdateDateColumn,
     OneToMany,
 } from 'typeorm';
-import type { PenaiHomebrewContent } from './HomebrewContentPenai.js';
+import type { PenaiHomebrewContent } from './HomebrewContent.js';
 
 @Entity('penai_homebrew_bundles')
 export class PenaiHomebrewBundle {

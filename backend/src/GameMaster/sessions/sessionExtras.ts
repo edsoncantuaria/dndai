@@ -6,9 +6,9 @@ import { WorldEvent } from '../database/entities/WorldEvent.js';
 import { SessionCombatant } from '../database/entities/SessionCombatant.js';
 import createError from 'http-errors';
 import { createGameSession } from '../sessions/sessionService.js';
-import { getPenaiCombatState } from '../combat/combatPenai.js';
+import { getPenaiCombatState } from '../combat/engine.js';
 
-async function assertSessionOwner(sessionId: number, userId: number): Promise<GameSession> {
+export async function assertSessionOwner(sessionId: number, userId: number): Promise<GameSession> {
     const session = await PenaiDataSource.getRepository(GameSession).findOne({
         where: { id: sessionId, userId },
     });
@@ -267,7 +267,7 @@ export async function executeNpcTurnAttack(sessionId: number): Promise<{
             row.hpCurrent = Math.max(0, row.hpCurrent - damage);
             await combatantRepo.save(row);
         }
-        const { syncHeroHpPenai } = await import('../character/syncHeroHpPenai.js');
+        const { syncHeroHpPenai } = await import('../character/syncHeroHp.js');
         await syncHeroHpPenai(sessionId);
     }
 

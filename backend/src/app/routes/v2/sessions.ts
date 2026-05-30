@@ -62,11 +62,33 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
             return reply.status(400).send({ error: 'ID de sessão inválido' });
         }
         const { buildPenaiSessionSummary } = await import(
-            '../../../GameMaster/world/sessionWorldPenai.js'
+            '../../../GameMaster/world/sessionSnapshot.js'
         );
         const summary = await buildPenaiSessionSummary(id);
         if (!summary) return reply.notFound('Sessão não encontrada');
         return summary;
+    });
+
+    app.get('/api/v2/sessions/:id/campaign', auth, async (request, reply) => {
+        const id = Number((request.params as { id: string }).id);
+        if (!Number.isFinite(id)) {
+            return reply.status(400).send({ error: 'ID de sessão inválido' });
+        }
+        const { assertSessionOwner } = await import(
+            '../../../GameMaster/sessions/sessionExtras.js'
+        );
+        const { loadSessionCampaignView } = await import(
+            '../../../GameMaster/sessions/sessionCampaignView.js'
+        );
+        try {
+            await assertSessionOwner(id, request.userId);
+            return await loadSessionCampaignView(id);
+        } catch (err: unknown) {
+            if (createError.isHttpError(err)) {
+                return reply.status(err.statusCode).send({ message: err.message });
+            }
+            throw err;
+        }
     });
 
     app.get('/api/v2/sessions/:id/world-map', auth, async (request, reply) => {
@@ -75,7 +97,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
             return reply.status(400).send({ error: 'ID de sessão inválido' });
         }
         const { buildPenaiWorldMapSnapshot } = await import(
-            '../../../GameMaster/world/sessionWorldPenai.js'
+            '../../../GameMaster/world/sessionSnapshot.js'
         );
         const snapshot = await buildPenaiWorldMapSnapshot(id);
         if (!snapshot) return reply.notFound('Sessão não encontrada');
@@ -123,7 +145,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
             return reply.status(400).send({ error: 'ID de sessão inválido' });
         }
         const { clonePenaiSession } = await import(
-            '../../../GameMaster/sessions/sessionExtrasPenai.js'
+            '../../../GameMaster/sessions/sessionExtras.js'
         );
         try {
             const session = await clonePenaiSession(id, request.userId);
@@ -142,7 +164,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
             return reply.status(400).send({ error: 'ID de sessão inválido' });
         }
         const { buildPenaiSessionCast } = await import(
-            '../../../GameMaster/sessions/sessionExtrasPenai.js'
+            '../../../GameMaster/sessions/sessionExtras.js'
         );
         try {
             return await buildPenaiSessionCast(id, request.userId);
@@ -162,7 +184,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
         }
         const body = request.body as Partial<{ displayName: string; role: string; vitals: string }>;
         const { updatePenaiCastMember } = await import(
-            '../../../GameMaster/sessions/sessionExtrasPenai.js'
+            '../../../GameMaster/sessions/sessionExtras.js'
         );
         try {
             return await updatePenaiCastMember(id, request.userId, memberId, body);
@@ -180,7 +202,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
             return reply.status(400).send({ error: 'ID de sessão inválido' });
         }
         const { listPenaiJournalEntries } = await import(
-            '../../../GameMaster/journal/journalListPenai.js'
+            '../../../GameMaster/journal/journalList.js'
         );
         try {
             const entries = await listPenaiJournalEntries(id, request.userId);
@@ -204,7 +226,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
         const owned = await sessionRepo.findOne({ where: { id, userId: request.userId } });
         if (!owned) return reply.notFound('Sessão não encontrada');
         const { buildMechanicalReplaySnapshot } = await import(
-            '../../../GameMaster/sessions/replayMechanicalPenai.js'
+            '../../../GameMaster/sessions/replayMechanical.js'
         );
         return buildMechanicalReplaySnapshot(id);
     });
@@ -235,7 +257,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
             return reply.status(400).send({ error: 'ID de sessão inválido' });
         }
         const { buildPenaiSessionReplayMarkdown } = await import(
-            '../../../GameMaster/sessions/sessionExtrasPenai.js'
+            '../../../GameMaster/sessions/sessionExtras.js'
         );
         try {
             const markdown = await buildPenaiSessionReplayMarkdown(id, request.userId);
@@ -265,11 +287,23 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
         );
         const moduleRepo = PenaiDataSource.getRepository(SessionInstalledModule);
         if (body.action === 'install') {
+            const { validateModuleInstall } = await import(
+                '../../../GameMaster/homebrew/moduleResolver.js'
+            );
+            const version = String(body.version ?? '1.0.0');
+            const compat = await validateModuleInstall(id, {
+                moduleId: body.moduleId,
+                version,
+                kind: 'homebrew',
+            });
+            if (!compat.ok) {
+                return reply.status(409).send({ message: compat.reason ?? 'Conflito de módulos.' });
+            }
             await moduleRepo.save(
                 moduleRepo.create({
                     sessionId: id,
                     moduleId: body.moduleId,
-                    version: '1.0.0',
+                    version,
                     kind: 'homebrew',
                     payload: {},
                 }),

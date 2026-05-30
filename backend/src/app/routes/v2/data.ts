@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import createError from 'http-errors';
-import { getUnifiedDetails, getUnifiedList } from '../../GameMaster/homebrew/penaiUnifiedDataService.js';
+import { getUnifiedDetails, getUnifiedList } from '../../GameMaster/homebrew/unifiedDataService.js';
 
 async function resolveDataUserId(app: FastifyInstance, request: FastifyRequest): Promise<number> {
     if (request.headers.authorization) {

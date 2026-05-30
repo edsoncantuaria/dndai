@@ -196,8 +196,6 @@ export function usePenaiTurnPipeline(
                     sessionId,
                     payload: {
                         requestId: request.requestId,
-                        rolls: result.rolls,
-                        rawRoll: result.rawRoll,
                     },
                 }),
             );

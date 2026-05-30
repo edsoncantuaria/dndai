@@ -6,6 +6,7 @@ import { PenaiUser } from '../database/entities/PenaiUser.js';
 import type { LoginSchema, RegisterSchema } from '../../schemas/validationSchemas.js';
 import { includedCreditsForNewUser } from '../../services/aiBillingService.js';
 import { AI_PRODUCT } from '../../config/aiProductDefaults.js';
+import { ensureUserHasSrdPtBrBundle } from '../database/seed/seedSrdPtBrHomebrew.js';
 
 const defaultSettings = {
     model: AI_PRODUCT.defaultModel,
@@ -67,6 +68,8 @@ export async function registerPenaiUser(
         }),
     );
 
+    await ensureUserHasSrdPtBrBundle(saved.id);
+
     const { passwordHash: _, ...userResponse } = saved;
     return userResponse;
 }
@@ -101,6 +104,8 @@ export async function loginPenaiUser(
         };
         throw error;
     }
+
+    await ensureUserHasSrdPtBrBundle(user.id);
 
     const { passwordHash: _, ...userResponse } = user;
     return { user: userResponse, tokenPayload: { userId: user.id } };

@@ -15,10 +15,10 @@ O PENAI **não** é um chatbot com prompt central.
 | Camada | Papel |
 |--------|--------|
 | **PostgreSQL + eventos** | Fonte da verdade (sessão, mundo, viagem, entidades) |
-| **PENAI_MOTOR** | Viagem, combate + rolagem 3D, lock BG3, rejeição antes da IA |
-| **Memória** | SQL + Qdrant (recall) + resumos (`narrative_summaries`) |
-| **Temporal** | Narração assíncrona, compactação, pulso do mundo |
-| **Gemini** | Só narra/resume dentro de contrato pequeno (`NarrativeContextPack`) |
+| **PENAI_MOTOR / GAME_MOTOR** | Viagem, combate + rolagem 3D, lock BG3, rejeição antes da IA |
+| **Memória** | `globalMemory` + `sessionMemory` + `narrativeMemory` (SQL + Qdrant) |
+| **Temporal** | Narração assíncrona, compactação, pulso do mundo, canon approval |
+| **Adapters (Gemini)** | Só narra/resume/embed/actionSense via `defaultProviders` |
 
 Invariante: a IA **não** altera HP, inventário nem geografia canônica.
 
@@ -48,8 +48,9 @@ Invariante: a IA **não** altera HP, inventário nem geografia canônica.
 | Overlay por sessão | ✅ | `entities/SessionEntityState.ts` |
 | Event log append-only | ✅ | `events/store.ts` |
 | Guard narração PT-BR | ✅ | `locale/narrationGuard.ts` |
-| Gemini structured narration | ✅ | `ai/geminiClient.ts` |
-| Embeddings Gemini | ✅ | `ai/geminiEmbeddings.ts` |
+| Gemini structured narration | ✅ | `adapters/gemini/narration.ts` |
+| Embeddings Gemini | ✅ | `adapters/gemini/embeddings.ts` |
+| Action sense (plausibilidade) | ✅ | `adapters/gemini/actionSense.ts` |
 | Homebrew por sessão (`srd-ptbr-core`) | ✅ | `SessionInstalledModule`, `sessionService.ts` |
 | POI governance (teto NPCs) | ✅ | `world/poiGovernance.ts` |
 | Action options PT-BR | ✅ | `world/actionOptions.ts` |
@@ -105,9 +106,11 @@ Exemplo canônico (48 h base, terreno 1):
 
 | Item | Detalhe |
 |------|---------|
-| `memory/recall.ts` | Canon + sessão; Qdrant se `QDRANT_ENABLED=true` |
-| `memory/store.ts` | Persiste `session_memories` + upsert Qdrant |
-| `memory/qdrantPenai.ts` | Coleções `penai_session_memories`, `penai_world_memories`, `penai_npc_profiles` |
+| `memory/globalMemory.ts` | Canon + Qdrant `penai_world_memories` |
+| `memory/sessionMemory.ts` | Fatos por sessão + Qdrant filtrado |
+| `memory/narrativeMemory.ts` | `narrative_summaries` + compactação Temporal |
+| `memory/recall.ts` | Facade dos 3 bancos lógicos |
+| `adapters/qdrant/vectorStore.ts` | Coleções vetoriais |
 | `narrative_summaries` | Compactação via Temporal (a cada ~8 turnos no pipeline) |
 | `findEntityCandidatesByEmbedding` | Busca NPC por similaridade |
 | `findOrReuseNpcEntity` | Evita duplicar NPC com mesmo nome |
@@ -120,10 +123,12 @@ Exemplo canônico (48 h base, terreno 1):
 | `factions` | Tabela + entity |
 | `rumors` | Tabela + projeção de eventos |
 | `world_entity_relations` | Tabela + projector |
-| `events/projector.ts` | `RUMOR_SPREAD`, `RELATION_CHANGED` → estado materializado |
-| NPC goals | `schemas/npcPersonality.ts` (Zod) |
-
-**Ainda não:** simulação de mundo offline (facções ativas sem jogador), FSM de NPC, `canonApproval` em Postgres + workflow.
+| `events/projector.ts` | Registry `EVENT_PROJECTORS` — `RUMOR_*`, `FACTION_*`, `RELATION_*` |
+| NPC routine + GOAP | `npc/routine.ts`, `npc/goap/planner.ts` (`planner: goap`) |
+| World simulation | `world/simulation/engine.ts` — rumor/faction/npc/economy ticks |
+| Entity lifecycle | `world/entityLifecycle.ts` — reuse/spawn/retire/promote |
+| Canon governance | `admin/canonApproval.ts` + Temporal `canonApprovalWorkflow` |
+| Homebrew compat | `homebrew/compatibilityMatrix.ts` + `validateModuleInstall` |
 
 ### P5 — UI story-feed ✅ (opt-in)
 
@@ -146,6 +151,36 @@ Exemplo canônico (48 h base, terreno 1):
 | `ECOSSISTEMA.md` | Seção PENAI no início |
 | Este arquivo | Inventário vivo |
 
+### P7 — Survival Systems (RPG por campanha, não MMO) ✅
+
+**Princípio:** estado sistêmico vive em overlays `session_*` por `game_sessions`. Canon global (`world_entities`, regiões) é template reutilizável — **sem** contadores cross-jogador.
+
+| Entrega | Onde |
+|---------|------|
+| Campanha vs Canon | `docs/ECOSSISTEMA.md` (diagrama) |
+| `entityTier` + GOAP cap | `WorldEntity.entityTier`, `npc/goap/planner.ts`, `simulation/ticks/npcTick.ts` |
+| GC de campanha | `world/campaignGc.ts` + Temporal `campaignGcWorkflow` (long-rest) |
+| Memory decay | `memory/decayPolicy.ts` + `memoryCompactionWorkflow` |
+| Region/economy/faction | `session_region_state`, `session_region_economy`, `session_faction_influence` |
+| Reputação | `session_entity_reputation` |
+| Knowledge graph | `session_knowledge` + eventos `WITNESSED` / `KNOWLEDGE_SPREAD` |
+| Quests offline | `session_quests` + `questTick` |
+| Aggregate snapshot | `sessions/sessionAggregate.ts` + `session_snapshots` |
+
+**P8 futuro:** multiplayer 4–5 jogadores (`session_members`) — **fora do P7**.
+
+### P7.5 — UI Campanha + polish + prod ✅
+
+| Entrega | Onde |
+|---------|------|
+| `GET /api/v2/sessions/:id/campaign` | `sessionCampaignView.ts` |
+| GC por `gameClock` | `campaignGc.ts`, `lastSeenGameDay` |
+| Rumor → knowledge | `rumorTick.ts` + `spreadKnowledgeFromRumor` |
+| Migrations prod | `npm run penai:migration:run` |
+| UI aba Campanha | `CampanhaPanel`, hub `PenaiEngineIntro` |
+
+---
+
 ### Removido / fora do PENAI
 
 - Pastas `ai-oss/`, `ai-gemini/` do backend (motor antigo)
@@ -158,36 +193,26 @@ Exemplo canônico (48 h base, terreno 1):
 
 ```
 backend/src/
-├── penaiServer.ts              # Bootstrap Fastify
-├── config/penaiEnv.ts
-├── app/
-│   ├── server.ts
-│   └── routes/v2/              # health, sessions, world, admin
+├── penaiServer.ts
 ├── GameMaster/
-│   ├── database/entities/      # 17+ entities Postgres
-│   ├── database/seed/          # Mapa PT-BR + rotas
-│   ├── engine/
-│   │   ├── turnPipeline.ts     # Turno narrativo (Gemini)
-│   │   └── actionIngress.ts    # Motor no WS
+│   ├── adapters/               # Gemini + Qdrant (contracts)
+│   ├── motor/                  # GAME_MOTOR (determinístico)
+│   ├── engine/turnPipeline.ts  # Orquestrador narrativo
+│   ├── memory/                 # global + session + narrative
+│   ├── events/                 # store, types, projector registry
 │   ├── world/
-│   │   ├── travelCanon.ts
-│   │   ├── entityRegistry.ts
-│   │   ├── mapCatalog.ts
-│   │   └── poiGovernance.ts
-│   ├── memory/                 # recall, store, qdrantPenai, narrativePack
-│   ├── events/                 # store, projector
-│   ├── transport/              # wsHandlers, wsPubSub
-│   ├── ai/                     # geminiClient, geminiEmbeddings
-│   ├── locale/                 # narrationGuard
-│   └── sessions/sessionService.ts
-└── temporal/                   # workflows + activities
-
-src/  (frontend)
-├── hooks/usePenaiSocket.ts
-├── services/penaiApi.ts
-└── features/gameplay/
-    ├── story/PenaiStoryFeed.tsx
-    └── world/MundoVivoPanel.tsx
+│   │   ├── entityLifecycle.ts
+│   │   ├── campaignGc.ts
+│   │   ├── campaignState.ts
+│   │   ├── knowledgeGraph.ts
+│   │   ├── sessionQuests.ts
+│   │   ├── simulation/engine.ts + ticks/
+│   │   └── travelCanon.ts
+│   ├── sessions/sessionAggregate.ts
+│   ├── combat/engine.ts + phaseGate.ts
+│   ├── npc/routine.ts + goap/
+│   └── homebrew/compatibilityMatrix.ts
+└── temporal/                   # narration, worldPulse, canon workflows
 ```
 
 ---
@@ -227,6 +252,13 @@ erDiagram
 | `canonical_regions` / `canonical_pois` | Mapa compartilhado |
 | `canonical_region_links` | Grafo de viagem (km, horas base) |
 | `travel_mode_catalog` | Modos de transporte |
+| `session_region_state` | Medo/prosperidade/crime + recursos **por campanha** |
+| `session_region_economy` | Preços/scarcity por região na sessão |
+| `session_faction_influence` | Influência facção × região na sessão |
+| `session_entity_reputation` | Reputação herói/NPC por alvo regional |
+| `session_knowledge` | Quem sabe o quê (knowledge graph da campanha) |
+| `session_quests` | Quests persistentes que evoluem offline |
+| `session_snapshots` | Snapshots agregados append-only (debug/recover) |
 | `factions` / `rumors` / `world_entity_relations` | Mundo rico |
 | `session_installed_modules` | Homebrew por tenant |
 | `narration_completions` | Idempotência Temporal |
@@ -326,11 +358,13 @@ curl "http://localhost:8071/api/v2/world/travel/preview?from=cidadela-do-acoluz&
 ```bash
 # Infra (Postgres 5433, Redis 6381, Temporal, Qdrant 6335)
 docker compose -f docker-compose.penai.yml --profile penai up -d
+npm run srd:up
 
 cd backend
-cp .env.penai.example .env   # ajuste GEMINI_API_KEY
+cp .env.penai.example .env   # GEMINI_API_KEY opcional — jogador usa BYOK na UI
 export PENAI_DB_SYNC=true
 export PENAI_SEED_ON_BOOT=true
+npm run penai:import:foundry-bundle   # primeira vez — cache compendiums Foundry
 npm run dev:penai
 
 # Worker Temporal (outro terminal)
@@ -347,9 +381,10 @@ npm run worker:temporal
 | `TEMPORAL_DISABLED` | `false` | Se true, narração síncrona no handler |
 | `SKIP_TEMPORAL_WORKER` | `false` no dev local | `true` na API em compose (worker separado) |
 | `PENAI_DB_SYNC` | — | `true` cria tabelas (dev) |
+| `penai:migration:run` | — | Migrations Postgres P7 (prod) |
 | `PENAI_SEED_ON_BOOT` | — | Seed mapa + rotas + modos |
 | `QDRANT_ENABLED` | `false` | Liga recall vetorial |
-| `GEMINI_API_KEY` | — | Narração + embeddings |
+| `GEMINI_API_KEY` | — (opcional) | Fallback plataforma; **jogadores usam BYOK** após login (AuthGateV2) |
 
 ### Frontend (UI PENAI opt-in)
 
@@ -369,6 +404,7 @@ NEXT_PUBLIC_PENAI_UI=true
 | `narrationWorkflow` | `penai-narration` | `narration:{sessionId}:{actionSequence}` |
 | `memoryCompactionWorkflow` | `penai-narration` | `memory:{sessionId}:{toActionSequence}` |
 | `worldPulseWorkflow` | `penai-narration` | por sessão |
+| `campaignGcWorkflow` | `penai-narration` | `campaignGc:{sessionId}` — long-rest |
 | `canonApprovalWorkflow` | `penai-narration` | `canon:{proposalId}` |
 | `healthWorkflow` | `penai-narration` | smoke |
 
@@ -529,7 +565,7 @@ Hooks: `usePenaiTurnPipeline`, `usePenaiGameSession`, `PenaiGameplayContext`, `l
 |------|------|
 | Calendário / relógio narrativo | `game_sessions.gameClock` + avanço em viagem/descanso |
 | Lobby v2 | `GET/POST /api/v2/sessions`, `usePenaiGameSession`, frontend PENAI-only |
-| Mapa / resumo sessão | `GET /api/v2/sessions/:id/world-map`, `/summary` |
+| Mapa / resumo sessão | `GET /api/v2/sessions/:id/world-map`, `/summary`, **`/campaign`** |
 | Inventário Postgres | `hero_inventory_items`, `GameMaster/character/` |
 | Descanso / loot / equip | `motor/structuredApply.ts` + `rules/*` |
 | Loja | `GameMaster/shop/shopPenai.ts` |

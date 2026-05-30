@@ -2,7 +2,7 @@
 
 > **Documento canônico** para revisão sênior, onboarding e agentes de IA. Descreve o sistema **como está implementado** (maio/2026). Complemento visual: **DESIGN_FRONTEND.md**. Índice de revisão: **VALIDACAO_SENIOR.md**.
 >
-> **Última revisão:** maio de 2026 (pós‑P5: retry crítico BullMQ + heal roll reconnect + remediação determinística)
+> **Última revisão:** maio de 2026 (GameMaster 9/10: adapters, memory split, simulation engine, GOAP)
 
 ---
 
@@ -10,16 +10,55 @@
 
 > Documento dedicado: **[PENAI.md](./PENAI.md)**. Bootstrap: `npm run dev:penai` (Fastify :8071), **não** `dev:legacy`.
 
+### Camadas GameMaster (Core → Rules → World → Adapters)
+
+```mermaid
+flowchart TB
+    WS[transport/wsHandlers] --> Motor[motor/GAME_MOTOR]
+    Motor --> Events[events/log+projector]
+    Motor --> World[world/entityLifecycle+simulation]
+    Engine[engine/turnPipeline] --> Memory[memory/global+session+narrative]
+    Engine --> Adapters[adapters/gemini+qdrant]
+    Simulation[world/simulation/engine] --> Events
+```
+
+**Regra de dependência:** `motor/`, `world/`, `character/` **não** importam `adapters/gemini/*` diretamente — só via `adapters/contracts.ts` ou `adapters/index.ts` (`defaultProviders`).
+
 | Aspecto | PENAI | Legado Express |
 |---------|-------|----------------|
 | Banco sessão | PostgreSQL `game_sessions` | MySQL `SessaoIA` |
 | Fila narração | Temporal `penai-narration` | BullMQ (legado) |
-| WS | `/ws?userId=` contract v2 | `/` com JWT |
+| WS | `/ws?token=` contract v2 | `/` com JWT |
 | Viagem | `canonical_region_links` km/tempo fixo | `regionService` MySQL |
-| Hot path | `PENAI_MOTOR` + `structuredApply` | `processAction` Express (desligável com `PENAI_ONLY=true`) |
-| Inventário / loja / descanso | Postgres `hero_inventory_items` + `shopPenai` | MySQL `character_items` (legado) |
+| Hot path | `GAME_MOTOR` (`PENAI_MOTOR` deprecated) + `structuredApply` | `processAction` Express |
+| Inventário / loja / descanso | Postgres `hero_inventory_items` + `shop/shopService` | MySQL `character_items` (legado) |
+| IA | Adapters Gemini — narração + embeddings + actionSense opcional | OSS/BullMQ legado |
 
-**Regra:** sessões **novas** = PENAI greenfield (`NEXT_PUBLIC_PENAI_WS=true`). MySQL legado congelado — sem migração automática. Lobby e load usam `GET/POST /api/v2/sessions` + `/mechanical`. Combate PENAI: FSM P0.4 em Postgres (`combatPhasePenai.ts`), chain attack→damage com `deferNarration`, HP canônico em `sessionStatsSnapshot`.
+**Regra:** sessões **novas** = PENAI greenfield. Combate e simulação por campanha — ver **Campanha vs Canon** abaixo.
+
+### Campanha vs Canon (P7 — RPG, não MMO)
+
+```mermaid
+flowchart TB
+    subgraph canon [CanonGlobal readMostly]
+        Regions[canonical_regions]
+        POIs[canonical_pois]
+        EntityShell[world_entities identidade]
+    end
+    subgraph campaign [Campanha = game_sessions]
+        Overlays[session_* overlays]
+        Events[world_events sessionId]
+        Sim[simulation/engine]
+    end
+    canon --> campaign
+```
+
+**Regra P7:** economia, reputação, quests, knowledge e region state são **por sessão/campanha**. Não há contadores globais cross-jogador. Multiplayer 4–5 jogadores = **P8 futuro** (`session_members`).
+
+| Camada | Exemplos |
+|--------|----------|
+| Canon | Regiões, POIs, identidade NPC reutilizável (`world_entities`) |
+| Campanha | `session_region_state`, `session_quests`, `session_knowledge`, memória com decay |
 
 ---
 
@@ -150,6 +189,9 @@ Evolução **sem feature flags** de arquitetura no `.env` — comportamento úni
 4. `actionCursor` monotônico no cliente (anti-replay de submit).
 5. `contractVersion: 1` — rejeitar versões desconhecidas.
 6. Modo único `AI_PIPELINE_MODE=narration_only`.
+7. **Influenciar ≠ mudar:** texto livre e narração LLM não aplicam `stateDelta` (ouro, itens, HP, XP). Recursos só via intents fechados (`claim-loot`, loja, combate, descanso, equip).
+8. **Rolagens server-authoritative:** `submitRollResult` envia só `requestId`; o servidor rola com `executeAutomatedRoll` e publica `serverRolls`/`rollTotal` no `mechanicalStateUpdate`.
+9. **SRD PT-BR via homebrew:** bundle `srd-ptbr-core` (seed `penai:seed:srd-ptbr`) auto-instalado no registro; merge em `unifiedDataService` + `GET /api/v2/translations`. Ver **`docs/DATA_SRD.md`** (leitura única via `/api/v2/data`).
 
 ### 3.2 Removido (não reintroduzir)
 
@@ -240,7 +282,8 @@ sequenceDiagram
     participant Q as Fila
     participant W as Worker
 
-    C->>WS: submitRollResult { requestId, dice, total }
+    C->>WS: submitRollResult { requestId }
+    WS->>R: rollAuthoritative (servidor rola 1dN)
     WS->>R: resolveStructuredRoll
     WS->>R: applyMotorPostRollEffects (SÍNCRONO)
     WS-->>C: mechanicalStateUpdate

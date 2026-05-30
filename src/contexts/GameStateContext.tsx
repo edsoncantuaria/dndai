@@ -35,11 +35,16 @@ export interface GameStateContextType {
     clearApiError: () => void;
     getApiKey: () => string | undefined;
     createCharacter: (info: NewCharacterInfo) => Promise<Character | null>;
+    updateCharacter: (characterId: string | number, info: NewCharacterInfo) => Promise<Character | null>;
     deleteCharacter: (characterId: number) => Promise<boolean>;
     deleteSession: (sessionIdToDelete: number) => Promise<boolean>;
     startGame: (newSessionId?: number) => Promise<void>;
     sendMotorAction: (action: string, structured?: StructuredIntent) => void;
     applyLevelUp: (selections: LevelUpSelections) => Promise<void>;
+    equipItem: (itemId: string) => void;
+    unequipItem: (itemId: string) => void;
+    equipPendingItemId: string | null;
+    /** @deprecated use equipItem / unequipItem */
     toggleEquipped: (itemId: string) => void;
     useConsumable: (itemId: string) => void;
     spendHitDice: (diceCount: number) => void;

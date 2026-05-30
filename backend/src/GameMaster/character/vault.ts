@@ -126,6 +126,56 @@ export async function getVaultHero(
     return vaultToFullCharacter(entity);
 }
 
+/** Atualiza template do cofre — campanhas já iniciadas mantêm cópia congelada na sessão. */
+export async function updateVaultHero(
+    userId: number,
+    heroId: string,
+    data: z.infer<typeof NewCharacterInfoSchema>,
+): Promise<Record<string, unknown>> {
+    const repo = PenaiDataSource.getRepository(WorldEntity);
+    const entity = await repo.findOne({
+        where: {
+            id: heroId,
+            createdByUserId: userId,
+            isVaultTemplate: true,
+            deletedAt: IsNull(),
+        },
+    });
+    if (!entity) throw createError(404, 'Template de herói não encontrado no cofre.');
+
+    const prevRevision = (entity.stats?.templateRevision as number) ?? 1;
+    const srdBuild = { ...data, level: data.level ?? 1 };
+
+    entity.displayName = data.name;
+    entity.description = data.backstory?.slice(0, 500) || entity.description;
+    entity.stats = {
+        ...entity.stats,
+        templateRevision: prevRevision + 1,
+        level: data.level ?? 1,
+        strength: data.attributes.strength,
+        dexterity: data.attributes.dexterity,
+        constitution: data.attributes.constitution,
+        intelligence: data.attributes.intelligence,
+        wisdom: data.attributes.wisdom,
+        charisma: data.attributes.charisma,
+        srdBuild,
+    };
+    entity.personality = {
+        ideal: data.ideal,
+        bond: data.bond,
+        flaw: data.flaw,
+        traits: data.personalityTraits,
+    };
+    entity.visual = {
+        sex: data.sex,
+        hairStyle: data.hairStyle,
+        beardStyle: data.beardStyle,
+        skinColor: data.skinColor,
+    };
+    await repo.save(entity);
+    return vaultToFullCharacter(entity);
+}
+
 export async function deleteVaultHero(userId: number, heroId: string): Promise<boolean> {
     const repo = PenaiDataSource.getRepository(WorldEntity);
     const entity = await repo.findOne({
@@ -153,6 +203,7 @@ export async function cloneVaultHeroToSession(
     });
     if (!template) throw createError(404, 'Template de herói não encontrado no cofre.');
 
+    // Snapshot imutável: herói da sessão é entidade separada (isVaultTemplate=false).
     const build = (template.stats?.srdBuild ?? {}) as Record<string, unknown>;
     const attrs = (build.attributes ?? template.stats) as Record<string, unknown>;
     const newId = randomUUID();

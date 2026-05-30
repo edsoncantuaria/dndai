@@ -1,7 +1,12 @@
 import type { RuleCheckResult } from './types.js';
 
 export interface EquipItemPayload {
-    itemId: number;
+    /** UUID do HeroInventoryItem (PENAI) ou id numérico legado (MySQL) */
+    inventoryItemId?: string;
+    /** itemKey / index SRD — fallback quando id ausente */
+    itemKey?: string;
+    /** @deprecated legado MySQL — preferir inventoryItemId */
+    itemId?: number;
     equipped: boolean;
 }
 
@@ -10,14 +15,33 @@ export interface DropItemPayload {
     quantity?: number;
 }
 
+export function resolveEquipItemKey(payload: EquipItemPayload): string | null {
+    if (payload.inventoryItemId?.trim()) return payload.inventoryItemId.trim();
+    if (payload.itemKey?.trim()) return payload.itemKey.trim();
+    if (payload.itemId != null && Number.isFinite(payload.itemId) && payload.itemId > 0) {
+        return String(payload.itemId);
+    }
+    return null;
+}
+
+export function resolveEquipItemNumericId(payload: EquipItemPayload): number | null {
+    if (payload.itemId != null && Number.isFinite(payload.itemId) && payload.itemId > 0) {
+        return payload.itemId;
+    }
+    const asNum = Number(payload.inventoryItemId);
+    if (Number.isFinite(asNum) && asNum > 0) return asNum;
+    return null;
+}
+
 export function validateEquipItemIntent(payload: EquipItemPayload): RuleCheckResult {
-    if (!Number.isFinite(payload.itemId) || payload.itemId <= 0) {
-        return { status: 'rejected', reason: 'itemId inválido.' };
+    const key = resolveEquipItemKey(payload);
+    if (!key) {
+        return { status: 'rejected', reason: 'Identificador de item inválido.' };
     }
     return {
         status: 'accepted',
         reason: payload.equipped ? 'Equipar item autorizado.' : 'Desequipar item autorizado.',
-        authoritativeSignature: `equip:${payload.itemId}:${payload.equipped}`,
+        authoritativeSignature: `equip:${key}:${payload.equipped}`,
         data: payload,
     };
 }

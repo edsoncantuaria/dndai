@@ -2,8 +2,8 @@ import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { ensurePenaiTestDb } from './helpers/penaiTestDb.js';
 import { createGameSession } from '../GameMaster/sessions/sessionService.js';
-import { startPenaiCombat, getPenaiCombatState } from '../GameMaster/combat/combatPenai.js';
-import { normalizePenaiCombatPhase } from '../GameMaster/combat/combatPhasePenai.js';
+import { startPenaiCombat, getPenaiCombatState } from '../GameMaster/combat/engine.js';
+import { normalizePenaiCombatPhase } from '../GameMaster/combat/phaseGate.js';
 
 const dbDescribe = process.env.DATABASE_URL ? describe : describe.skip;
 
@@ -53,7 +53,7 @@ dbDescribe('penai combat FSM (integration)', () => {
             },
         ]);
 
-        const { advancePenaiCombatTurn } = await import('../GameMaster/combat/combatPenai.js');
+        const { advancePenaiCombatTurn } = await import('../GameMaster/combat/engine.js');
         const before = await getPenaiCombatState(sessionId);
         await advancePenaiCombatTurn(sessionId);
         const after = await getPenaiCombatState(sessionId);
@@ -66,7 +66,7 @@ dbDescribe('penai combat FSM (integration)', () => {
 describe('penai combat FSM (unit)', () => {
     it('normalizePenaiCombatPhase mapeia aliases legados', async () => {
         const { normalizePenaiCombatPhase } = await import(
-            '../GameMaster/combat/combatPhasePenai.js'
+            '../GameMaster/combat/phaseGate.js'
         );
         assert.equal(normalizePenaiCombatPhase('ACTIVE'), 'ENCOUNTER_ACTIVE');
         assert.equal(normalizePenaiCombatPhase('ENDED'), 'ENCOUNTER_END');

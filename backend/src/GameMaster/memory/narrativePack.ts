@@ -4,8 +4,13 @@ import {
     shouldAllowPenaiCombatNarration,
     advancePenaiCombatPhaseAfterNarration,
     getActivePenaiCombatPhase,
-} from '../combat/combatPhasePenai.js';
+} from '../combat/phaseGate.js';
 import { appendWorldEvent } from '../events/store.js';
+import { getOrCreateRegionState } from '../world/campaignState.js';
+import { recallKnowledgeForSession } from '../world/knowledgeGraph.js';
+import { PenaiDataSource } from '../database/data-source.js';
+import { GameSession } from '../database/entities/GameSession.js';
+import { listTopReputations } from '../world/campaignState.js';
 
 export type NarrativeContextPack = {
     locale: string;
@@ -18,6 +23,9 @@ export type NarrativeContextPack = {
     rollSummary?: string;
     motorHints?: string[];
     combatPhase?: string | null;
+    regionMood?: { fear: number; prosperity: number; crime: number } | null;
+    campaignKnowledge?: string[];
+    heroReputation?: Array<{ targetSlug: string; score: number }>;
 };
 
 export async function buildNarrativeContextPack(opts: {
@@ -44,16 +52,44 @@ export async function buildNarrativeContextPack(opts: {
                   limit: 5,
               });
 
+    const session = await PenaiDataSource.getRepository(GameSession).findOne({
+        where: { id: opts.sessionId },
+    });
+    const regionSlug = opts.regionSlug ?? session?.currentRegionSlug ?? null;
+
+    let regionMood: NarrativeContextPack['regionMood'] = null;
+    if (regionSlug) {
+        const rs = await getOrCreateRegionState(opts.sessionId, regionSlug);
+        regionMood = { fear: rs.fear, prosperity: rs.prosperity, crime: rs.crime };
+    }
+
+    const campaignKnowledge = await recallKnowledgeForSession(opts.sessionId, 4);
+    const heroId = session?.heroWorldEntityId ?? null;
+    const heroReputation = heroId
+        ? await listTopReputations(opts.sessionId, heroId, 3)
+        : [];
+
+    const motorHints = [...(opts.motorHints ?? [])];
+    if (regionMood && regionMood.fear > 60) {
+        motorHints.push('A região está tensa — medo elevado entre os locais.');
+    }
+    if (heroReputation.some(r => r.score >= 20)) {
+        motorHints.push('O herói tem boa reputação nesta campanha.');
+    }
+
     return {
         locale: 'pt-BR',
         playerAction: opts.playerAction,
-        regionSlug: opts.regionSlug ?? null,
+        regionSlug,
         entities,
-        sessionFacts: recalled.sessionFacts,
+        sessionFacts: [...recalled.sessionFacts, ...campaignKnowledge],
         canonFacts: recalled.canonFacts,
         narrativeSummary: recalled.narrativeSummary,
         rollSummary: opts.rollSummary,
-        motorHints: opts.motorHints,
+        motorHints,
         combatPhase: await getActivePenaiCombatPhase(opts.sessionId),
+        regionMood,
+        campaignKnowledge,
+        heroReputation,
     };
 }

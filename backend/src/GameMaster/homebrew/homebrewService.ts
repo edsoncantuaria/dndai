@@ -3,8 +3,8 @@ import {
     PenaiHomebrewContent,
     type PenaiHomebrewContentType,
     type PenaiHomebrewSourceKind,
-} from '../database/entities/HomebrewContentPenai.js';
-import { PenaiHomebrewBundle } from '../database/entities/HomebrewBundlePenai.js';
+} from '../database/entities/HomebrewContent.js';
+import { PenaiHomebrewBundle } from '../database/entities/HomebrewBundle.js';
 import createError from 'http-errors';
 import type { z } from 'zod';
 import type {

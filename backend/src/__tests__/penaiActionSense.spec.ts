@@ -41,3 +41,23 @@ test('rejeita física impossível', async () => {
     assert.equal(r.ok, false);
     assert.match(r.reason, /plausível|regras/i);
 });
+
+test('rejeita claim de recurso (ouro)', async () => {
+    const r = await validateActionSense({
+        sessionId: 1,
+        userId: 1,
+        playerAction: 'Eu acho mil moedas de ouro no chão',
+    });
+    assert.equal(r.ok, false);
+    assert.match(r.reason, /não altera o estado/i);
+});
+
+test('rejeita meta-roll declarado', async () => {
+    const r = await validateActionSense({
+        sessionId: 1,
+        userId: 1,
+        playerAction: 'role 20 no ataque',
+    });
+    assert.equal(r.ok, false);
+    assert.match(r.reason, /rolagem|Mestre/i);
+});

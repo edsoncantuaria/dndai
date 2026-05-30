@@ -1,6 +1,6 @@
 'use client';
 
-import { BookOpen, Play, Trash2 } from 'lucide-react';
+import { BookOpen, Pencil, Play, Trash2 } from 'lucide-react';
 import type { Character } from '@/types';
 import { DndButton, DndCard } from '@/components/primitives';
 import { cn } from '@/lib/utils';
@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 export interface HeroCardProps {
   character: Character;
   onPlay: () => void;
+  onEdit: () => void;
   onDelete: () => void;
   onViewSessions?: () => void;
 }
@@ -19,7 +20,7 @@ function heroInitials(name: string): string {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
-export function HeroCard({ character, onPlay, onDelete, onViewSessions }: HeroCardProps) {
+export function HeroCard({ character, onPlay, onEdit, onDelete, onViewSessions }: HeroCardProps) {
   const initials = heroInitials(character.name);
 
   return (
@@ -85,6 +86,15 @@ export function HeroCard({ character, onPlay, onDelete, onViewSessions }: HeroCa
           <DndButton variant="ember" size="sm" className="min-h-[44px] flex-1" onClick={onPlay}>
             <Play className="h-4 w-4" />
             Jogar
+          </DndButton>
+          <DndButton
+            variant="goldOutline"
+            size="sm"
+            className="min-h-[44px] min-w-[44px] px-3"
+            onClick={onEdit}
+            aria-label={`Editar ${character.name}`}
+          >
+            <Pencil className="h-4 w-4" />
           </DndButton>
           {onViewSessions ? (
             <DndButton

@@ -15,6 +15,7 @@ import {
     equipInventoryItem,
     inventoryStateToCharacterPatch,
 } from './inventoryMotorService.js';
+import { resolveEquipItemNumericId } from '../rules/inventoryMotor.js';
 import { enrichUpdatedCharacterInventory } from './inventoryService.js';
 import { AppDataSource } from '../database/data-source.js';
 import { SessaoIA } from '../entities/SessaoIA.js';
@@ -148,10 +149,14 @@ export const createProcessActionIntent = (overrides?: Partial<ActionServiceDeps>
                 if (result.status === 'rejected') {
                     throw createError(400, result.reason ?? 'Equipar item rejeitado pelo motor.');
                 }
+                const numericItemId = resolveEquipItemNumericId(body.intent.payload);
+                if (numericItemId == null) {
+                    throw createError(400, 'Equipar item requer id numérico no fluxo legado.');
+                }
                 const inventoryState = await equipInventoryItem(
                     sessionId,
                     userId,
-                    body.intent.payload.itemId,
+                    numericItemId,
                     body.intent.payload.equipped,
                 );
                 const newVersion = await deps.incrementStateVersion(sessionId);

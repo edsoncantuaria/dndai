@@ -27,17 +27,21 @@ function CategoryGrid({
   title,
   icon,
   items,
-  onToggleEquip,
+  onEquip,
+  onUnequip,
   onUseConsumable,
   actionDisabled,
+  equipPendingItemId,
   proficiencies,
 }: {
   title: string;
   icon: React.ReactNode;
   items: DisplayInventoryItem[];
-  onToggleEquip: (id: string) => void;
+  onEquip: (id: string) => void;
+  onUnequip: (id: string) => void;
   onUseConsumable: (id: string) => void;
   actionDisabled: boolean;
+  equipPendingItemId: string | null;
   proficiencies: string[];
 }) {
   if (!items.length) return null;
@@ -56,9 +60,11 @@ function CategoryGrid({
             key={item._instanceKey || item.id}
             item={item}
             variant="v2"
-            onToggleEquip={onToggleEquip}
+            onEquip={onEquip}
+            onUnequip={onUnequip}
             onUseConsumable={onUseConsumable}
             actionDisabled={actionDisabled}
+            equipPending={equipPendingItemId === String(item.id)}
             proficiencies={proficiencies}
           />
         ))}
@@ -68,8 +74,15 @@ function CategoryGrid({
 }
 
 export function GameplayInventoryPanel() {
-  const { pendingLootOffer, takeLoot, isLoading, toggleEquipped, useConsumable } =
-    useGameStateContext();
+  const {
+    pendingLootOffer,
+    takeLoot,
+    isLoading,
+    equipItem,
+    unequipItem,
+    equipPendingItemId,
+    useConsumable,
+  } = useGameStateContext();
   const data = useInventoryData();
 
   if (!data) return null;
@@ -87,6 +100,9 @@ export function GameplayInventoryPanel() {
     otherItems,
   } = data;
 
+  const allItems = [...weapons, ...armors, ...magicItems, ...otherItems];
+  const equippedNow = allItems.filter(item => item.equipped);
+
   return (
     <div className="space-y-4">
       <DndCard padding="md" hover={false}>
@@ -96,9 +112,9 @@ export function GameplayInventoryPanel() {
           </span>
           <div>
             <p className="font-ui text-[10px] uppercase tracking-wider text-dnd-parchment-muted">
-              Inventário
+              Bolsa
             </p>
-            <h3 className="font-display text-lg text-dnd-parchment">Bolsa do aventureiro</h3>
+            <h3 className="font-display text-lg text-dnd-parchment">Equipamento e tesouro</h3>
           </div>
         </div>
 
@@ -134,40 +150,76 @@ export function GameplayInventoryPanel() {
         </div>
       </DndCard>
 
+      {equippedNow.length > 0 ? (
+        <DndCard padding="sm" hover={false} className="border-dnd-gold/25">
+          <h4 className="mb-2 font-ui text-xs uppercase tracking-wider text-dnd-gold">
+            Equipado agora
+          </h4>
+          <ul className="space-y-1 text-sm text-dnd-parchment">
+            {equippedNow.map(item => (
+              <li key={item._instanceKey || item.id} className="flex items-center justify-between gap-2">
+                <span>{item.name}</span>
+                <DndButton
+                  variant="ghost"
+                  size="sm"
+                  className="min-h-[36px] shrink-0"
+                  disabled={actionDisabled || equipPendingItemId === String(item.id)}
+                  onClick={() => unequipItem(String(item.id))}
+                >
+                  Desequipar
+                </DndButton>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 font-ui text-[10px] text-dnd-parchment-muted">
+            CA atual: {character.ac.value}
+            {character.ac.source ? ` (${character.ac.source})` : ''}
+          </p>
+        </DndCard>
+      ) : null}
+
       <CategoryGrid
         title="Armas"
         icon={<Sword className="h-3.5 w-3.5" />}
         items={weapons}
-        onToggleEquip={toggleEquipped}
+        onEquip={equipItem}
+        onUnequip={unequipItem}
         onUseConsumable={useConsumable}
         actionDisabled={actionDisabled}
+        equipPendingItemId={equipPendingItemId}
         proficiencies={character.proficiencies || []}
       />
       <CategoryGrid
         title="Armaduras"
         icon={<ShieldCheck className="h-3.5 w-3.5" />}
         items={armors}
-        onToggleEquip={toggleEquipped}
+        onEquip={equipItem}
+        onUnequip={unequipItem}
         onUseConsumable={useConsumable}
         actionDisabled={actionDisabled}
+        equipPendingItemId={equipPendingItemId}
         proficiencies={character.proficiencies || []}
       />
       <CategoryGrid
         title="Mágicos"
         icon={<Gem className="h-3.5 w-3.5" />}
         items={magicItems}
-        onToggleEquip={toggleEquipped}
+        onEquip={equipItem}
+        onUnequip={unequipItem}
         onUseConsumable={useConsumable}
         actionDisabled={actionDisabled}
+        equipPendingItemId={equipPendingItemId}
         proficiencies={character.proficiencies || []}
       />
       <CategoryGrid
         title="Geral"
         icon={<Package className="h-3.5 w-3.5" />}
         items={otherItems}
-        onToggleEquip={toggleEquipped}
+        onEquip={equipItem}
+        onUnequip={unequipItem}
         onUseConsumable={useConsumable}
         actionDisabled={actionDisabled}
+        equipPendingItemId={equipPendingItemId}
         proficiencies={character.proficiencies || []}
       />
 

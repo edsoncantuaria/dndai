@@ -1,17 +1,36 @@
 import { publishWsToUser } from '../../GameMaster/transport/wsPubSub.js';
-import { projectSessionWorldState } from '../../GameMaster/events/projector.js';
 import { PenaiDataSource } from '../../GameMaster/database/data-source.js';
 import { GameSession } from '../../GameMaster/database/entities/GameSession.js';
-import { tickOfflineWorld } from '../../GameMaster/world/worldOfflinePenai.js';
-import { advanceNpcRoutine } from '../../GameMaster/npc/npcFsmPenai.js';
+import { tickWorldSimulation } from '../../GameMaster/world/simulation/engine.js';
 
 export async function projectWorldPulse(sessionId: number): Promise<string[]> {
-    const offlinePulses = await tickOfflineWorld(sessionId);
-    const npcPulse = await advanceNpcRoutine(sessionId);
-    const projected = await projectSessionWorldState(sessionId);
-    const pulses = [
-        ...offlinePulses,
-        ...(npcPulse ? [npcPulse] : []),
+    const { listActiveQuests, startSessionQuest } = await import(
+        '../../GameMaster/world/sessionQuests.js'
+    );
+    const activeQuests = await listActiveQuests(sessionId);
+    if (!activeQuests.length) {
+        await startSessionQuest({
+            sessionId,
+            questSlug: 'culto-escarlene-cresce',
+            title: 'O Culto Escarlene cresce',
+        });
+    }
+
+    const { loadSessionCampaignView } = await import(
+        '../../GameMaster/sessions/sessionCampaignView.js'
+    );
+    const { pulses, projected } = await tickWorldSimulation(sessionId);
+
+    let campaignDigest = { questCount: activeQuests.length, regionFear: 0 };
+    try {
+        const campaign = await loadSessionCampaignView(sessionId);
+        campaignDigest = campaign.campaignDigest;
+    } catch {
+        /* sessão parcial */
+    }
+
+    const enriched = [
+        ...pulses,
         ...projected.activeRumors.map(r => `Rumor: ${r.title}`),
         ...projected.recentEvents.slice(0, 5).map(e => `Evento: ${e.type}`),
     ];
@@ -21,17 +40,18 @@ export async function projectWorldPulse(sessionId: number): Promise<string[]> {
     });
     const userId = session?.userId ?? 1;
 
-    if (pulses.length) {
+    if (enriched.length) {
         await publishWsToUser(userId, {
             type: 'worldPulse',
             sessionId,
             locale: 'pt-BR',
-            events: pulses,
+            events: enriched,
             worldState: {
                 currentRegionSlug: projected.currentRegionSlug,
                 rumors: projected.activeRumors,
             },
+            campaignDigest,
         });
     }
-    return pulses;
+    return enriched;
 }

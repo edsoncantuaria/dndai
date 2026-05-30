@@ -7,6 +7,13 @@ import { getWorldMapSnapshot, type WorldMapSnapshot } from '@/services/gameServi
 import type { Character } from '@/types';
 import { RegionGraphView } from './RegionGraphView';
 import DailyRecapPanel from '@/components/DailyRecapPanel';
+import { useSessionCampaign } from '@/hooks/useSessionCampaign';
+
+function regionMoodBadge(fear: number): { label: string; className: string } {
+  if (fear >= 65) return { label: 'Tensa', className: 'border-dnd-ember/40 text-dnd-ember bg-dnd-ember/10' };
+  if (fear >= 40) return { label: 'Inquieta', className: 'border-dnd-gold/30 text-dnd-gold bg-dnd-gold/10' };
+  return { label: 'Calma', className: 'border-emerald-700/40 text-emerald-300/90 bg-emerald-950/30' };
+}
 
 export interface GameplayMapPanelProps {
   character: Character;
@@ -17,6 +24,10 @@ export interface GameplayMapPanelProps {
 export function GameplayMapPanel({ character, sessionId, onOpenWorldMap }: GameplayMapPanelProps) {
   const [snapshot, setSnapshot] = useState<WorldMapSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
+  const { campaign } = useSessionCampaign(sessionId, 0);
+  const mood = campaign?.regionState
+    ? regionMoodBadge(campaign.regionState.fear)
+    : null;
 
   const regionLabel =
     character.worldState?.currentRegion || character.currentRegion || 'Região desconhecida';
@@ -52,6 +63,13 @@ export function GameplayMapPanel({ character, sessionId, onOpenWorldMap }: Gamep
               Onde estou
             </p>
             <h3 className="truncate font-display text-lg text-dnd-parchment">{regionLabel}</h3>
+            {mood ? (
+              <span
+                className={`mt-1 inline-flex rounded-full border px-2 py-0.5 font-ui text-[10px] uppercase tracking-wide ${mood.className}`}
+              >
+                {mood.label}
+              </span>
+            ) : null}
             {poiLabel ? (
               <p className="truncate font-ui text-sm text-dnd-parchment-muted">{poiLabel}</p>
             ) : null}

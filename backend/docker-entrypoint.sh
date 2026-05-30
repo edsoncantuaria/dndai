@@ -14,7 +14,7 @@ if [ "$WORKER_MODE" = "true" ]; then
 fi
 
 if [ "${PENAI_SEED_ON_BOOT}" = "true" ]; then
-  echo "[entrypoint] PENAI_SEED_ON_BOOT=true — seed via penaiServer bootstrap."
+  echo "[entrypoint] PENAI_SEED_ON_BOOT=true — seed mundo + bundle srd-ptbr-core via initPenaiDatabase."
 fi
 
 echo "[entrypoint] Iniciando servidor PENAI..."

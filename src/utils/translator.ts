@@ -2,7 +2,7 @@
 import { getTranslations } from '@/services/translationService';
 import type { InventoryItem } from '@/types';
 
-const ENABLE_TRANSLATIONS = process.env.NEXT_PUBLIC_ENABLE_TRANSLATIONS === 'true';
+const ENABLE_TRANSLATIONS = process.env.NEXT_PUBLIC_ENABLE_TRANSLATIONS !== 'false';
 
 // Armazena as traduções em memória após o primeiro carregamento.
 let translations: Record<string, Record<string, string>> = {};

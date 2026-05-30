@@ -8,7 +8,7 @@ import {
     buildWorldStateView,
     loadSessionGameClock,
     parseGameClock,
-} from './gameClockPenai.js';
+} from './gameClock.js';
 
 export async function buildPenaiWorldMapSnapshot(sessionId: number) {
     const session = await PenaiDataSource.getRepository(GameSession).findOne({

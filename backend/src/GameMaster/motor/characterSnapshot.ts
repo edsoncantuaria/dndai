@@ -1,4 +1,4 @@
 export {
     loadPenaiCharacterSnapshot,
     loadPenaiHeroPack,
-} from '../character/loadPenaiCharacterSnapshot.js';
+} from '../character/loadSnapshot.js';

@@ -27,6 +27,11 @@ export async function submitCanonProposal(
             locale: 'pt-BR',
         }),
     );
+    await appendWorldEvent({
+        type: 'CANON_PROPOSED',
+        payload: { proposalId: row.id, kind: proposal.kind },
+        canonCandidate: false,
+    });
     return formatProposal(row);
 }
 

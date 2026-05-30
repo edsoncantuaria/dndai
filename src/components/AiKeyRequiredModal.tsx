@@ -7,7 +7,6 @@ import { DndInput } from '@/components/primitives';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { aiKeyRequiredMessage } from '@/lib/clientAiAccess';
-import { writeAiApiKey } from '@/lib/aiApiKeyStorage';
 
 const GEMINI_STUDIO_URL = 'https://aistudio.google.com/apikey';
 
@@ -18,7 +17,7 @@ export interface AiKeyRequiredModalProps {
 }
 
 export function AiKeyRequiredModal({ isOpen, onClose, onSaved }: AiKeyRequiredModalProps) {
-  const { aiAccess } = useAuth();
+  const { aiAccess, saveApiKey } = useAuth();
   const { apiKey, setApiKey } = useSettingsContext();
   const [draft, setDraft] = useState(apiKey);
 
@@ -26,10 +25,12 @@ export function AiKeyRequiredModal({ isOpen, onClose, onSaved }: AiKeyRequiredMo
     if (isOpen) setDraft(apiKey);
   }, [isOpen, apiKey]);
 
-  const saveAndClose = () => {
+  const saveAndClose = async () => {
     const trimmed = draft.trim();
+    if (!trimmed) return;
+    const ok = await saveApiKey(trimmed);
+    if (!ok) return;
     setApiKey(trimmed);
-    writeAiApiKey(trimmed);
     onSaved?.();
     onClose();
   };

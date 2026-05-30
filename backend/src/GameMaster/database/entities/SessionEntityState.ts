@@ -42,4 +42,7 @@ export class SessionEntityState {
 
     @Column({ type: 'timestamptz', nullable: true })
     lastSeenAt!: Date | null;
+
+    @Column({ type: 'int', nullable: true })
+    lastSeenGameDay!: number | null;
 }

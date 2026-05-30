@@ -1,12 +1,14 @@
 import { PenaiDataSource } from '../../GameMaster/database/data-source.js';
 import { SessionMemory } from '../../GameMaster/database/entities/SessionMemory.js';
 import { NarrativeSummary } from '../../GameMaster/database/entities/NarrativeSummary.js';
+import { decaySessionMemories } from '../../GameMaster/memory/decayPolicy.js';
 
 export async function compactSessionMemory(input: {
     sessionId: number;
     fromActionSequence: number;
     toActionSequence: number;
 }): Promise<string> {
+    const decayed = await decaySessionMemories(input.sessionId);
     const memRepo = PenaiDataSource.getRepository(SessionMemory);
     const rows = await memRepo.find({
         where: { sessionId: input.sessionId },
@@ -32,5 +34,5 @@ export async function compactSessionMemory(input: {
         }),
     );
 
-    return `compactado:${rows.length}`;
+    return `compactado:${rows.length}:decayed:${decayed}`;
 }

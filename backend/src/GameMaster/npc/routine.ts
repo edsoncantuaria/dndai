@@ -3,13 +3,18 @@ import { SessionEntityState } from '../database/entities/SessionEntityState.js';
 import { WorldEntity } from '../database/entities/WorldEntity.js';
 import { appendWorldEvent } from '../events/store.js';
 import { parseNpcPersonality } from '../schemas/npcPersonality.js';
+import type { EntityTier } from '../database/entities/types/EntityTier.js';
+import { isGoapEligibleTier } from '../database/entities/types/EntityTier.js';
 
 type NpcOverlay = {
     currentGoalId?: string;
     goalStatus?: 'idle' | 'active' | 'complete';
 };
 
-export async function advanceNpcRoutine(sessionId: number): Promise<string | null> {
+export async function advanceNpcRoutine(
+    sessionId: number,
+    opts?: { filterTier?: (tier: EntityTier) => boolean },
+): Promise<string | null> {
     const stateRepo = PenaiDataSource.getRepository(SessionEntityState);
     const states = await stateRepo.find({ where: { sessionId }, take: 12 });
     if (!states.length) return null;
@@ -20,6 +25,8 @@ export async function advanceNpcRoutine(sessionId: number): Promise<string | nul
     for (const st of states) {
         const entity = await entityRepo.findOne({ where: { id: st.worldEntityId } });
         if (!entity || entity.entityType === 'hero' || entity.entityType === 'faction') continue;
+        if (isGoapEligibleTier(entity.entityTier) && entity.entityTier !== 'SECONDARY') continue;
+        if (opts?.filterTier && !opts.filterTier(entity.entityTier)) continue;
         candidates.push({ entity, state: st });
     }
     if (!candidates.length) return null;
@@ -52,6 +59,7 @@ export async function advanceNpcRoutine(sessionId: number): Promise<string | nul
             description: goal.description,
             status: nextStatus,
             displayName: entity.displayName,
+            entityTier: entity.entityTier,
         },
     });
 

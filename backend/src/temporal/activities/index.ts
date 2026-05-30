@@ -4,3 +4,4 @@ export * from './emitWsEvent.js';
 export * from './worldPulseActivity.js';
 export * from './memoryCompactionActivity.js';
 export * from './canonApprovalActivity.js';
+export * from './campaignGcActivity.js';

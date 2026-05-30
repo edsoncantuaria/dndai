@@ -25,6 +25,7 @@ export const HOMEBREW_TYPE_TO_SRD_RESOURCE: Partial<Record<HomebrewContentType, 
     background: 'backgrounds',
     feat: 'feats',
     skill: 'skills',
+    feature: 'features',
 };
 
 /** Campos que podem ser sobrescritos em traduções (resto vem do SRD). */

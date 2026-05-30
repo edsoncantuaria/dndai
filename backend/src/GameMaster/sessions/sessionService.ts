@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { In } from 'typeorm';
 import { PenaiDataSource } from '../database/data-source.js';
 import { GameSession } from '../database/entities/GameSession.js';
 import { SessionInstalledModule } from '../database/entities/SessionInstalledModule.js';
@@ -7,10 +8,15 @@ import { appendWorldEvent } from '../events/store.js';
 import { penaiEnv } from '../../config/penaiEnv.js';
 import { ensureHeroSessionState } from '../character/heroStats.js';
 import { seedStarterInventory } from '../character/heroInventory.js';
-import { defaultGameClock } from '../world/gameClockPenai.js';
-import { cloneVaultHeroToSession } from '../character/heroVaultPenai.js';
+import { defaultGameClock } from '../world/gameClock.js';
+import { cloneVaultHeroToSession } from '../character/vault.js';
+import {
+    ensureUserHasSrdPtBrBundle,
+    getSrdPtBrCoreBundleId,
+    SRD_PTBR_CORE_BUNDLE_NAME,
+} from '../database/seed/seedSrdPtBrHomebrew.js';
 
-const SRD_PTBR_CORE = 'srd-ptbr-core';
+const SRD_PTBR_CORE = SRD_PTBR_CORE_BUNDLE_NAME;
 
 export async function createGameSession(opts: {
     userId: number;
@@ -37,9 +43,15 @@ export async function createGameSession(opts: {
             moduleId: SRD_PTBR_CORE,
             version: '1.0.0',
             kind: 'translation',
-            payload: { locale: 'pt-BR', label: 'SRD Tradução Core' },
+            payload: {
+                locale: 'pt-BR',
+                label: 'SRD Tradução Core',
+                bundleId: (await getSrdPtBrCoreBundleId()) ?? undefined,
+            },
         }),
     );
+
+    await ensureUserHasSrdPtBrBundle(opts.userId);
 
     if (opts.heroWorldEntityId) {
         const heroId = await cloneVaultHeroToSession(
@@ -135,10 +147,27 @@ export async function listGameSessions(userId: number): Promise<Record<string, u
         where: { userId },
         order: { updatedAt: 'DESC' },
     });
-    return sessions.map(formatSession);
+    const heroIds = sessions.map(s => s.heroWorldEntityId).filter((id): id is string => Boolean(id));
+    const heroes =
+        heroIds.length > 0
+            ? await PenaiDataSource.getRepository(WorldEntity).find({ where: { id: In(heroIds) } })
+            : [];
+    const heroById = new Map(heroes.map(h => [h.id, h]));
+    return sessions.map(s => formatSession(s, heroById.get(s.heroWorldEntityId ?? '')));
 }
 
-function formatSession(s: GameSession): Record<string, unknown> {
+function heroSummaryFromEntity(hero?: WorldEntity): { heroName?: string; heroRace?: string; heroClass?: string } {
+    if (!hero) return {};
+    const build = (hero.stats?.srdBuild ?? {}) as Record<string, unknown>;
+    return {
+        heroName: hero.displayName,
+        heroRace: typeof build.race === 'string' ? build.race : undefined,
+        heroClass: typeof build.characterClass === 'string' ? build.characterClass : undefined,
+    };
+}
+
+function formatSession(s: GameSession, hero?: WorldEntity): Record<string, unknown> {
+    const heroSummary = heroSummaryFromEntity(hero);
     return {
         id: s.id,
         userId: s.userId,
@@ -148,6 +177,9 @@ function formatSession(s: GameSession): Record<string, unknown> {
         actionSequence: s.actionSequence,
         actionCursor: s.actionCursor,
         heroWorldEntityId: s.heroWorldEntityId,
+        heroName: heroSummary.heroName,
+        heroRace: heroSummary.heroRace,
+        heroClass: heroSummary.heroClass,
         currentRegionSlug: s.currentRegionSlug,
         contractVersion: 2,
         engine: 'penai',

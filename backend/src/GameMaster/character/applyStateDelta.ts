@@ -13,7 +13,7 @@ import {
     consumeHeroInventoryItem,
     setHeroItemEquipped,
 } from './heroInventory.js';
-import { applyCombatEntityDeltaPenai } from '../combat/combatPenai.js';
+import { applyCombatEntityDeltaPenai } from '../combat/engine.js';
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
@@ -118,7 +118,7 @@ export async function applyCharacterStateDeltaPenai(
 
     if (changed) {
         await saveHeroSessionStats(sessionId, heroEntityId, stats);
-        await import('./syncHeroHpPenai.js').then(m => m.syncHeroHpPenai(sessionId));
+        await import('./syncHeroHp.js').then(m => m.syncHeroHpPenai(sessionId));
     }
 
     const refreshed = await loadHeroSessionStats(sessionId, heroEntityId);

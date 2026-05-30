@@ -6,18 +6,18 @@ import {
     validateClaimLootIntent,
 } from '../../rules/inventoryMotor.js';
 import type { RestIntentPayload } from '../../rules/types.js';
-import { loadPenaiCharacterSnapshot } from '../character/loadPenaiCharacterSnapshot.js';
-import { applyResultingStateDeltaPenai } from '../character/applyStateDeltaPenai.js';
+import { loadPenaiCharacterSnapshot } from '../character/loadSnapshot.js';
+import { applyResultingStateDeltaPenai } from '../character/applyStateDelta.js';
 import { formatMechanicalPack } from '../character/formatMechanicalPack.js';
-import { getPenaiCombatState, startPenaiCombat, advancePenaiCombatTurnFromIntent } from '../combat/combatPenai.js';
-import { claimPendingLootPenai } from '../loot/lootPenai.js';
+import { getPenaiCombatState, startPenaiCombat, advancePenaiCombatTurnFromIntent } from '../combat/engine.js';
+import { claimPendingLootPenai } from '../loot/lootService.js';
 import {
     openShopPenai,
     buyFromShopPenai,
     sellToShopPenai,
     closeShopPenai,
     defaultShopCatalogForRegion,
-} from '../shop/shopPenai.js';
+} from '../shop/shopService.js';
 import { PenaiDataSource } from '../database/data-source.js';
 import { GameSession } from '../database/entities/GameSession.js';
 import { listHeroInventory, setHeroItemEquipped } from '../character/heroInventory.js';
@@ -94,7 +94,7 @@ export async function applyStructuredPenaiIntent(input: {
             );
             if (check.status === 'accepted' && check.stateDelta) {
                 await applyResultingStateDeltaPenai(input.sessionId, check.stateDelta);
-                const { advanceSessionGameClock } = await import('../world/gameClockPenai.js');
+                const { advanceSessionGameClock } = await import('../world/gameClock.js');
                 await advanceSessionGameClock(input.sessionId, restType === 'long' ? 8 : 1);
                 await appendWorldEvent({
                     type: 'REST_COMPLETED',
@@ -102,8 +102,13 @@ export async function applyStructuredPenaiIntent(input: {
                     payload: { restType },
                 });
                 if (restType === 'long') {
-                    const { maybeScheduleWorldPulse } = await import('../world/worldPulseSchedulePenai.js');
+                    const { maybeScheduleWorldPulse } = await import('../world/simulation/pulseSchedule.js');
                     void maybeScheduleWorldPulse(input.sessionId, 'long-rest').catch(() => undefined);
+                    const { startCampaignGcWorkflow } = await import('../../temporal/client.js');
+                    void startCampaignGcWorkflow(input.sessionId).catch(() => undefined);
+                    const { saveSessionAggregateSnapshot } = await import('../sessions/sessionAggregate.js');
+                    const seq = input.actionSequence ?? 0;
+                    void saveSessionAggregateSnapshot(input.sessionId, seq).catch(() => undefined);
                 }
             }
             return mechanicalResult(input.sessionId, intent, check, 'rest');
@@ -136,16 +141,29 @@ export async function applyStructuredPenaiIntent(input: {
         }
 
         case 'equip-item': {
-            const check = validateEquipItemIntent(input.payload as { itemId: number; equipped: boolean });
+            const check = validateEquipItemIntent(
+                input.payload as {
+                    inventoryItemId?: string;
+                    itemKey?: string;
+                    itemId?: number;
+                    equipped: boolean;
+                },
+            );
             if (check.status !== 'accepted') {
                 return mechanicalResult(input.sessionId, intent, check, 'equip-item');
             }
             const heroEntityId = await getSessionHeroEntityId(input.sessionId);
-            const itemId = String(input.payload.itemId);
+            const lookupKey =
+                (input.payload as { inventoryItemId?: string; itemKey?: string; itemId?: number })
+                    .inventoryItemId?.trim() ||
+                (input.payload as { itemKey?: string }).itemKey?.trim() ||
+                String((input.payload as { itemId?: number }).itemId ?? '');
             const items = heroEntityId
                 ? await listHeroInventory(input.sessionId, heroEntityId)
                 : [];
-            const row = items.find(i => i.id === itemId || String(i.itemKey) === itemId);
+            const row = items.find(
+                i => i.id === lookupKey || String(i.itemKey) === lookupKey,
+            );
             if (!row || !heroEntityId) {
                 return mechanicalResult(input.sessionId, intent, {
                     status: 'rejected',
@@ -282,7 +300,7 @@ export async function applyStructuredPenaiIntent(input: {
                     reason: 'Turno atual é do herói.',
                 }, 'advance-npc-turn');
             }
-            const { executeNpcTurnAttack } = await import('../sessions/sessionExtrasPenai.js');
+            const { executeNpcTurnAttack } = await import('../sessions/sessionExtras.js');
             const attack = await executeNpcTurnAttack(input.sessionId);
             const after = await advancePenaiCombatTurnFromIntent(input.sessionId);
             return mechanicalResult(
@@ -309,8 +327,8 @@ export async function applyStructuredPenaiIntent(input: {
                     reason: 'Herói não encontrado.',
                 }, 'apply-level-up');
             }
-            const { applyLevelUpPenai } = await import('../character/applyLevelUpPenai.js');
-            const levelPayload = resolveStructuredPayload(input.payload) as import('../character/applyLevelUpPenai.js').ApplyLevelUpPayload;
+            const { applyLevelUpPenai } = await import('../character/applyLevelUp.js');
+            const levelPayload = resolveStructuredPayload(input.payload) as import('../character/applyLevelUp.js').ApplyLevelUpPayload;
             const result = await applyLevelUpPenai({
                 sessionId: input.sessionId,
                 userId: input.userId,
@@ -343,7 +361,7 @@ export async function applyStructuredPenaiIntent(input: {
                 }, 'grant-xp');
             }
             const amount = Number(intent.payload?.amount ?? 50);
-            const { grantHeroXp, buildPenaiLevelUpState } = await import('../character/heroXpPenai.js');
+            const { grantHeroXp, buildPenaiLevelUpState } = await import('../character/xp.js');
             const result = await grantHeroXp(input.sessionId, heroId, amount);
             const hero = await PenaiDataSource.getRepository(
                 (await import('../database/entities/WorldEntity.js')).WorldEntity,

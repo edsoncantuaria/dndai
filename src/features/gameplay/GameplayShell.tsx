@@ -8,24 +8,27 @@ import { GameplaySidePanel } from './components/GameplaySidePanel';
 import { GameplayTopBar } from './components/GameplayTopBar';
 import { GameplayMobileMenuPanel } from './components/GameplayMobileMenuPanel';
 import { DndTabs, type DndTabItem } from '@/components/primitives';
-import { BookOpen, Map, Menu, Package, Terminal, User } from 'lucide-react';
+import { BookOpen, Map, Menu, Package } from 'lucide-react';
 import { GameplayCombatTracker } from './combat/GameplayCombatTracker';
 import { cn } from '@/lib/utils';
 import Vignette from '@/components/Vignette';
+import { isDebugWsEnabled } from '@/lib/debugFlags';
+import type { Character, CombatState } from '@/types';
 
 const MOBILE_NAV: DndTabItem[] = [
-  { id: 'narrative', label: 'Narrativa', icon: <BookOpen className="h-4 w-4" /> },
+  { id: 'narrative', label: 'Narração', icon: <BookOpen className="h-4 w-4" /> },
   { id: 'map', label: 'Mapa', icon: <Map className="h-4 w-4" /> },
-  { id: 'inventory', label: 'Inventário', icon: <Package className="h-4 w-4" /> },
-  { id: 'sheet', label: 'Ficha', icon: <User className="h-4 w-4" /> },
-  { id: 'logs', label: 'Registro', icon: <Terminal className="h-4 w-4" /> },
-  { id: 'menu', label: 'Menu', icon: <Menu className="h-4 w-4" /> },
+  { id: 'inventory', label: 'Bolsa', icon: <Package className="h-4 w-4" /> },
+  { id: 'menu', label: 'Mais', icon: <Menu className="h-4 w-4" /> },
 ];
 
 export interface GameplayShellProps {
   region: string;
   timeLabel?: string;
   weatherLabel?: string;
+  character?: Character | null;
+  combatState?: CombatState;
+  sessionId?: number | null;
   onMenuClick?: () => void;
   onOpenWorldMap?: () => void;
   onOpenSettings?: () => void;
@@ -41,6 +44,9 @@ export function GameplayShell({
   region,
   timeLabel,
   weatherLabel,
+  character,
+  combatState,
+  sessionId,
   onMenuClick,
   onOpenWorldMap,
   onOpenSettings,
@@ -70,9 +76,7 @@ export function GameplayShell({
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">{narrative}</div>
       <div
         className={cn(
-          // Mobile: dock sobreposto (FAB + cards flutuantes)
           'pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col items-stretch justify-end transition-[padding] duration-150 ease-out',
-          // Desktop: comportamento antigo (dock no fluxo normal)
           'md:pointer-events-auto md:static md:z-auto md:block md:transition-none'
         )}
         style={{
@@ -99,6 +103,8 @@ export function GameplayShell({
       <GameplayTopBar
         region={region}
         timeLabel={timeBadge}
+        character={character}
+        combatState={combatState}
         onMenuClick={onMenuClick}
         onNarrationToggle={onNarrationToggle}
         isNarrationActive={isNarrationActive}
@@ -106,7 +112,7 @@ export function GameplayShell({
       />
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <main
-          className={`flex min-h-0 flex-1 flex-col ${showSidePanel ? 'md:w-[58%] lg:w-[55%]' : 'w-full'}`}
+          className={`flex min-h-0 flex-1 flex-col ${showSidePanel ? 'md:w-[62%] lg:w-[62%]' : 'w-full'}`}
         >
           {(!showMobileNav || mobileTab === 'narrative') && narrativeColumn}
           {showMobileNav && mobileTab !== 'narrative' && mobileTab !== 'menu' && (
@@ -120,26 +126,34 @@ export function GameplayShell({
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 pt-2">
               <div className="gameplay-panel-scroll min-h-0 flex-1 overflow-y-auto">
                 <GameplayMobileMenuPanel
+                  sessionId={sessionId ?? character?.sessionId ?? null}
                   onOpenWorldMap={onOpenWorldMap}
                   onOpenSettings={onOpenSettings}
                   onNarrationToggle={onNarrationToggle}
                   isNarrationActive={isNarrationActive}
-                  onOpenSessionLog={() => setMobileTab('logs')}
+                  onOpenSessionLog={isDebugWsEnabled() ? () => setMobileTab('logs') : undefined}
                   onExitSession={() => onMenuClick?.()}
                 />
               </div>
             </div>
           )}
+          {showMobileNav && mobileTab === 'logs' && isDebugWsEnabled() && (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 pt-2">
+              <div className="gameplay-panel-scroll min-h-0 flex-1 overflow-y-auto">
+                {sidePanel('logs')}
+              </div>
+            </div>
+          )}
         </main>
         {showSidePanel ? (
-          <div className="hidden min-h-0 w-[42%] lg:flex">
+          <div className="hidden min-h-0 w-[38%] lg:flex">
             <GameplaySidePanel activeTab={sideTab} onTabChange={setSideTab}>
               {sidePanel(sideTab)}
             </GameplaySidePanel>
           </div>
         ) : null}
         {isMdUp && !isLgUp ? (
-          <div className="hidden min-h-0 w-[42%] md:flex lg:hidden">
+          <div className="hidden min-h-0 w-[38%] md:flex lg:hidden">
             <GameplaySidePanel activeTab={sideTab} onTabChange={setSideTab}>
               {sidePanel(sideTab)}
             </GameplaySidePanel>
@@ -147,7 +161,7 @@ export function GameplayShell({
         ) : null}
       </div>
       {showMobileNav ? (
-        <nav className="shrink-0 md:hidden" aria-label="Navegação principal">
+        <nav className="shrink-0 pb-[var(--dnd-safe-bottom)] md:hidden" aria-label="Navegação principal">
           <DndTabs items={MOBILE_NAV} value={mobileTab} onValueChange={setMobileTab} variant="bottomNav" />
         </nav>
       ) : null}

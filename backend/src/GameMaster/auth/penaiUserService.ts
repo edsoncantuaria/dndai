@@ -23,8 +23,9 @@ export async function getPenaiUserProfile(userId: number) {
 export async function getPenaiUserMe(userId: number) {
     const userData = await getPenaiUserProfile(userId);
     const aiAccess = buildAiAccessStatus(userData, userData.apiKey);
+    const { apiKey: _apiKey, ...safeUser } = userData;
     return {
-        ...userData,
+        ...safeUser,
         aiAccess,
         onboardingCompleted: isOnboardingCompleted(userData.settings),
     };
@@ -73,8 +74,8 @@ export async function updatePenaiUserHomebrewInstallation(
     const user = await repo.findOneBy({ id: userId });
     if (!user) throw createError(404, 'Usuário não encontrado.');
 
-    const { PenaiHomebrewContent } = await import('../database/entities/HomebrewContentPenai.js');
-    const { PenaiHomebrewBundle } = await import('../database/entities/HomebrewBundlePenai.js');
+    const { PenaiHomebrewContent } = await import('../database/entities/HomebrewContent.js');
+    const { PenaiHomebrewBundle } = await import('../database/entities/HomebrewBundle.js');
 
     const contentRepo = PenaiDataSource.getRepository(PenaiHomebrewContent);
     const bundleRepo = PenaiDataSource.getRepository(PenaiHomebrewBundle);

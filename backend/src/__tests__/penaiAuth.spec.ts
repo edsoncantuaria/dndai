@@ -31,6 +31,31 @@ dbDescribe('penai auth v2 (integration)', () => {
         assert.equal(tokenPayload.userId, user.id);
     });
 
+    it('login instala bundle srd-ptbr para usuário legado', async () => {
+        const { seedSrdPtBrHomebrew, getSrdPtBrCoreBundleId } = await import(
+            '../GameMaster/database/seed/seedSrdPtBrHomebrew.js'
+        );
+        await seedSrdPtBrHomebrew();
+        const bundleId = await getSrdPtBrCoreBundleId();
+        assert.ok(bundleId);
+
+        const repo = PenaiDataSource.getRepository(PenaiUser);
+        const suffix = Date.now();
+        await repo.save(
+            repo.create({
+                username: `legacy${suffix}`,
+                email: `legacy${suffix}@example.com`,
+                passwordHash: await bcrypt.hash('secret123', 12),
+                settings: {},
+                aiCreditsRemaining: 30,
+                installedHomebrewIds: [],
+            }),
+        );
+
+        const { user: logged } = await loginPenaiUser(`legacy${suffix}@example.com`, 'secret123');
+        assert.ok(logged.installedHomebrewIds?.includes(bundleId!));
+    });
+
     it('login com senha errada falha', async () => {
         const repo = PenaiDataSource.getRepository(PenaiUser);
         const suffix = Date.now();
@@ -44,6 +69,29 @@ dbDescribe('penai auth v2 (integration)', () => {
             }),
         );
         await assert.rejects(() => loginPenaiUser(`fail${suffix}@example.com`, 'wrong'));
+    });
+
+    it('salva apiKey BYOK e resolve inferência sem expor chave no /me', async () => {
+        const { updatePenaiUserSettings, getPenaiUserMe } = await import(
+            '../GameMaster/auth/penaiUserService.js'
+        );
+        const { resolvePenaiInferenceApiKey } = await import(
+            '../GameMaster/auth/penaiAiBillingService.js'
+        );
+        const suffix = Date.now();
+        const user = await registerPenaiUser({
+            username: `byok${suffix}`,
+            email: `byok${suffix}@example.com`,
+            password: 'secret123',
+        });
+        const fakeKey = `AIzaSyD${'x'.repeat(30)}`;
+        await updatePenaiUserSettings(user.id, { apiKey: fakeKey });
+        const me = await getPenaiUserMe(user.id);
+        assert.equal((me as { apiKey?: string }).apiKey, undefined);
+        assert.equal(me.aiAccess?.canInfer, true);
+        assert.equal(me.aiAccess?.hasByok, true);
+        const resolved = await resolvePenaiInferenceApiKey(user.id);
+        assert.equal(resolved, fakeKey);
     });
 });
 

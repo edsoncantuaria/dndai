@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { KeyRound, Coins, ExternalLink } from 'lucide-react';
 import { DndButton, DndInput } from '@/components/primitives';
 import { useSettingsContext } from '@/contexts/SettingsContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useOnboarding } from '@/contexts/OnboardingContext';
-import { writeAiApiKey } from '@/lib/aiApiKeyStorage';
 import type { AiAccessStatus } from '@/types/aiAccess';
 
 const GEMINI_STUDIO_URL = 'https://aistudio.google.com/apikey';
@@ -17,16 +17,17 @@ function canProceed(access: AiAccessStatus | null, localKey: string): boolean {
 }
 
 export function AiAccessStep({ onContinue }: { onContinue: () => void }) {
-  const { apiKey, setApiKey } = useSettingsContext();
+  const { saveApiKey, isActionLoading } = useAuth();
+  const { apiKey } = useSettingsContext();
   const { aiAccess, setAiAccess } = useOnboarding();
   const [draftKey, setDraftKey] = useState(apiKey);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSaveKey = () => {
+  const handleSaveKey = async () => {
     const trimmed = draftKey.trim();
-    setApiKey(trimmed);
-    writeAiApiKey(trimmed);
-    if (trimmed) {
+    if (!trimmed) return;
+    const ok = await saveApiKey(trimmed);
+    if (ok) {
       setAiAccess(
         aiAccess
           ? {
@@ -37,15 +38,15 @@ export function AiAccessStep({ onContinue }: { onContinue: () => void }) {
             }
           : null,
       );
+      setError(null);
     }
-    setError(null);
   };
 
-  const proceed = () => {
+  const proceed = async () => {
     const trimmed = draftKey.trim();
     if (trimmed) {
-      setApiKey(trimmed);
-      writeAiApiKey(trimmed);
+      const ok = await saveApiKey(trimmed);
+      if (!ok) return;
     }
     if (!canProceed(aiAccess, trimmed)) {
       setError(
@@ -60,7 +61,7 @@ export function AiAccessStep({ onContinue }: { onContinue: () => void }) {
     <div className="space-y-5 text-left">
       <p className="font-narrative text-base leading-relaxed text-dnd-parchment-muted">
         O jogo usa <strong className="text-dnd-parchment">Gemini</strong> para narrar. Cole sua chave do
-        Google AI Studio (BYOK) — ela fica só neste aparelho. Créditos da plataforma são opcionais.
+        Google AI Studio (BYOK) — ela fica associada à sua conta para a mesa funcionar.
       </p>
 
       {aiAccess && aiAccess.platformBillingEnabled ? (
@@ -92,7 +93,7 @@ export function AiAccessStep({ onContinue }: { onContinue: () => void }) {
           onChange={(e) => setDraftKey(e.target.value)}
         />
         <p className="mt-2 font-ui text-xs text-dnd-parchment-muted">
-          A chave fica só no seu navegador. Obtenha em{' '}
+          A chave também fica neste navegador. Obtenha em{' '}
           <a
             href={GEMINI_STUDIO_URL}
             target="_blank"
@@ -103,14 +104,14 @@ export function AiAccessStep({ onContinue }: { onContinue: () => void }) {
             <ExternalLink className="h-3 w-3" />
           </a>
         </p>
-        <DndButton variant="ghost" size="sm" className="mt-3" onClick={handleSaveKey}>
-          Salvar chave localmente
+        <DndButton variant="ghost" size="sm" className="mt-3" onClick={handleSaveKey} loading={isActionLoading}>
+          Salvar chave
         </DndButton>
       </div>
 
       {error ? <p className="font-ui text-sm text-red-400">{error}</p> : null}
 
-      <DndButton variant="ember" size="lg" className="w-full" onClick={proceed}>
+      <DndButton variant="ember" size="lg" className="w-full" onClick={proceed} loading={isActionLoading}>
         Continuar
       </DndButton>
     </div>

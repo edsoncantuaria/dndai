@@ -5,8 +5,10 @@ export function getStepCompleteness(
   hook: ReturnType<typeof useCharacterCreator>
 ): boolean {
   switch (step) {
-    case 1:
-      return !!hook.race && !!hook.characterClass;
+    case 1: {
+      const needsSubrace = (hook.details?.raceDetails?.subraces?.length ?? 0) > 0;
+      return !!hook.race && !!hook.characterClass && (!needsSubrace || !!hook.subrace);
+    }
     case 2:
       return (
         hook.attributeMethod !== null &&

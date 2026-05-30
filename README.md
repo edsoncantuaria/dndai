@@ -73,15 +73,23 @@ O projeto é construído sobre uma stack moderna, priorizando a componentizaçã
 
 ## Setup com Docker
 
-**Desenvolvimento (sem rebuild a cada alteração):**
+**Desenvolvimento local PENAI (recomendado):**
 
 ```bash
-npm run dev:infra              # MySQL + Redis + SRD no Docker
-npm run dev:backend            # terminal 2 — hot reload
-npm run dev                    # terminal 3 — hot reload
+npm run dev:local              # infra PENAI + SRD no Docker
+cp backend/.env.penai.example backend/.env
+cd backend && npm run dev:penai   # terminal 2
+cd backend && npm run worker:temporal   # terminal 3 (ou TEMPORAL_DISABLED=true)
+npm run dev                    # terminal 4 — Next.js :9002
 ```
 
-Configure `backend/.env` (`DB_HOST=localhost`) e `.env.local` (veja `.env.local.example`).
+Após login e licença, o jogo **pede a chave Gemini (BYOK)** — não é necessário `GEMINI_API_KEY` no `.env` do servidor para jogar.
+
+Configure `.env.local` com `NEXT_PUBLIC_API_URL=http://localhost:8071/api`, `NEXT_PUBLIC_WS_URL=ws://localhost:8071/` e `NEXT_PUBLIC_PENAI_UI=true`.
+
+Detalhes: [`docs/PENAI.md`](docs/PENAI.md) · [`docs/DATA_SRD.md`](docs/DATA_SRD.md).
+
+**Stack legada MySQL** (deprecated): use apenas se mantiver código antigo — prefira PENAI acima.
 
 **Stack completa em container** (só para testar deploy; precisa `--build` ao mudar código):
 

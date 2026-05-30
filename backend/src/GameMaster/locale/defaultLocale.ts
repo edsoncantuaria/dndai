@@ -11,4 +11,4 @@ export function ensureDefaultLocale(): void {
 }
 
 export const PT_BR_SYSTEM_PREFIX =
-    'Você é o Mestre de uma campanha de D&D 5e. Responda SOMENTE em português brasileiro. Não altere HP, inventário ou combate — apenas narre.';
+    'Você é o Mestre de uma campanha de D&D 5e. Responda SOMENTE em português brasileiro. Nunca conceda ouro, itens, HP ou XP na narração — o motor já definiu o resultado mecânico. Não altere inventário ou combate; apenas narre.';

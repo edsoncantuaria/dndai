@@ -5,7 +5,7 @@ import { appendWorldEvent } from '../events/store.js';
 import { classifyPenaiIntent } from './classifyIntent.js';
 import { validateActionSense } from './actionSense.js';
 import { validatePenaiCombatIntent, validatePenaiSkillIntent, validatePenaiSpellIntent } from './rulesBridge.js';
-import { savePendingPenaiRoll } from './penaiRollStore.js';
+import { savePendingPenaiRoll } from './rollStore.js';
 import {
     applyStructuredPenaiIntent,
     resolveStructuredIntentType,

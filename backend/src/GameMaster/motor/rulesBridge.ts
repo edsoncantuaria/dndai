@@ -4,8 +4,8 @@ import type { RuleCheckResult } from '../../rules/types.js';
 import { validateWeaponAttack } from '../../rules/attack.js';
 import { validateSkillCheck } from '../../rules/skills.js';
 import { validateSpellAttack } from '../../rules/spellAttack.js';
-import { loadPenaiCharacterSnapshot } from './penaiCharacterSnapshot.js';
-import { getPenaiCombatState } from '../combat/combatPenai.js';
+import { loadPenaiCharacterSnapshot } from './characterSnapshot.js';
+import { getPenaiCombatState } from '../combat/engine.js';
 
 export function ruleCheckToPlayerRollRequest(
     check: RuleCheckResult,

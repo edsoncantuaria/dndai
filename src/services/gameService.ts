@@ -102,6 +102,13 @@ export const createNewCharacter = async (characterData: NewCharacterInfo) => {
     });
 };
 
+export const updateVaultCharacter = async (characterId: string | number, characterData: NewCharacterInfo) => {
+    return apiClient<{ message: string; character: Character }>(`/v2/characters/${characterId}`, {
+        method: 'PUT',
+        body: JSON.stringify(characterData),
+    });
+};
+
 export const deleteCharacterById = async (characterId: string | number) => {
      return apiClient<{ message: string }>(`/v2/characters/${characterId}`, {
         method: 'DELETE',
@@ -137,8 +144,11 @@ export const getSessionDetails = async (sessionId: number): Promise<SessaoIA> =>
 
 /** @deprecated Gameplay usa PENAI v2 — delega para penaiApi. */
 export const getSessionFacts = async (sessionId: number): Promise<SessionFactsResponse> => {
-    const { fetchPenaiSessionSummary } = await import('./penaiApi');
-    const summary = await fetchPenaiSessionSummary(sessionId);
+    const { fetchPenaiSessionSummary, fetchSessionCampaignState } = await import('./penaiApi');
+    const [summary, campaign] = await Promise.all([
+        fetchPenaiSessionSummary(sessionId),
+        fetchSessionCampaignState(sessionId).catch(() => null),
+    ]);
     return {
         storySummary: summary.nome,
         timelineFacts: summary.recentFacts.map(f => f.summary).join('\n') || null,
@@ -149,7 +159,13 @@ export const getSessionFacts = async (sessionId: number): Promise<SessionFactsRe
             summary: f.summary,
         })),
         activeNPCs: [],
-        activeQuests: [],
+        activeQuests: (campaign?.activeQuests ?? []).map(q => ({
+            id: q.questSlug,
+            title: q.title,
+            status: q.status,
+            source: 'penai',
+            summary: `Estágio ${q.stage}`,
+        })),
         atomicFacts: summary.recentFacts.map(f => ({
             id: f.at,
             category: f.type,

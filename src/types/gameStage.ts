@@ -4,6 +4,7 @@ export type GameStage =
     | 'session_list'
     | 'character_vault'
     | 'creating_character'
+    | 'editing_character'
     | 'playing'
     | 'homebrew_store'
     | 'translation_studio';

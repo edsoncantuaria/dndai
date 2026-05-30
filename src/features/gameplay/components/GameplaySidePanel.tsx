@@ -1,14 +1,12 @@
 'use client';
 
 import { DndTabs, type DndTabItem } from '@/components/primitives';
-import { BookOpen, Map, Package, Terminal, User } from 'lucide-react';
+import { Globe2, Map, Package } from 'lucide-react';
 
 const SIDE_TABS: DndTabItem[] = [
   { id: 'map', label: 'Mapa', icon: <Map className="h-4 w-4" /> },
-  { id: 'story', label: 'História', icon: <BookOpen className="h-4 w-4" /> },
-  { id: 'inventory', label: 'Inventário', icon: <Package className="h-4 w-4" /> },
-  { id: 'sheet', label: 'Ficha', icon: <User className="h-4 w-4" /> },
-  { id: 'logs', label: 'Registro', icon: <Terminal className="h-4 w-4" /> },
+  { id: 'campanha', label: 'Campanha', icon: <Globe2 className="h-4 w-4" /> },
+  { id: 'inventory', label: 'Bolsa', icon: <Package className="h-4 w-4" /> },
 ];
 
 export interface GameplaySidePanelProps {

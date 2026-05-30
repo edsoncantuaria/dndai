@@ -228,7 +228,9 @@ export interface DropItemPayload {
 }
 
 export interface EquipItemPayload {
-    itemId: number;
+    inventoryItemId?: string;
+    itemKey?: string;
+    itemId?: number;
     equipped: boolean;
 }
 

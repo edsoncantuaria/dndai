@@ -1,7 +1,7 @@
 // src/hooks/newUseGameState.ts — orquestrador (F.2: slices session / narration / combat)
 'use client';
 
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useInteractionManager } from './useInteractionManager';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from './use-toast';
@@ -161,23 +161,65 @@ export const useNewGameState = () => {
         [session.character, interactionState, sendMotorAction],
     );
 
+    const [equipPending, setEquipPending] = useState<{ itemId: string; equipped: boolean } | null>(null);
+
+    useEffect(() => {
+        if (!equipPending || !session.character) return;
+        const item = session.character.inventory.find(i => String(i.id) === equipPending.itemId);
+        if (item && item.equipped === equipPending.equipped) {
+            setEquipPending(null);
+        }
+    }, [session.character?.inventory, equipPending]);
+
+    useEffect(() => {
+        if (!equipPending) return;
+        const t = setTimeout(() => setEquipPending(null), 8000);
+        return () => clearTimeout(t);
+    }, [equipPending]);
+
+    const sendEquipAction = useCallback(
+        (itemId: string, equipped: boolean) => {
+            const item = session.character?.inventory.find(i => String(i.id) === String(itemId));
+            if (!item) return;
+
+            const actionText = equipped ? `Eu equipo meu ${item.name}.` : `Eu desequipo meu ${item.name}.`;
+            setEquipPending({ itemId: String(itemId), equipped });
+
+            const payload: StructuredIntent = {
+                type: 'equip-item',
+                payload: {
+                    inventoryItemId: String(item.id),
+                    ...(item.index ? { itemKey: item.index } : {}),
+                    equipped,
+                },
+            };
+            const numericId = Number(item.id);
+            if (Number.isFinite(numericId) && numericId > 0) {
+                payload.payload.itemId = numericId;
+            }
+            sendMotorAction(actionText, payload);
+        },
+        [session.character, sendMotorAction],
+    );
+
+    const equipItem = useCallback(
+        (itemId: string) => sendEquipAction(itemId, true),
+        [sendEquipAction],
+    );
+
+    const unequipItem = useCallback(
+        (itemId: string) => sendEquipAction(itemId, false),
+        [sendEquipAction],
+    );
+
+    /** @deprecated use equipItem / unequipItem */
     const toggleEquipped = useCallback(
         (itemId: string) => {
             const item = session.character?.inventory.find(i => String(i.id) === String(itemId));
             if (!item) return;
-
-            const actionText = item.equipped ? `Eu desequipo meu ${item.name}.` : `Eu equipo meu ${item.name}.`;
-            const numericId = Number(itemId);
-            if (Number.isFinite(numericId)) {
-                sendMotorAction(actionText, {
-                    type: 'equip-item',
-                    payload: { itemId: numericId, equipped: !item.equipped },
-                });
-            } else {
-                sendMotorAction(actionText);
-            }
+            sendEquipAction(itemId, !item.equipped);
         },
-        [session.character, sendMotorAction],
+        [session.character, sendEquipAction],
     );
 
     const useConsumable = useCallback(
@@ -268,6 +310,7 @@ export const useNewGameState = () => {
             clearApiError: narration.clearApiError,
             getApiKey,
             createCharacter: sessionApi.createCharacter,
+            updateCharacter: sessionApi.updateCharacter,
             deleteCharacter: sessionApi.deleteCharacter,
             deleteSession: sessionApi.deleteSession,
             startGame: sessionApi.startGame,
@@ -278,6 +321,9 @@ export const useNewGameState = () => {
             handleSkillCheckSubmit: interactionState.handleSkillCheckSubmit(sendMotorAction),
             submitSpellCast: interactionState.submitSpellCast(sendMotorAction),
             applyLevelUp,
+            equipItem,
+            unequipItem,
+            equipPendingItemId: equipPending?.itemId ?? null,
             toggleEquipped,
             useConsumable,
             spendHitDice,
@@ -322,6 +368,9 @@ export const useNewGameState = () => {
             combat,
             sessionApi,
             applyLevelUp,
+            equipItem,
+            unequipItem,
+            equipPending,
             toggleEquipped,
             useConsumable,
             spendHitDice,

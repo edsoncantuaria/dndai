@@ -2,9 +2,9 @@ import { PenaiDataSource } from '../database/data-source.js';
 import { WorldEntity } from '../database/entities/WorldEntity.js';
 import { updateHeroCanonicalStats } from '../world/levelPolicy.js';
 import { loadHeroSessionStats, saveHeroSessionStats, getSessionHeroEntityId } from './heroStats.js';
-import { mergeSpellSlotsIntoResources } from './spellSlotSeedPenai.js';
-import { appendJournalEntry } from '../journal/journalPenai.js';
-import { levelFromXp } from './heroXpPenai.js';
+import { mergeSpellSlotsIntoResources } from './spellSlotSeed.js';
+import { appendJournalEntry } from '../journal/journal.js';
+import { levelFromXp } from './xp.js';
 
 export type ApplyLevelUpPayload = {
     newLevel: number;

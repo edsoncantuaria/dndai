@@ -1,4 +1,4 @@
-import type { Character, InventoryItem, SessaoIA } from '@/types';
+import type { Character, CharacterSpell, InventoryItem, SessaoIA } from '@/types';
 import { markSessionAsPenai } from '@/lib/penaiEngine';
 import {
     createPenaiSession,
@@ -11,6 +11,29 @@ type MechanicalPack = Record<string, unknown>;
 
 function asRecord(v: unknown): Record<string, unknown> | null {
     return v && typeof v === 'object' ? (v as Record<string, unknown>) : null;
+}
+
+function abilityMod(score: number): number {
+    return Math.floor((score - 10) / 2);
+}
+
+function normalizeSpells(raw: unknown): CharacterSpell[] | string[] {
+    if (!Array.isArray(raw)) return [];
+    return raw.map(entry => {
+        if (typeof entry === 'string') return entry;
+        if (entry && typeof entry === 'object') {
+            const o = entry as Record<string, unknown>;
+            const index = String(o.spellName ?? o.index ?? o.name ?? '');
+            return {
+                id: Number(o.id ?? 0),
+                characterId: 0,
+                spellName: index,
+                level: Number(o.level ?? 0),
+                prepared: Boolean(o.prepared ?? true),
+            } satisfies CharacterSpell;
+        }
+        return String(entry);
+    });
 }
 
 /** Converte mechanical pack PENAI → Character para UI existente. */
@@ -29,6 +52,15 @@ export function mechanicalPackToCharacter(
     const level = Number(ch?.level ?? 1);
     const name = String(ch?.name ?? sessionMeta?.nome ?? 'Herói');
     const coins = asRecord(ch?.coins) ?? {};
+    const attrs = asRecord(ch?.attributes) ?? {};
+    const mods = asRecord(ch?.modifiers) ?? {};
+
+    const strength = Number(attrs.strength ?? 10);
+    const dexterity = Number(attrs.dexterity ?? 10);
+    const constitution = Number(attrs.constitution ?? 10);
+    const intelligence = Number(attrs.intelligence ?? 10);
+    const wisdom = Number(attrs.wisdom ?? 10);
+    const charisma = Number(attrs.charisma ?? 10);
 
     const inventory: InventoryItem[] = Array.isArray(ch?.inventory)
         ? (ch!.inventory as Array<Record<string, unknown>>).map((item, idx) => ({
@@ -41,6 +73,18 @@ export function mechanicalPackToCharacter(
           }))
         : [];
 
+    const spells = normalizeSpells(ch?.spells);
+    const spellSlots =
+        (ch?.spellSlots as Record<string, { current: number; max: number }>) ?? {};
+
+    const race = String(ch?.race ?? 'Humano').trim() || 'Humano';
+    const subraceRaw = ch?.subrace;
+    const subrace = subraceRaw != null && String(subraceRaw).trim() ? String(subraceRaw) : null;
+    const characterClass = String(ch?.characterClass ?? 'Aventureiro').trim() || 'Aventureiro';
+    const background = String(ch?.background ?? 'PENAI').trim() || 'PENAI';
+
+    const proficiencyBonus = Math.max(2, Math.floor((level - 1) / 4) + 2);
+
     const now = new Date().toISOString();
     const ws = asRecord(pack.worldState);
     const regionLabel =
@@ -50,11 +94,11 @@ export function mechanicalPackToCharacter(
         id: numericId,
         userId,
         name,
-        race: 'Humano',
-        subrace: null,
-        characterClass: 'Aventureiro',
+        race,
+        subrace,
+        characterClass,
         level,
-        background: 'PENAI',
+        background,
         alignment: 'Neutro',
         backstory: '',
         ideal: '',
@@ -67,12 +111,12 @@ export function mechanicalPackToCharacter(
         attributes: {
             id: numericId,
             characterId: numericId,
-            strength: 14,
-            dexterity: 12,
-            constitution: 14,
-            intelligence: 10,
-            wisdom: 10,
-            charisma: 10,
+            strength,
+            dexterity,
+            constitution,
+            intelligence,
+            wisdom,
+            charisma,
             hp,
             maxHp,
             ac,
@@ -80,19 +124,19 @@ export function mechanicalPackToCharacter(
         },
         proficiencies: [],
         inventory,
-        spells: [],
+        spells,
         journal: [],
         relationships: [],
         personalityTraits: [],
         modifiers: {
-            strength: 2,
-            dexterity: 1,
-            constitution: 2,
-            intelligence: 0,
-            wisdom: 0,
-            charisma: 0,
+            strength: Number(mods.strength ?? abilityMod(strength)),
+            dexterity: Number(mods.dexterity ?? abilityMod(dexterity)),
+            constitution: Number(mods.constitution ?? abilityMod(constitution)),
+            intelligence: Number(mods.intelligence ?? abilityMod(intelligence)),
+            wisdom: Number(mods.wisdom ?? abilityMod(wisdom)),
+            charisma: Number(mods.charisma ?? abilityMod(charisma)),
         },
-        proficiencyBonus: 2,
+        proficiencyBonus,
         hp: { current: hp, max: maxHp, temp: 0 },
         ac: { value: ac, source: 'penai' },
         xp: 0,
@@ -110,11 +154,11 @@ export function mechanicalPackToCharacter(
             cp: Number(coins.cp ?? 0),
         },
         currentWeight: 0,
-        carryingCapacity: 150,
-        spellSlots: {},
+        carryingCapacity: Math.max(150, strength * 15),
+        spellSlots,
         classLevelsData: [],
         traits: [],
-        feats: [],
+        feats: Array.isArray(ch?.feats) ? (ch!.feats as Character['feats']) : [],
         languages: ['Comum'],
         subclassFlavor: null,
         currentRegion: regionLabel,
@@ -137,20 +181,23 @@ export function mechanicalPackToCharacter(
 
 export function penaiSessionToSessaoIA(row: Record<string, unknown>, heroName?: string): SessaoIA {
     const now = new Date().toISOString();
+    const name = heroName ?? (typeof row.heroName === 'string' ? row.heroName : undefined);
+    const race = typeof row.heroRace === 'string' ? row.heroRace : 'Humano';
+    const characterClass = typeof row.heroClass === 'string' ? row.heroClass : 'Aventureiro';
     return {
         id: Number(row.id),
         nome: String(row.nome ?? 'Sessão'),
         userId: Number(row.userId ?? 1),
         characterId: null,
         stateVersion: Number(row.stateVersion ?? 0),
-        character: heroName
+        character: name
             ? {
                   id: Number(row.id),
-                  name: heroName,
+                  name,
                   level: 1,
-                  characterClass: 'Aventureiro',
+                  characterClass,
                   subclassFlavor: '',
-                  race: 'Humano',
+                  race,
               }
             : undefined,
         createdAt: String(row.createdAt ?? now),

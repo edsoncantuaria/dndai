@@ -5,6 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { AmbientBackground, DndButton, DndCard, DndHeading, DndInput } from '@/components/primitives';
 
+const GEMINI_STUDIO_URL = 'https://aistudio.google.com/apikey';
+
 export function ApiKeyStep() {
   const { saveApiKey, logout, isActionLoading } = useAuth();
   const { apiKey } = useSettingsContext();
@@ -20,24 +22,25 @@ export function ApiKeyStep() {
     <div className="relative flex min-h-screen items-center justify-center px-4">
       <AmbientBackground variant="parchment" />
       <DndCard padding="lg" className="relative z-10 w-full max-w-md">
-        <DndHeading variant="section">Chave OpenRouter</DndHeading>
+        <DndHeading variant="section">Chave Gemini</DndHeading>
         <p className="mt-2 font-ui text-sm text-dnd-parchment-muted">
-          Licença ativa! Informe sua chave do OpenRouter para o mestre narrar (modelos free recomendados).
-          O Gemini permanece opcional para voz e homebrew com IA.
+          Licença ativa! Informe sua chave do Google AI Studio para o Mestre narrar a aventura.
+          Ela fica associada à sua conta para a mesa funcionar.
         </p>
         <a
-          href="https://openrouter.ai/keys"
+          href={GEMINI_STUDIO_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-2 inline-block font-ui text-xs text-dnd-gold hover:underline"
         >
-          Criar chave no OpenRouter
+          Criar chave gratuita no AI Studio
         </a>
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <DndInput
-            label="Chave da API"
+            label="Chave da API (Gemini)"
             type="password"
             autoComplete="off"
+            placeholder="AIza…"
             value={key}
             onChange={(e) => setKey(e.target.value)}
             required

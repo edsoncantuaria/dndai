@@ -27,14 +27,17 @@ export type ContextualDockVisibility = {
   shopLabel: string;
   showQuestComplete: boolean;
   showSrdTools: boolean;
+  showSpellTools: boolean;
 };
 
 export function resolveContextualDockVisibility(input: {
   combatActive: boolean;
   actionOptionTexts: string[];
   shopState: ShopState | null;
+  knownSpellCount?: number;
 }): ContextualDockVisibility {
   const { combatActive, actionOptionTexts, shopState } = input;
+  const knownSpellCount = input.knownSpellCount ?? 0;
 
   const hasShopCatalog = Boolean(shopState?.inventory?.length);
   const shopHintsInOptions = optionsMatch(SHOP_OPTION_HINTS, actionOptionTexts);
@@ -45,11 +48,13 @@ export function resolveContextualDockVisibility(input: {
     !combatActive && optionsMatch(QUEST_OPTION_HINTS, actionOptionTexts);
 
   const showSrdTools = combatActive;
+  const showSpellTools = !combatActive && knownSpellCount > 0;
 
   return {
     showReopenShop,
     shopLabel: shopState?.merchantName ?? shopState?.name ?? 'Mercador',
     showQuestComplete,
     showSrdTools,
+    showSpellTools,
   };
 }

@@ -116,6 +116,17 @@
 
 ## P1 — Observabilidade ✅ · P2 — Escala ✅ · Frontend F. ✅
 
+### F.2 Gameplay Shell v3 ✅ (maio/2026)
+
+| Entrega | Onde |
+|---------|------|
+| HeroVitalsStrip no top bar (PV, CA, atributos) | `HeroVitalsStrip.tsx`, `GameplayTopBar.tsx` |
+| Desktop 3 tabs: Mapa · Campanha · Bolsa | `GameplaySidePanel.tsx` |
+| Mobile 4 tabs: Narração · Mapa · Bolsa · Mais | `GameplayShell.tsx` |
+| Registro WS removido da UX jogador | `isDebugWsEnabled()` · `GameplaySidePanelContent` |
+| Equipar/desequipar UUID PENAI + UI explícita | `inventoryMotor.ts`, `ItemCard.tsx`, `newUseGameState` |
+| Docs | `DESIGN_FRONTEND.md` §6–§9 |
+
 ---
 
 ## PENAI — GameMaster greenfield (2026)
@@ -129,10 +140,90 @@
 | 4 PENAI 100% gameplay (A–F) | ✅ | Inventário, loja, descanso, loot, combate P0.4 FSM, lobby v2 |
 | 5 Wipe legado + auth/homebrew/v2 | ✅ | Fastify único · cofre `world_entities` · JWT WS |
 | 6 Visão completa PENAI | ✅ | apply-level-up, spell SRD, world pulse, facções, clone, canon |
+| **P6 GameMaster 9/10** | ✅ | adapters, memory split, rename domínio, simulation engine, GOAP, lifecycle, homebrew compat |
 
-Testes PENAI: `npm run test --prefix backend` (37+) · `npm run penai:smoke --prefix backend`
+Testes PENAI: `npm run test --prefix backend` (39+) · `npm run penai:smoke --prefix backend`
 
-Testes PENAI: `npm run test --prefix backend` (30+) · `npm run penai:smoke --prefix backend`
+### P6 — GameMaster 9/10 ✅
+
+| ID | Entrega | Onde |
+|----|---------|------|
+| P6.1 | Camada `adapters/` (Gemini + Qdrant + contracts) | `GameMaster/adapters/` |
+| P6.2 | Rename domínio (sem sufixo Penai em combat/world/character/memory/npc) | `git mv` + `GAME_MOTOR` |
+| P6.3 | Memória 3 camadas | `memory/globalMemory`, `sessionMemory`, `narrativeMemory` |
+| P6.4 | Pipeline enxuto + event registry | `engine/turnPipeline.ts`, `events/types.ts` |
+| P6.5 | Entity lifecycle | `world/entityLifecycle.ts` |
+| P6.6 | Simulation engine | `world/simulation/engine.ts` + ticks |
+| P6.7 | GOAP NPCs | `npc/goap/` |
+| P6.8 | Homebrew compat | `homebrew/compatibilityMatrix.ts` |
+| P6.9 | Canon + facções autônomas | `canonApprovalWorkflow`, `factionTick`, rumor graph |
+
+---
+
+## P7 — Survival Systems (RPG por campanha) ✅
+
+> **Não é MMO.** Economia, reputação, quests e region state são **por `game_sessions`**. Multiplayer = **P8 futuro**.
+
+| ID | Entrega | Onde |
+|----|---------|------|
+| P7.0 | Docs Campanha vs Canon | `ECOSSISTEMA.md`, `PENAI.md`, `VALIDACAO_SENIOR.md` |
+| P7.1 | `entityTier` + GC campanha | `WorldEntity`, `campaignGc.ts`, `campaignGcWorkflow` |
+| P7.2 | Memory decay | `decayPolicy.ts`, `memoryCompactionWorkflow` |
+| P7.3 | Camada sistêmica | `session_region_*`, ticks causais, `CREATURE_SLAIN` projector |
+| P7.4 | Knowledge + quests + aggregate | `session_knowledge`, `session_quests`, `sessionAggregate.ts` |
+
+Testes: `penaiCampaignSurvival.spec.ts` · `npm run test --prefix backend`
+
+---
+
+## P7.5 — UI Campanha + polish + prod ✅
+
+| ID | Entrega | Onde |
+|----|---------|------|
+| P7.5.1 | `GET /api/v2/sessions/:id/campaign` | `sessionCampaignView.ts`, `penaiApi.ts` |
+| P7.5.2 | GC por `gameClock` + rumor→knowledge | `campaignGc.ts`, `rumorTick.ts`, `lastSeenGameDay` |
+| P7.5.3 | Migrations Postgres P7 | `penai:migration:run`, `database/migrations/` |
+| P7.5.4 | CI Postgres integration | `.github/workflows/ci.yml` |
+| P7.5.5 | Aba **Campanha** (mood, quests, reputação) | `CampanhaPanel`, `useSessionCampaign` |
+| P7.5.6 | Hub onboarding PENAI | `PenaiEngineIntro`, `PenaiIntroModal` |
+
+---
+
+## P-AUTH / P-ROLL / P-HB / P-UI — Autoridade motor + PT-BR ✅ (maio/2026)
+
+> Princípio: jogador **influencia** a cena; o **motor** altera estado. Ver `ECOSSISTEMA.md` §3.1 (itens 7–9).
+
+| ID | Entrega | Onde |
+|----|---------|------|
+| P-UI.1/2 | Adapter PENAI: spells, raça, classe, atributos do `srdBuild` | `penaiCharacterAdapter.ts`, `formatMechanicalPack.ts` |
+| P-UI.3 | Sub-raça obrigatória quando raça tem sub-raças | `stepCompleteness.ts` |
+| P-UI.4 | Dock "Conjurar" fora de combate quando `knownSpells > 0` | `contextualDockActions.ts`, `GameplayActionDock.tsx` |
+| P-ROLL.1 | Rolagem server-authoritative | `rollPipeline.ts`, `wsHandlers.ts`, `usePenaiTurnPipeline.ts` |
+| P-AUTH.1 | Anti-claim texto livre (ouro/item/meta-roll) | `actionSense.ts` |
+| P-AUTH.2 | Gemini fail-closed em produção | `adapters/gemini/actionSense.ts` |
+| P-AUTH.3 | Narração não granta mecânica | `defaultLocale.ts`, `narrationGuard.ts`, `turnPipeline.ts` |
+| P-AUTH.4 | WS ownership sessão | `wsHandlers.ts` (`processAction` + `submitRollResult`) |
+| P-AUTH.5 | Copy ação livre na UI | `GameplayFreeActionSheet.tsx` |
+| P-HB.1 | Seed bundle `srd-ptbr-core` | `seedSrdPtBrHomebrew.ts`, `npm run penai:seed:srd-ptbr` |
+| P-HB.2 | Auto-install no registro/sessão/login | `penaiAuthService.ts`, `sessionService.ts` |
+| P-HB.3 | `GET /api/v2/translations` | `app/routes/v2/translations.ts` |
+| P-HB.4 | Frontend traduções default ON | `translationService.ts`, `translator.ts` |
+| P-HB.5 | Raças/classes PT via PHB BE + overrides | `extractPhbPtBrOverrides.ts`, `buildSrdPtBrRaceClassForks.ts`, `data/srdPtBr/overrides/` |
+| P-HB.6 | Traits raciais PT | `TranslatorTraits.ts`, `buildSrdPtBrTraitForks.ts` |
+| P-DATA | Path único `/v2/data` + smoke ops | `docs/DATA_SRD.md`, `penai:smoke:srd-ptbr` |
+| P-DATA.2 | MySQL seed deprecated + migrate script | `migrate-data.ts`, `penai:migrate:homebrew-mysql` |
+| P-VAULT | Editar herói cofre (campanhas futuras) | FE `HeroVault` + `updateVaultCharacter`; BE `updateVaultHero` |
+
+Testes: `penaiRollExploit.spec.ts` · `penaiActionSense.spec.ts` · `penaiSeedSrdPtBr.spec.ts` · `penaiCharacterAdapter.spec.ts`
+
+---
+
+## P8 — Multiplayer (futuro)
+
+| Item | Motivo |
+|------|--------|
+| `session_members` | Party 4–5 jogadores no WS |
+| Shard / Session Actor | Só se escala além de campanhas longas isoladas |
 
 ---
 
@@ -151,6 +242,7 @@ Testes PENAI: `npm run test --prefix backend` (30+) · `npm run penai:smoke --pr
 
 ```bash
 npm run test --prefix backend
+npm run penai:seed:srd-ptbr --prefix backend
 npm run session:smoke --prefix backend
 npm run chaos:smoke --prefix backend
 DB_SYNC=false npm run migration:run --prefix backend

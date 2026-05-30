@@ -21,6 +21,8 @@ export type PenaiHomebrewContentType =
     | 'background'
     | 'feat'
     | 'skill'
+    | 'trait'
+    | 'feature'
     | 'translation';
 
 export type PenaiHomebrewSourceKind = 'original' | 'translation' | 'fork';
@@ -58,7 +60,7 @@ export class PenaiHomebrewContent {
 
     @ManyToOne('PenaiHomebrewBundle', { nullable: true, onDelete: 'SET NULL' })
     @JoinColumn({ name: 'bundleId' })
-    bundle!: import('./HomebrewBundlePenai.js').PenaiHomebrewBundle | null;
+    bundle!: import('./HomebrewBundle.js').PenaiHomebrewBundle | null;
 
     @Column({ type: 'varchar', length: 16, default: 'original' })
     sourceKind!: PenaiHomebrewSourceKind;

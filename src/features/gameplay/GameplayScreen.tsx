@@ -86,6 +86,12 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
 
   const activeRollRequest = penaiMode ? penaiTurn.playerRollRequest : playerRollRequest;
   const showDiceModal = Boolean(activeRollRequest);
+  const penaiServerRolls = penaiMode
+    ? (penaiTurn.lastMechanical?.serverRolls as number[] | undefined)
+    : undefined;
+  const penaiServerRollTotal = penaiMode
+    ? (penaiTurn.lastMechanical?.rollTotal as number | undefined)
+    : undefined;
   const showCombatHud = combatState?.isActive;
 
   useGameplayScrollLock(Boolean(character));
@@ -275,6 +281,8 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
             }
             show={showDiceModal}
             anchorId="dice-roll-modal-anchor"
+            serverRolls={penaiServerRolls ?? null}
+            serverRollTotal={penaiServerRollTotal ?? null}
           />
         )}
 
@@ -300,6 +308,9 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
           region={region}
           timeLabel={character.worldState?.timeOfDay}
           weatherLabel={character.worldState?.weather}
+          character={character}
+          combatState={combatState}
+          sessionId={sessionId}
           onMenuClick={returnToMenu}
           onOpenWorldMap={handleOpenWorldMap}
           onOpenSettings={() => window.dispatchEvent(new Event('game-open-settings'))}

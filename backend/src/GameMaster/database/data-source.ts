@@ -13,8 +13,8 @@ import { SessionInstalledModule } from './entities/SessionInstalledModule.js';
 import { NarrationCompletion } from './entities/NarrationCompletion.js';
 import { PenaiLicenseKey } from './entities/PenaiLicenseKey.js';
 import { PenaiUser } from './entities/PenaiUser.js';
-import { PenaiHomebrewContent } from './entities/HomebrewContentPenai.js';
-import { PenaiHomebrewBundle } from './entities/HomebrewBundlePenai.js';
+import { PenaiHomebrewContent } from './entities/HomebrewContent.js';
+import { PenaiHomebrewBundle } from './entities/HomebrewBundle.js';
 import { CanonicalRegionLink } from './entities/CanonicalRegionLink.js';
 import { TravelModeCatalog } from './entities/TravelModeCatalog.js';
 import { NarrativeSummary } from './entities/NarrativeSummary.js';
@@ -26,6 +26,14 @@ import { HeroInventoryItem } from './entities/HeroInventoryItem.js';
 import { SessionCombatEncounter } from './entities/SessionCombatEncounter.js';
 import { SessionCombatant } from './entities/SessionCombatant.js';
 import { SessionFactionState } from './entities/SessionFactionState.js';
+import { SessionRegionState } from './entities/SessionRegionState.js';
+import { SessionRegionEconomy } from './entities/SessionRegionEconomy.js';
+import { SessionFactionInfluence } from './entities/SessionFactionInfluence.js';
+import { SessionEntityReputation } from './entities/SessionEntityReputation.js';
+import { SessionKnowledge } from './entities/SessionKnowledge.js';
+import { SessionQuest } from './entities/SessionQuest.js';
+import { SessionSnapshot } from './entities/SessionSnapshot.js';
+import { PenaiP7Baseline1748500000000 } from './migrations/1748500000000-PenaiP7Baseline.js';
 
 export const PenaiDataSource = new DataSource({
     type: 'postgres',
@@ -58,8 +66,16 @@ export const PenaiDataSource = new DataSource({
         SessionCombatEncounter,
         SessionCombatant,
         SessionFactionState,
+        SessionRegionState,
+        SessionRegionEconomy,
+        SessionFactionInfluence,
+        SessionEntityReputation,
+        SessionKnowledge,
+        SessionQuest,
+        SessionSnapshot,
     ],
-    migrations: [],
+    migrations: [PenaiP7Baseline1748500000000],
+    migrationsTableName: 'penai_migrations',
 });
 
 let initialized = false;
@@ -72,6 +88,8 @@ export async function initPenaiDatabase(): Promise<void> {
     if (process.env.PENAI_SEED_ON_BOOT === 'true') {
         const { seedPenaiWorld } = await import('./seed/seedWorldPtBr.js');
         await seedPenaiWorld();
+        const { seedSrdPtBrHomebrew } = await import('./seed/seedSrdPtBrHomebrew.js');
+        await seedSrdPtBrHomebrew();
     }
 }
 

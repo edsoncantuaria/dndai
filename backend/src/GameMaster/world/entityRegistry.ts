@@ -2,9 +2,11 @@ import { PenaiDataSource } from '../database/data-source.js';
 import { WorldEntity } from '../database/entities/WorldEntity.js';
 import { SessionEntityState } from '../database/entities/SessionEntityState.js';
 import { randomUUID } from 'crypto';
-import { embedText } from '../ai/geminiEmbeddings.js';
-import { isPenaiQdrantReady, searchPenaiVectors, upsertPenaiVector } from '../memory/qdrantPenai.js';
+import { defaultProviders } from '../adapters/index.js';
+import { COLLECTIONS } from '../adapters/qdrant/vectorStore.js';
 import { parseNpcPersonality } from '../schemas/npcPersonality.js';
+import { defaultEntityTierForType } from './campaignGc.js';
+import { loadSessionGameClock } from './gameClock.js';
 
 export async function findEntityCandidates(opts: {
     regionSlug?: string;
@@ -40,6 +42,8 @@ export async function markEntityAppeared(
     }
     state.appeared = true;
     state.lastSeenAt = new Date();
+    const clock = await loadSessionGameClock(sessionId);
+    state.lastSeenGameDay = clock.day;
     if (snapshot) state.sessionStatsSnapshot = snapshot;
     await repo.save(state);
 }
@@ -48,12 +52,12 @@ export async function findEntityCandidatesByEmbedding(
     query: string,
     opts: { regionSlug?: string; limit?: number },
 ): Promise<Array<{ id: string; slug: string; displayName: string; entityType: string; score: number }>> {
-    if (!isPenaiQdrantReady() || !query.trim()) return [];
+    if (!defaultProviders.vectorStore.isReady() || !query.trim()) return [];
 
-    const vector = await embedText(query);
+    const vector = await defaultProviders.embedding.embed(query);
     if (!vector.length) return [];
 
-    const hits = await searchPenaiVectors('penai_npc_profiles', vector, opts.limit ?? 5);
+    const hits = await defaultProviders.vectorStore.search(COLLECTIONS[2], vector, opts.limit ?? 5);
     if (!hits.length) return [];
 
     const repo = PenaiDataSource.getRepository(WorldEntity);
@@ -110,6 +114,7 @@ export async function createNpcEntity(opts: {
     stats?: Record<string, unknown>;
     personality?: Record<string, unknown>;
     createdByUserId?: number;
+    entityTier?: import('../database/entities/types/EntityTier.js').EntityTier;
 }): Promise<WorldEntity> {
     const repo = PenaiDataSource.getRepository(WorldEntity);
     const slug = `${opts.displayName}-${randomUUID().slice(0, 8)}`
@@ -122,6 +127,7 @@ export async function createNpcEntity(opts: {
         repo.create({
             id: randomUUID(),
             entityType: 'npc',
+            entityTier: opts.entityTier ?? defaultEntityTierForType('npc'),
             canonical: true,
             slug,
             displayName: opts.displayName,
@@ -136,11 +142,13 @@ export async function createNpcEntity(opts: {
         }),
     );
 
-    if (isPenaiQdrantReady()) {
-        const vector = await embedText(`${entity.displayName} ${entity.description ?? ''}`);
+    if (defaultProviders.vectorStore.isReady()) {
+        const vector = await defaultProviders.embedding.embed(
+            `${entity.displayName} ${entity.description ?? ''}`,
+        );
         if (vector.length) {
             const pointId = randomUUID();
-            await upsertPenaiVector('penai_npc_profiles', pointId, vector, {
+            await defaultProviders.vectorStore.upsert(COLLECTIONS[2], pointId, vector, {
                 entityId: entity.id,
                 slug: entity.slug,
                 displayName: entity.displayName,

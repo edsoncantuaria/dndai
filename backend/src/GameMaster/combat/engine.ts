@@ -8,12 +8,12 @@ import {
     normalizePenaiCombatPhase,
     setPenaiCombatPhase,
     advancePenaiCombatTurn,
-} from './combatPhasePenai.js';
-import { syncHeroHpPenai, syncHeroHpToCanonical } from '../character/syncHeroHpPenai.js';
+} from './phaseGate.js';
+import { syncHeroHpPenai, syncHeroHpToCanonical } from '../character/syncHeroHp.js';
 import {
     buildCombatVictoryLootPenai,
     persistPendingLootOfferPenai,
-} from '../loot/lootPenai.js';
+} from '../loot/lootService.js';
 
 export type PenaiCombatState = {
     isActive: boolean;
@@ -157,6 +157,8 @@ export async function applyCombatEntityDeltaPenai(
             round: enc?.round ?? 1,
         });
         await persistPendingLootOfferPenai(sessionId, loot);
+        const { emitCampaignCombatVictory } = await import('./campaignHooks.js');
+        await emitCampaignCombatVictory(sessionId, encounterId);
         await endPenaiCombat(sessionId, encounterId, 'victory');
     }
 }

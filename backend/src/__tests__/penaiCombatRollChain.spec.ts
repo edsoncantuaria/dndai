@@ -60,7 +60,7 @@ describe('penai roll chain core', () => {
 describe('penai combat narration phases', () => {
     it('isPenaiCombatNarrationPhase reconhece RESOLVING e AWAITING_NARRATION', async () => {
         const { isPenaiCombatNarrationPhase } = await import(
-            '../GameMaster/combat/combatPhasePenai.js'
+            '../GameMaster/combat/phaseGate.js'
         );
         assert.equal(isPenaiCombatNarrationPhase('RESOLVING'), true);
         assert.equal(isPenaiCombatNarrationPhase('AWAITING_NARRATION'), true);
@@ -69,7 +69,7 @@ describe('penai combat narration phases', () => {
 
     it('normalizePenaiCombatPhase mapeia ACTIVE → ENCOUNTER_ACTIVE', async () => {
         const { normalizePenaiCombatPhase } = await import(
-            '../GameMaster/combat/combatPhasePenai.js'
+            '../GameMaster/combat/phaseGate.js'
         );
         assert.equal(normalizePenaiCombatPhase('ACTIVE'), 'ENCOUNTER_ACTIVE');
         assert.equal(normalizePenaiCombatPhase('ENDED'), 'ENCOUNTER_END');
@@ -79,7 +79,7 @@ describe('penai combat narration phases', () => {
 describe('penai roll pipeline deferNarration', () => {
     it('resolvePenaiRoll emite deferNarration quando há follow-up (sem DB)', async () => {
         const { savePendingPenaiRoll, clearPendingPenaiRoll } = await import(
-            '../GameMaster/motor/penaiRollStore.js'
+            '../GameMaster/motor/rollStore.js'
         );
         const sessionId = 88001;
         await clearPendingPenaiRoll(sessionId);

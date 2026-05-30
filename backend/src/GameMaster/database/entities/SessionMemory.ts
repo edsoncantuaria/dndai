@@ -18,6 +18,15 @@ export class SessionMemory {
     @Column({ type: 'varchar', length: 16, default: 'pt-BR' })
     locale!: string;
 
+    @Column({ type: 'int', default: 50 })
+    importanceScore!: number;
+
+    @Column({ type: 'timestamptz', nullable: true })
+    lastReferencedAt!: Date | null;
+
+    @Column({ type: 'timestamptz', nullable: true })
+    decayedAt!: Date | null;
+
     @CreateDateColumn({ type: 'timestamptz' })
     createdAt!: Date;
 }

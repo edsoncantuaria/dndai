@@ -17,12 +17,22 @@ export function isPredominantlyEnglish(text: string): boolean {
     return enHits / words.length > 0.12;
 }
 
+const MECHANICAL_GRANT =
+    /\b(você recebe|recebes|ganha|ganhou|encontra(?:\s+\d+|\s+um|\s+uma|\s+o|\s+a)?\s*(?:\d+\s*)?(?:gp|po|moed|ouro|tesouro|espada|armadura|item|potion|poção)|sobe(?:\s+para)?\s+(?:o\s+)?nível|ganha(?:\s+\d+)?\s+xp)\b/i;
+
+export function detectMechanicalGrantInNarration(narration: string): boolean {
+    return MECHANICAL_GRANT.test(narration.trim());
+}
+
 export function assertNarrationPtBr(narration: string): { ok: boolean; reason?: string } {
     if (!narration?.trim()) {
         return { ok: false, reason: 'Narração vazia' };
     }
     if (isPredominantlyEnglish(narration)) {
         return { ok: false, reason: 'Narração parece estar em inglês' };
+    }
+    if (detectMechanicalGrantInNarration(narration)) {
+        return { ok: false, reason: 'Narração concede recurso mecânico (ouro/item/HP/XP)' };
     }
     return { ok: true };
 }

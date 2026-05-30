@@ -1,15 +1,14 @@
 import { buildNarrativeContextPack } from '../memory/narrativePack.js';
-import { renderNarrationPtBr } from '../ai/geminiClient.js';
+import { defaultProviders } from '../adapters/index.js';
 import { assertNarrationPtBr } from '../locale/narrationGuard.js';
 import { appendWorldEvent } from '../events/store.js';
 import { PenaiDataSource } from '../database/data-source.js';
 import { GameSession } from '../database/entities/GameSession.js';
 import { storeSessionMemory, storeWorldMemory } from '../memory/store.js';
+import { maybeScheduleMemoryCompaction } from '../memory/narrativeMemory.js';
 import { formatMechanicalPack } from '../character/formatMechanicalPack.js';
 import { buildContextualActionOptions } from '../motor/contextualActionOptions.js';
 import { publishWsToUser } from '../transport/wsPubSub.js';
-import { findEntityCandidates, findOrReuseNpcEntity, markEntityAppeared } from '../world/entityRegistry.js';
-import { startMemoryCompactionWorkflow } from '../../temporal/client.js';
 import { completePenaiTurnNarration } from '../motor/turnLock.js';
 import {
     resolveInferenceApiKey,
@@ -20,7 +19,7 @@ import {
     shouldAllowPenaiCombatNarration,
     advancePenaiCombatPhaseAfterNarration,
     getActivePenaiCombatPhase,
-} from '../combat/combatPhasePenai.js';
+} from '../combat/phaseGate.js';
 
 export type TurnPipelineInput = {
     sessionId: number;
@@ -38,6 +37,7 @@ export type TurnPipelineResult = {
     actionOptions: Array<{ id: string; label: string }>;
 };
 
+/** Orquestrador enxuto: pack → narrate → persist → WS → complete turn. */
 export async function runTurnPipeline(input: TurnPipelineInput): Promise<TurnPipelineResult> {
     const session = await PenaiDataSource.getRepository(GameSession).findOne({
         where: { id: input.sessionId },
@@ -67,27 +67,10 @@ export async function runTurnPipeline(input: TurnPipelineInput): Promise<TurnPip
         motorHints: input.motorHints,
     });
 
-    const candidates = await findEntityCandidates({
-        regionSlug: session.currentRegionSlug ?? undefined,
-        limit: 3,
+    maybeScheduleMemoryCompaction({
+        sessionId: input.sessionId,
+        actionSequence: input.actionSequence,
     });
-    if (candidates[0]) {
-        await markEntityAppeared(input.sessionId, candidates[0].id, { level: 1 });
-    } else if (/npc|encontr|falar com/i.test(input.playerAction)) {
-        const reused = await findOrReuseNpcEntity({
-            displayName: 'Viajante',
-            createdByUserId: input.userId,
-        });
-        await markEntityAppeared(input.sessionId, reused.id, { level: 1 });
-    }
-
-    if (input.actionSequence > 0 && input.actionSequence % 8 === 0) {
-        void startMemoryCompactionWorkflow({
-            sessionId: input.sessionId,
-            fromActionSequence: Math.max(0, input.actionSequence - 8),
-            toActionSequence: input.actionSequence,
-        });
-    }
 
     const userApiKey = await resolveInferenceApiKey(input.userId);
     if (isPlatformBillingEnabled()) {
@@ -108,7 +91,9 @@ export async function runTurnPipeline(input: TurnPipelineInput): Promise<TurnPip
     let narration = '';
     let tone: string | undefined;
     for (let attempt = 0; attempt < 3; attempt++) {
-        const out = await renderNarrationPtBr({ contextPack: pack, userApiKey: userApiKey ?? undefined });
+        const out = await defaultProviders.narration.render(pack, {
+            userApiKey: userApiKey ?? undefined,
+        });
         const guard = assertNarrationPtBr(out.narration);
         if (guard.ok) {
             narration = out.narration;
@@ -134,6 +119,12 @@ export async function runTurnPipeline(input: TurnPipelineInput): Promise<TurnPip
         payload: { actionId: input.actionId, actionSequence: input.actionSequence, tone },
         canonCandidate: true,
     });
+    await appendWorldEvent({
+        type: 'TURN_NARRATED',
+        sessionId: input.sessionId,
+        payload: { actionId: input.actionId, actionSequence: input.actionSequence },
+    });
+
     void storeWorldMemory({
         sessionId: input.sessionId,
         text: narration,
@@ -157,14 +148,7 @@ export async function runTurnPipeline(input: TurnPipelineInput): Promise<TurnPip
         actionId: input.actionId,
         actionSequence: input.actionSequence,
         locale: 'pt-BR',
-        entries: [
-            {
-                timestamp: timeLabel,
-                content: narration,
-                tone,
-                consequences: [],
-            },
-        ],
+        entries: [{ timestamp: timeLabel, content: narration, tone, consequences: [] }],
     });
 
     await publishWsToUser(input.userId, {

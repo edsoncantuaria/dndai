@@ -1,6 +1,6 @@
 import { PenaiDataSource } from '../database/data-source.js';
 import { GameSession } from '../database/entities/GameSession.js';
-import { hasPendingPenaiRoll } from './penaiRollStore.js';
+import { hasPendingPenaiRoll } from './rollStore.js';
 
 export async function isPenaiTurnLocked(sessionId: number): Promise<{ locked: boolean; reason?: string }> {
     const session = await PenaiDataSource.getRepository(GameSession).findOne({

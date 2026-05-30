@@ -87,26 +87,30 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
     [actionOptions]
   );
 
+  const knownSpellCount = Array.isArray(character?.spells) ? character.spells.length : 0;
+
   const contextual = useMemo(
     () =>
       resolveContextualDockVisibility({
         combatActive: combatState.isActive,
         actionOptionTexts: optionTexts,
         shopState,
+        knownSpellCount,
       }),
-    [combatState.isActive, optionTexts, shopState]
+    [combatState.isActive, optionTexts, shopState, knownSpellCount]
   );
 
   const showContextRow =
     contextual.showReopenShop ||
     contextual.showQuestComplete ||
-    contextual.showSrdTools;
+    contextual.showSrdTools ||
+    contextual.showSpellTools;
 
   useEffect(() => {
-    if (!combatState.isActive) {
+    if (!combatState.isActive && !knownSpellCount) {
       setShowStructuredTools(false);
     }
-  }, [combatState.isActive]);
+  }, [combatState.isActive, knownSpellCount]);
 
   const handleSelect = (index: number, text: string) => {
     if (isActionLocked) return;
@@ -213,6 +217,16 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
                 </DndButton>
               ) : null}
             </div>
+            {contextual.showSpellTools ? (
+              <button
+                type="button"
+                className="ml-auto font-ui text-[10px] uppercase tracking-wider text-dnd-parchment-muted hover:text-dnd-gold disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isActionLocked}
+                onClick={() => setShowStructuredTools((v) => !v)}
+              >
+                {showStructuredTools ? 'Ocultar magias' : 'Conjurar'}
+              </button>
+            ) : null}
             {contextual.showSrdTools ? (
               <button
                 type="button"
@@ -225,12 +239,18 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
             ) : null}
           </div>
         ) : null}
-        {showStructuredTools && contextual.showSrdTools ? (
+        {showStructuredTools && (contextual.showSrdTools || contextual.showSpellTools) ? (
           <div className="max-h-40 space-y-2 overflow-y-auto">
-            <StructuredAttackPanel variant="v2" />
-            <StructuredSkillPanel variant="v2" />
-            <StructuredSpellPanel variant="v2" />
-            <StructuredRestPanel variant="v2" />
+            {contextual.showSrdTools ? (
+              <>
+                <StructuredAttackPanel variant="v2" />
+                <StructuredSkillPanel variant="v2" />
+                <StructuredRestPanel variant="v2" />
+              </>
+            ) : null}
+            {(contextual.showSrdTools || contextual.showSpellTools) ? (
+              <StructuredSpellPanel variant="v2" />
+            ) : null}
           </div>
         ) : null}
       </>

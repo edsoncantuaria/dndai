@@ -1,5 +1,5 @@
 // src/hooks/character-creation/useCharacterCreator.ts
-import { useReducer, useMemo, useCallback } from 'react';
+import { useReducer, useMemo, useCallback, useEffect, useRef } from 'react';
 import { characterCreatorReducer, initialState, CharacterCreatorState } from './reducer';
 import { useAttributeManager } from './useAttributeManager';
 import { useDataManager } from './useDataManager';
@@ -24,10 +24,26 @@ export type UseCharacterCreatorOptions = {
   allLanguages: ApiListItem[];
   /** Passo atual do wizard — equipamento só bloqueia a partir do passo 5 */
   currentStep?: number;
+  /** Estado inicial ao editar herói do cofre */
+  initialSnapshot?: Partial<import('./reducer').CharacterCreatorState>;
 };
 
-export const useCharacterCreator = ({ allLanguages, currentStep = 1 }: UseCharacterCreatorOptions) => {
-    const [state, dispatch] = useReducer(characterCreatorReducer, initialState);
+export const useCharacterCreator = ({ allLanguages, currentStep = 1, initialSnapshot }: UseCharacterCreatorOptions) => {
+    const [state, dispatch] = useReducer(characterCreatorReducer, {
+        ...initialState,
+        ...(initialSnapshot ?? {}),
+    });
+    const hydratedRef = useRef(Boolean(initialSnapshot));
+
+    useEffect(() => {
+        if (!initialSnapshot || hydratedRef.current) return;
+        for (const [field, value] of Object.entries(initialSnapshot)) {
+            if (value !== undefined) {
+                dispatch({ type: 'SET_FIELD', payload: { field: field as keyof CharacterCreatorState, value } });
+            }
+        }
+        hydratedRef.current = true;
+    }, [initialSnapshot]);
 
     const setField = useCallback((field: keyof CharacterCreatorState, value: any) => {
         dispatch({ type: 'SET_FIELD', payload: { field, value } });

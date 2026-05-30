@@ -26,6 +26,7 @@ export interface GameMenuContentProps {
   onCharacterCreated: () => void;
   onStartFromVault: (character: Character, existingSession?: SessaoIA | null) => void;
   onRequestDeleteCharacter: (character: Character) => void;
+  onRequestEditCharacter: (character: Character) => void;
   onRequestDeleteSession: (session: SessaoIA) => void;
   onRequestRenameSession: (session: SessaoIA) => void;
   onRequestCloneSession: (session: SessaoIA) => void;
@@ -38,6 +39,7 @@ export interface GameMenuContentProps {
   selectedSessionForAction: SessaoIA | null;
   handleActionModalClose: () => void;
   openSessionActionModal: (session: SessaoIA) => void;
+  editCharacterId?: string | number | null;
 }
 
 const HUB_STAGES: Array<'main_menu' | 'session_list' | 'character_vault'> = [
@@ -100,6 +102,7 @@ const GameMenuContent: React.FC<GameMenuContentProps> = (props) => {
         onContinueGame={props.onContinueGame}
         onStartFromVault={props.onStartFromVault}
         onRequestDeleteCharacter={props.onRequestDeleteCharacter}
+        onRequestEditCharacter={props.onRequestEditCharacter}
         onRequestDeleteSession={props.onRequestDeleteSession}
         onRequestRenameSession={props.onRequestRenameSession}
         onRequestCloneSession={props.onRequestCloneSession}
@@ -115,6 +118,17 @@ const GameMenuContent: React.FC<GameMenuContentProps> = (props) => {
         onCharacterCreated={onCharacterCreated}
         returnToMenu={onReturnToMenu}
         gameStage={gameStage}
+      />
+    );
+  }
+
+  if (gameStage === 'editing_character') {
+    return (
+      <Game
+        onCharacterCreated={onCharacterCreated}
+        returnToMenu={onReturnToMenu}
+        gameStage={gameStage}
+        editCharacterId={props.editCharacterId}
       />
     );
   }

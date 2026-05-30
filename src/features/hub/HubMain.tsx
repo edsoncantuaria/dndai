@@ -18,6 +18,8 @@ import { cinematicImages } from '@/lib/cinematicAssets';
 import { HubLayout, HubNavCard, HubSectionHeader, HubStatPill } from './HubLayout';
 import { SessionGrid } from './session/SessionGrid';
 import { SessionActionsSheet } from './session/SessionCard';
+import { PenaiEngineIntro } from './PenaiEngineIntro';
+import { PenaiIntroModal } from './PenaiIntroModal';
 import { useState } from 'react';
 
 export interface HubMainProps {
@@ -170,11 +172,14 @@ export function HubMain({
         </div>
       }
     >
+      <PenaiIntroModal />
       <div className="mb-6 flex flex-wrap items-center gap-2">
         <HubStatPill variant="inline" label="Crônicas" value={sessions.length} />
         <HubStatPill variant="inline" label="Heróis" value={charactersCount} />
         <HubStatPill variant="inline" label="Homebrew" value={useAiHomebrew ? 'IA+' : 'Manual'} />
       </div>
+
+      <PenaiEngineIntro />
 
       {featured ? (
         <FeaturedChronicle

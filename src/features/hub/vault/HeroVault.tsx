@@ -23,6 +23,7 @@ export interface HeroVaultProps {
   sessions: SessaoIA[];
   onBack: () => void;
   onCreateHero: () => void;
+  onEditHero: (character: Character) => void;
   onStartWithHero: (character: Character, existingSession?: SessaoIA | null) => void;
   onDeleteHero: (character: Character) => void;
   onViewSessions: () => void;
@@ -49,6 +50,7 @@ export function HeroVault({
   sessions,
   onBack,
   onCreateHero,
+  onEditHero,
   onStartWithHero,
   onDeleteHero,
   onViewSessions,
@@ -228,6 +230,7 @@ export function HeroVault({
               <HeroCard
                 character={char}
                 onPlay={() => onStartWithHero(char, findSessionForCharacter(char, sessions))}
+                onEdit={() => onEditHero(char)}
                 onDelete={() => onDeleteHero(char)}
                 onViewSessions={onViewSessions}
               />

@@ -5,7 +5,15 @@ import type { ShopItem, InventoryItem } from '@/types';
 
 export type StructuredIntent =
     | { type: 'claim-loot'; payload?: Record<string, never> }
-    | { type: 'equip-item'; payload: { itemId: number; equipped: boolean } }
+    | {
+          type: 'equip-item';
+          payload: {
+              inventoryItemId?: string;
+              itemKey?: string;
+              itemId?: number;
+              equipped: boolean;
+          };
+      }
     | { type: 'open-shop'; payload: { name?: string; merchantName?: string; inventory: ShopItem[] } }
     | { type: 'buy-item'; payload: { itemId: string | number; priceGp: number; quantity?: number } }
     | { type: 'sell-item'; payload: { itemId: number; priceGp: number; quantity?: number } }

@@ -12,6 +12,8 @@ export const npcPersonalitySchema = z.object({
     goals: z.array(npcGoalSchema).max(6).default([]),
     routine: z.string().max(200).optional(),
     voiceTone: z.string().max(80).optional(),
+    /** routine = overlay leve; goap = planejador simbólico no world pulse */
+    planner: z.enum(['routine', 'goap']).default('routine'),
 });
 
 export type NpcPersonality = z.infer<typeof npcPersonalitySchema>;
@@ -19,5 +21,5 @@ export type NpcPersonality = z.infer<typeof npcPersonalitySchema>;
 export function parseNpcPersonality(raw: unknown): NpcPersonality {
     const parsed = npcPersonalitySchema.safeParse(raw ?? {});
     if (parsed.success) return parsed.data;
-    return { traits: [], goals: [] };
+    return { traits: [], goals: [], planner: 'routine' };
 }

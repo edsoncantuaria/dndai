@@ -1,9 +1,9 @@
 import { PenaiDataSource } from '../database/data-source.js';
 import { GameSession } from '../database/entities/GameSession.js';
-import { loadPenaiHeroPack } from './loadPenaiCharacterSnapshot.js';
+import { loadPenaiHeroPack } from './loadSnapshot.js';
 import { listHeroInventory } from './heroInventory.js';
-import { getPenaiCombatState } from '../combat/combatPenai.js';
-import { parseGameClock, defaultGameClock } from '../world/gameClockPenai.js';
+import { getPenaiCombatState } from '../combat/engine.js';
+import { parseGameClock, defaultGameClock } from '../world/gameClock.js';
 import { buildContextualActionOptions } from '../motor/contextualActionOptions.js';
 
 export async function formatMechanicalPack(sessionId: number): Promise<Record<string, unknown>> {
@@ -27,6 +27,21 @@ export async function formatMechanicalPack(sessionId: number): Promise<Record<st
           ).findOne({ where: { id: pack.heroEntityId } })
         : null;
     const srdBuild = ((heroEntity?.stats?.srdBuild ?? {}) as Record<string, unknown>) || {};
+    const buildAttrs = (srdBuild.attributes ?? {}) as Record<string, number>;
+    const abilities = pack?.snapshot.abilities ?? {};
+    const attr = (key: string, fallback: number) =>
+        typeof buildAttrs[key] === 'number'
+            ? buildAttrs[key]
+            : typeof (abilities as Record<string, number>)[key] === 'number'
+              ? (abilities as Record<string, number>)[key]
+              : fallback;
+    const strength = attr('strength', 10);
+    const dexterity = attr('dexterity', 10);
+    const constitution = attr('constitution', 10);
+    const intelligence = attr('intelligence', 10);
+    const wisdom = attr('wisdom', 10);
+    const charisma = attr('charisma', 10);
+    const mod = (score: number) => Math.floor((score - 10) / 2);
 
     return {
         sessionId,
@@ -47,6 +62,32 @@ export async function formatMechanicalPack(sessionId: number): Promise<Record<st
                   resources: pack.stats.resources,
                   conditions: pack.stats.conditions,
                   classIndex: srdBuild.characterClass ?? srdBuild.class ?? null,
+                  raceIndex: srdBuild.race ?? null,
+                  subraceIndex: srdBuild.subrace ?? null,
+                  race: String(srdBuild.raceLabel ?? srdBuild.race ?? ''),
+                  subrace: srdBuild.subrace ? String(srdBuild.subraceLabel ?? srdBuild.subrace) : null,
+                  characterClass: String(
+                      srdBuild.characterClassLabel ?? srdBuild.characterClass ?? srdBuild.class ?? '',
+                  ),
+                  background: String(srdBuild.background ?? ''),
+                  attributes: {
+                      strength,
+                      dexterity,
+                      constitution,
+                      intelligence,
+                      wisdom,
+                      charisma,
+                  },
+                  modifiers: {
+                      strength: mod(strength),
+                      dexterity: mod(dexterity),
+                      constitution: mod(constitution),
+                      intelligence: mod(intelligence),
+                      wisdom: mod(wisdom),
+                      charisma: mod(charisma),
+                  },
+                  spellSlots:
+                      (srdBuild.spellSlots as Record<string, { current: number; max: number }>) ?? {},
                   feats: Array.isArray(srdBuild.feats) ? srdBuild.feats : [],
                   spells: Array.isArray(srdBuild.spells) ? srdBuild.spells : [],
                   skillProficiencies: pack.snapshot.skillProficiencies ?? [],

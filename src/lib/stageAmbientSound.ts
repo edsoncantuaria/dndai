@@ -9,6 +9,7 @@ const HUB_STAGES: GameStage[] = [
   'session_list',
   'character_vault',
   'creating_character',
+  'editing_character',
   'homebrew_store',
   'translation_studio',
 ];

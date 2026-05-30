@@ -56,6 +56,16 @@ export const acknowledgeHomebrewDisclaimer = async () => {
 };
 
 /**
+ * Persiste a chave Gemini (BYOK) no perfil PENAI para narração no servidor.
+ */
+export const saveInferenceApiKey = async (apiKey: string) => {
+    return apiClient<{ message: string; settings: Record<string, unknown> }>('/v2/users/me/settings', {
+        method: 'PUT',
+        body: JSON.stringify({ apiKey: apiKey.trim() }),
+    });
+};
+
+/**
  * Salva as configurações de um usuário no backend.
  */
 export const saveUserSettings = async (settings: any) => {

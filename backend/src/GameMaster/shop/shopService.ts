@@ -2,7 +2,7 @@ import { PenaiDataSource } from '../database/data-source.js';
 import { GameSession } from '../database/entities/GameSession.js';
 import { CanonicalPoi } from '../database/entities/CanonicalPoi.js';
 import { CanonicalRegion } from '../database/entities/CanonicalRegion.js';
-import { getPenaiCombatState } from '../combat/combatPenai.js';
+import { getPenaiCombatState } from '../combat/engine.js';
 import {
     validateOpenShopIntent,
     validateBuyItemIntent,

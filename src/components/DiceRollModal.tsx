@@ -15,13 +15,23 @@ interface DiceRollModalProps {
   show: boolean;
   /** ID do elemento raiz — usado pelo banner “Abrir dados” (scroll + foco) */
   anchorId?: string;
+  /** Rolagem autoritativa do servidor (PENAI) — exibida após confirmação mecânica */
+  serverRolls?: number[] | null;
+  serverRollTotal?: number | null;
 }
 
 type RollStatus = 'normal' | 'critical-success' | 'critical-failure' | 'success' | 'failure';
 
 const DICEBOX_CONTAINER_ID = 'dicebox-premium';
 
-const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, show, anchorId = 'dice-roll-modal-anchor' }) => {
+const DiceRollModal: React.FC<DiceRollModalProps> = ({
+  request,
+  onRoll,
+  show,
+  anchorId = 'dice-roll-modal-anchor',
+  serverRolls,
+  serverRollTotal,
+}) => {
   const isV2 = true;
   const { isMobile } = useBreakpoint();
   const { playCue } = useEventFeedback();
@@ -235,6 +245,12 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, show, an
         Rolagens: [{rollResult?.rolls.join(', ')}] {request.modifier >= 0 ? '+' : '−'}{' '}
         {Math.abs(request.modifier || 0)}
       </p>
+      {Array.isArray(serverRolls) && serverRolls.length > 0 ? (
+        <p className={cn('font-ui text-xs', isV2 ? 'text-dnd-gold/90' : 'text-amber-300')}>
+          Servidor (autoritativo): [{serverRolls.join(', ')}]
+          {serverRollTotal != null ? ` → total ${serverRollTotal}` : ''}
+        </p>
+      ) : null}
       {resultText ? (
         <p className={cn('text-lg font-semibold', isV2 ? cn('font-display', resultColor) : resultColor)}>
           {resultText}

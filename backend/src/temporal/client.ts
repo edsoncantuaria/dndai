@@ -128,3 +128,22 @@ export async function startWorldPulseWorkflow(
     });
     return { workflowId, started: true };
 }
+
+export async function startCampaignGcWorkflow(
+    sessionId: number,
+): Promise<{ workflowId: string; started: boolean }> {
+    const workflowId = `campaignGc:${sessionId}:${Date.now()}`;
+    const client = await getTemporalClient();
+    if (!client) {
+        const { runCampaignGcActivity } = await import('./activities/campaignGcActivity.js');
+        await runCampaignGcActivity(sessionId);
+        return { workflowId, started: false };
+    }
+    await client.workflow.start('campaignGcWorkflow', {
+        taskQueue: 'penai-narration',
+        workflowId,
+        args: [sessionId],
+        workflowIdConflictPolicy: 'USE_EXISTING',
+    });
+    return { workflowId, started: true };
+}

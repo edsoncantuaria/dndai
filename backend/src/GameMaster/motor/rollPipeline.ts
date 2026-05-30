@@ -1,21 +1,33 @@
 import { randomUUID } from 'crypto';
+import { PenaiDataSource } from '../database/data-source.js';
 import {
     clearPendingPenaiRoll,
     getPendingPenaiRoll,
     savePendingPenaiRoll,
     type StoredPenaiRoll,
-} from './penaiRollStore.js';
+} from './rollStore.js';
 import { appendWorldEvent } from '../events/store.js';
-import { resolvePenaiStructuredRoll } from '../combat/penaiRollResolution.js';
-import { advancePenaiCombatPhaseAfterRoll } from '../combat/combatPhasePenai.js';
-import { bumpSessionStateVersion } from '../character/applyStateDeltaPenai.js';
+import { resolvePenaiStructuredRoll } from '../combat/rollResolution.js';
+import { advancePenaiCombatPhaseAfterRoll } from '../combat/phaseGate.js';
+import { bumpSessionStateVersion } from '../character/applyStateDelta.js';
+import { executeAutomatedRoll } from '../../services/dm/autoRollService.js';
 import type { PenaiRollResolveResult, PenaiRollSubmitInput } from './types.js';
 
-function computeRollTotal(pending: StoredPenaiRoll, rolls: number[], rawRoll?: number): number {
-    const base =
-        rawRoll ??
-        (rolls.length ? rolls.reduce((a, b) => a + b, 0) : 0);
-    return base + (pending.modifier ?? 0);
+/** Rolagem autoritativa no servidor — ignora valores enviados pelo cliente. */
+function rollAuthoritative(pending: StoredPenaiRoll): { rolls: number[]; rawRoll: number; total: number } {
+    const automated = executeAutomatedRoll({
+        requestId: pending.requestId,
+        dice: pending.dice ?? '1d20',
+        modifier: pending.modifier ?? 0,
+        dc: pending.dc,
+        advantage: pending.advantage,
+        disadvantage: pending.disadvantage,
+    });
+    return {
+        rolls: automated.diceValues,
+        rawRoll: automated.rawRoll,
+        total: automated.total,
+    };
 }
 
 export async function resolvePenaiRoll(
@@ -30,18 +42,22 @@ export async function resolvePenaiRoll(
         return { ok: false, message: 'requestId não corresponde à rolagem pendente.' };
     }
 
-    const finalTotal = computeRollTotal(pending, input.rolls, input.rawRoll);
+    if (pending.userId !== input.userId) {
+        return { ok: false, message: 'Esta rolagem pertence a outro jogador.' };
+    }
+
+    const { rolls, rawRoll, total: finalTotal } = rollAuthoritative(pending);
     const dc = pending.dc;
     const success = dc != null ? finalTotal >= dc : true;
 
-    const rollSummary = `Rolagem ${pending.dice}: [${input.rolls.join(', ')}] + ${pending.modifier ?? 0} = ${finalTotal}${
+    const rollSummary = `Rolagem ${pending.dice}: [${rolls.join(', ')}] + ${pending.modifier ?? 0} = ${finalTotal}${
         dc != null ? ` (CD ${dc}: ${success ? 'sucesso' : 'falha'})` : ''
     }`;
 
     const resolutionResult = await resolvePenaiStructuredRoll(input.sessionId, pending, {
         total: finalTotal,
-        rawRoll: input.rolls[0] ?? input.rawRoll ?? finalTotal,
-        diceValues: input.rolls,
+        rawRoll,
+        diceValues: rolls,
     });
 
     if (resolutionResult) {
@@ -64,11 +80,12 @@ export async function resolvePenaiRoll(
             requestId: input.requestId,
             actionId: pending.actionId,
             actionSequence: pending.actionSequence,
-            rolls: input.rolls,
+            rolls,
             total: finalTotal,
             success,
             hit: resolutionResult?.attackOutcome?.hit,
             deferNarration: Boolean(resolutionResult?.nextRollRequest),
+            serverAuthoritative: true,
         },
     });
 
@@ -90,21 +107,21 @@ export async function resolvePenaiRoll(
         });
 
         const { formatMechanicalPack } = await import('../character/formatMechanicalPack.js');
-    let pack: Record<string, unknown> = {};
-    try {
-        pack = await formatMechanicalPack(input.sessionId);
-    } catch {
-        pack = {};
-    }
+        let pack: Record<string, unknown> = {};
+        try {
+            pack = await formatMechanicalPack(input.sessionId);
+        } catch {
+            pack = {};
+        }
 
-    return {
-        ok: true,
-        rollSummary,
-        playerAction: pending.playerAction,
-        actionId: pending.actionId,
-        actionSequence: pending.actionSequence,
-        deferNarration: true,
-        playerRollRequest: stored,
+        return {
+            ok: true,
+            rollSummary,
+            playerAction: pending.playerAction,
+            actionId: pending.actionId,
+            actionSequence: pending.actionSequence,
+            deferNarration: true,
+            playerRollRequest: stored,
             ruleCheck: {
                 status: 'accepted',
                 reason: rollSummary,
@@ -114,6 +131,8 @@ export async function resolvePenaiRoll(
                 rollResolved: true,
                 rollTotal: finalTotal,
                 rollSuccess: success,
+                serverRolls: rolls,
+                serverRawRoll: rawRoll,
                 attackOutcome: resolutionResult?.attackOutcome,
                 followUp: followUpRequest.rollType,
                 motorHints: resolutionResult?.hints,
@@ -149,6 +168,8 @@ export async function resolvePenaiRoll(
             rollResolved: true,
             rollTotal: finalTotal,
             rollSuccess: success,
+            serverRolls: rolls,
+            serverRawRoll: rawRoll,
             attackOutcome: resolutionResult?.attackOutcome,
             motorHints: resolutionResult?.hints,
             ...pack,

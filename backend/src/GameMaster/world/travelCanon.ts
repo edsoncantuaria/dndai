@@ -198,7 +198,7 @@ export async function applyTravelToSession(opts: {
     }
 
     if (travel?.durationHours) {
-        const { advanceSessionGameClock } = await import('./gameClockPenai.js');
+        const { advanceSessionGameClock } = await import('./gameClock.js');
         await advanceSessionGameClock(opts.sessionId, travel.durationHours);
     }
 
@@ -215,7 +215,7 @@ export async function applyTravelToSession(opts: {
         },
     });
 
-    const { maybeScheduleWorldPulse } = await import('./worldPulseSchedulePenai.js');
+    const { maybeScheduleWorldPulse } = await import('./simulation/pulseSchedule.js');
     void maybeScheduleWorldPulse(opts.sessionId, 'travel').catch(() => undefined);
 
     return { ok: true, result: check, travel: travel ?? undefined };

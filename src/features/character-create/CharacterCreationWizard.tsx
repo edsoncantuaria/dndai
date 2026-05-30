@@ -5,6 +5,9 @@ import { ArrowLeft } from 'lucide-react';
 import type { ApiListItem } from '@/types';
 import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
 import { useGameStateContext } from '@/contexts/GameStateContext';
+import { useToast } from '@/hooks/use-toast';
+import * as GameService from '@/services/gameService';
+import { vaultCharacterToCreatorState } from '@/lib/vaultCharacterHydrate';
 import NewStep1_RaceClass from '@/components/NewCreationCharacter/NewStep1_RaceClass';
 import NewStep2_Attributes from '@/components/NewCreationCharacter/NewStep2_Attributes';
 import NewStep3_Background from '@/components/NewCreationCharacter/NewStep3_Background';
@@ -31,6 +34,7 @@ export interface CharacterCreationWizardProps {
   allLanguages: ApiListItem[];
   onCharacterCreated: () => void;
   onCancel?: () => void;
+  editCharacterId?: string | number;
 }
 
 export function CharacterCreationWizard({
@@ -41,15 +45,53 @@ export function CharacterCreationWizard({
   allLanguages,
   onCharacterCreated,
   onCancel,
+  editCharacterId,
 }: CharacterCreationWizardProps) {
-  const { createCharacter } = useGameStateContext();
+  const { createCharacter, updateCharacter } = useGameStateContext();
+  const { toast } = useToast();
+  const isEditMode = editCharacterId != null;
+
+  const [editHydration, setEditHydration] = useState<ReturnType<typeof vaultCharacterToCreatorState> | null>(
+    null,
+  );
+  const [editLoading, setEditLoading] = useState(isEditMode);
+
+  useEffect(() => {
+    if (!isEditMode || editCharacterId == null) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const character = await GameService.getCharacterById(editCharacterId);
+        if (cancelled) return;
+        setEditHydration(vaultCharacterToCreatorState(character as unknown as Record<string, unknown>));
+      } catch {
+        if (!cancelled) {
+          toast({
+            variant: 'destructive',
+            title: 'Falha ao carregar herói',
+            description: 'Não foi possível abrir o herói para edição.',
+          });
+          onCancel?.();
+        }
+      } finally {
+        if (!cancelled) setEditLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [editCharacterId, isEditMode, onCancel, toast]);
   const { isLgUp } = useBreakpoint();
 
   const [currentStep, setCurrentStep] = useState(1);
-  const [highestStep, setHighestStep] = useState(1);
+  const [highestStep, setHighestStep] = useState(isEditMode ? TOTAL_CREATION_STEPS : 1);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
-  const hook = useCharacterCreator({ allLanguages: allLanguages || [], currentStep });
+  const hook = useCharacterCreator({
+    allLanguages: allLanguages || [],
+    currentStep,
+    initialSnapshot: editHydration ?? undefined,
+  });
 
   const noop = useCallback(() => {}, []);
 
@@ -73,8 +115,19 @@ export function CharacterCreationWizard({
     const data = hook.buildCharacter();
     if (data) {
       setShowConfirmationModal(false);
-      const result = await createCharacter(data);
-      if (result) onCharacterCreated();
+      const result =
+        isEditMode && editCharacterId != null
+          ? await updateCharacter(editCharacterId, data)
+          : await createCharacter(data);
+      if (result) {
+        if (isEditMode) {
+          toast({
+            title: 'Herói atualizado',
+            description: 'Campanhas em andamento não são alteradas — só novas sessões usam a ficha revisada.',
+          });
+        }
+        onCharacterCreated();
+      }
     } else {
       setShowConfirmationModal(false);
     }
@@ -88,6 +141,14 @@ export function CharacterCreationWizard({
       setHighestStep((h) => Math.max(h, 8));
     }
   }, [currentStep, hook.isVariantHuman]);
+
+  if (editLoading) {
+    return (
+      <WizardShell>
+        <LoadingOracle label="Carregando herói do cofre…" />
+      </WizardShell>
+    );
+  }
 
   if (hook.loadingStates.isBlocking) {
     return (
@@ -166,7 +227,7 @@ export function CharacterCreationWizard({
         ) : (
           <span />
         )}
-        <p className="font-display text-sm text-dnd-gold">Forja de herói</p>
+        <p className="font-display text-sm text-dnd-gold">{isEditMode ? 'Editar herói' : 'Forja de herói'}</p>
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:gap-8">
@@ -248,7 +309,7 @@ export function CharacterCreationWizard({
       {showConfirmationModal ? (
         <ActionModal
           isOpen={showConfirmationModal}
-          title="Selar o destino?"
+          title={isEditMode ? 'Salvar alterações?' : 'Selar o destino?'}
           onClose={() => setShowConfirmationModal(false)}
           actions={[
             {
@@ -257,14 +318,16 @@ export function CharacterCreationWizard({
               variant: 'secondary',
             },
             {
-              text: 'Sim, forjar herói!',
+              text: isEditMode ? 'Sim, salvar!' : 'Sim, forjar herói!',
               onClick: handleFinalizeAndSubmit,
               variant: 'primary',
             },
           ]}
         >
           <p className="text-stone-300">
-            {`Você está prestes a registrar ${hook.name || 'seu herói'} no cofre. Deseja continuar?`}
+            {isEditMode
+              ? `Você está prestes a atualizar ${hook.name || 'seu herói'} no cofre. Campanhas ativas mantêm a ficha anterior.`
+              : `Você está prestes a registrar ${hook.name || 'seu herói'} no cofre. Deseja continuar?`}
           </p>
         </ActionModal>
       ) : null}

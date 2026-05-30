@@ -60,6 +60,7 @@ const GameContainer = () => {
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [isActionLoading, setIsActionLoading] = useState(false);
     const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
+    const [editCharacterId, setEditCharacterId] = useState<string | number | null>(null);
     const [sessionToDelete, setSessionToDelete] = useState<SessaoIA | null>(null);
     const [sessionToRename, setSessionToRename] = useState<SessaoIA | null>(null);
     const [newSessionName, setNewSessionName] = useState('');
@@ -171,9 +172,15 @@ const GameContainer = () => {
         if (needsOnboarding && onboardingStep === 'create_hero') {
             setOnboardingStep('play');
         }
+        setEditCharacterId(null);
         setGameStage('character_vault');
         fetchInitialData();
     };
+
+    const requestEditCharacter = useCallback((char: Character) => {
+        setEditCharacterId(char.id);
+        setGameStage('editing_character');
+    }, []);
 
     const handleContinueGame = useCallback(async (sessionIdToLoad: number) => {
         setGameStage('playing');
@@ -187,6 +194,7 @@ const GameContainer = () => {
 
     const returnToMenu = useCallback(() => {
         clearGameState();
+        setEditCharacterId(null);
         setGameStage('main_menu');
     }, [clearGameState]);
 
@@ -300,6 +308,7 @@ const GameContainer = () => {
                 onCharacterCreated={handleCharacterCreated}
                 onStartFromVault={handleNewGameFromVault}
                 onRequestDeleteCharacter={requestDeleteCharacter}
+                onRequestEditCharacter={requestEditCharacter}
                 onRequestDeleteSession={requestDeleteSession}
                 onRequestRenameSession={requestRenameSession}
                 onRequestCloneSession={requestCloneSession}
@@ -312,6 +321,7 @@ const GameContainer = () => {
                 selectedSessionForAction={selectedSessionForAction}
                 handleActionModalClose={handleActionModalClose}
                 openSessionActionModal={openSessionActionModal}
+                editCharacterId={editCharacterId}
             />
     );
 

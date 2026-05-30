@@ -1,4 +1,4 @@
-import { mergeSpellSlotsIntoResources } from './spellSlotSeedPenai.js';
+import { mergeSpellSlotsIntoResources } from './spellSlotSeed.js';
 import { PenaiDataSource } from '../database/data-source.js';
 import { WorldEntity } from '../database/entities/WorldEntity.js';
 import { GameSession } from '../database/entities/GameSession.js';

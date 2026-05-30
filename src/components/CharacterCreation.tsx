@@ -24,9 +24,14 @@ const CharacterCreationWizard = dynamic(
 interface CharacterCreationProps {
   onCharacterCreated: () => void;
   onCancel?: () => void;
+  editCharacterId?: string | number;
 }
 
-const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreated, onCancel }) => {
+const CharacterCreation: React.FC<CharacterCreationProps> = ({
+    onCharacterCreated,
+    onCancel,
+    editCharacterId,
+}) => {
     // Data Fetching State
     const [isDataLoading, setIsDataLoading] = useState(true);
     const [races, setRaces] = useState<ApiListItem[]>([]);
@@ -125,7 +130,12 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
         onCancel,
     };
 
-    return <CharacterCreationWizard {...sharedProps} />;
+    return (
+        <CharacterCreationWizard
+            {...sharedProps}
+            editCharacterId={editCharacterId}
+        />
+    );
 };
 
 export default CharacterCreation;
