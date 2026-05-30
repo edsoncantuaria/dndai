@@ -6,10 +6,10 @@
 import { readFileSync, existsSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { requireSnapshotDir } from '../../../utils/srdSnapshotPaths.js';
 import { TRANSLATIONS_BASE } from '../../../../data/TranslatorPTBR.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const REPO_DATA = join(__dirname, '../../../../../data/srd/2014/normalized');
 const OVERRIDES_DIR = join(__dirname, '../../../../data/srdPtBr/overrides');
 
 const SIZE_MAP: Record<string, string> = {
@@ -28,8 +28,8 @@ export type SrdPtBrForkRow = {
     sourceResource: string;
 };
 
-function loadJson<T>(file: string): T {
-    return JSON.parse(readFileSync(file, 'utf-8')) as T;
+function loadJson<T>(fileName: string): T {
+    return JSON.parse(readFileSync(join(requireSnapshotDir(), fileName), 'utf-8')) as T;
 }
 
 function buildNameMap(): Map<string, string> {
@@ -107,19 +107,19 @@ export function buildSrdPtBrRaceClassForks(): SrdPtBrForkRow[] {
     const nameMap = buildNameMap();
     const rows: SrdPtBrForkRow[] = [];
 
-    for (const race of loadJson<Record<string, unknown>[]>(join(REPO_DATA, 'races.json'))) {
+    for (const race of loadJson<Record<string, unknown>[]>('races.json')) {
         const row = buildFork('race', 'races', race, nameMap);
         if (row) rows.push(row);
     }
-    for (const subrace of loadJson<Record<string, unknown>[]>(join(REPO_DATA, 'subraces.json'))) {
+    for (const subrace of loadJson<Record<string, unknown>[]>('subraces.json')) {
         const row = buildFork('subrace', 'subraces', subrace, nameMap);
         if (row) rows.push(row);
     }
-    for (const cls of loadJson<Record<string, unknown>[]>(join(REPO_DATA, 'classes.json'))) {
+    for (const cls of loadJson<Record<string, unknown>[]>('classes.json')) {
         const row = buildFork('class', 'classes', cls, nameMap);
         if (row) rows.push(row);
     }
-    for (const sub of loadJson<Record<string, unknown>[]>(join(REPO_DATA, 'subclasses.json'))) {
+    for (const sub of loadJson<Record<string, unknown>[]>('subclasses.json')) {
         const row = buildFork('subclass', 'subclasses', sub, nameMap);
         if (row) rows.push(row);
     }

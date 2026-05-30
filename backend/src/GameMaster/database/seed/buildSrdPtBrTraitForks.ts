@@ -2,13 +2,10 @@
  * Overlays PT para traços raciais SRD (`traits` resource).
  */
 import { readFileSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
+import { requireSnapshotDir } from '../../../utils/srdSnapshotPaths.js';
 import { TRANSLATIONS_BASE } from '../../../../data/TranslatorPTBR.js';
 import { TRANSLATIONS_TRAIT_DESC } from '../../../../data/TranslatorTraits.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const REPO_DATA = join(__dirname, '../../../../../data/srd/2014/normalized');
 
 export type SrdPtBrTraitForkRow = {
     type: 'trait';
@@ -30,10 +27,9 @@ function buildNameMap(): Map<string, string> {
 
 export function buildSrdPtBrTraitForks(): SrdPtBrTraitForkRow[] {
     const nameMap = buildNameMap();
-    const traits = JSON.parse(readFileSync(join(REPO_DATA, 'traits.json'), 'utf-8')) as Record<
-        string,
-        unknown
-    >[];
+    const traits = JSON.parse(
+        readFileSync(join(requireSnapshotDir(), 'traits.json'), 'utf-8'),
+    ) as Record<string, unknown>[];
 
     return traits
         .map(trait => {

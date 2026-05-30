@@ -2,8 +2,8 @@
  * Converte compendiums Foundry SRD PT em rows de tradução para o bundle srd-ptbr-core.
  */
 import { readFileSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
+import { requireSnapshotDir } from '../../../utils/srdSnapshotPaths.js';
 import {
     htmlToDescArray,
     loadFoundryCompendium,
@@ -11,9 +11,6 @@ import {
     slugify,
     type FoundryCompendiumEntry,
 } from './foundrySrdPtBrClient.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const REPO_DATA = join(__dirname, '../../../../../data/srd/2014/normalized');
 
 export type FoundryTranslationRow = {
     type: 'spell' | 'item' | 'monster' | 'feature' | 'class';
@@ -25,8 +22,8 @@ export type FoundryTranslationRow = {
     englishKey?: string;
 };
 
-function loadJson<T>(file: string): T {
-    return JSON.parse(readFileSync(file, 'utf-8')) as T;
+function loadJson<T>(fileName: string): T {
+    return JSON.parse(readFileSync(join(requireSnapshotDir(), fileName), 'utf-8')) as T;
 }
 
 function isHashKey(key: string): boolean {
@@ -38,7 +35,7 @@ function entryPtName(entry: FoundryCompendiumEntry, fallbackKey: string): string
 }
 
 function buildSpellRows(spellsComp: FoundryCompendium): FoundryTranslationRow[] {
-    const srdSpells = loadJson<Array<{ index: string; name: string }>>(join(REPO_DATA, 'spells.json'));
+    const srdSpells = loadJson<Array<{ index: string; name: string }>>('spells.json');
     const byName = new Map(srdSpells.map(s => [s.name.toLowerCase(), s.index]));
     const rows: FoundryTranslationRow[] = [];
 
@@ -66,7 +63,7 @@ function buildSpellRows(spellsComp: FoundryCompendium): FoundryTranslationRow[] 
 }
 
 function buildItemRows(itemsComp: FoundryCompendium): FoundryTranslationRow[] {
-    const srdItems = loadJson<Array<{ index: string; name: string }>>(join(REPO_DATA, 'equipment.json'));
+    const srdItems = loadJson<Array<{ index: string; name: string }>>('equipment.json');
     const byIndex = new Set(srdItems.map(i => i.index));
     const byName = new Map(srdItems.map(i => [i.name.toLowerCase(), i.index]));
     const rows: FoundryTranslationRow[] = [];
@@ -95,7 +92,7 @@ function buildItemRows(itemsComp: FoundryCompendium): FoundryTranslationRow[] {
 }
 
 function buildMonsterRows(monstersComp: FoundryCompendium): FoundryTranslationRow[] {
-    const srdMonsters = loadJson<Array<{ index: string; name: string }>>(join(REPO_DATA, 'monsters.json'));
+    const srdMonsters = loadJson<Array<{ index: string; name: string }>>('monsters.json');
     const byIndex = new Set(srdMonsters.map(m => m.index));
     const rows: FoundryTranslationRow[] = [];
 
@@ -121,7 +118,7 @@ function buildMonsterRows(monstersComp: FoundryCompendium): FoundryTranslationRo
 }
 
 function buildFeatureRows(featuresComp: FoundryCompendium): FoundryTranslationRow[] {
-    const srdFeatures = loadJson<Array<{ index: string; name: string }>>(join(REPO_DATA, 'features.json'));
+    const srdFeatures = loadJson<Array<{ index: string; name: string }>>('features.json');
     const byNormKey = new Map<string, string[]>();
     for (const feature of srdFeatures) {
         const key = normFeatureKey(feature.name);
@@ -165,7 +162,7 @@ function buildFeatureRows(featuresComp: FoundryCompendium): FoundryTranslationRo
 }
 
 function buildClassRows(classesComp: FoundryCompendium): FoundryTranslationRow[] {
-    const srdClasses = loadJson<Array<{ index: string; name: string }>>(join(REPO_DATA, 'classes.json'));
+    const srdClasses = loadJson<Array<{ index: string; name: string }>>('classes.json');
     const byName = new Map(srdClasses.map(c => [c.name.toLowerCase(), c.index]));
     const rows: FoundryTranslationRow[] = [];
 
