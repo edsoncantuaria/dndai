@@ -70,6 +70,10 @@ export interface WorldMapLink {
     isLocked: boolean;
     metadata?: Record<string, any>;
     discovered: boolean;
+    /** Pelo menos um extremo visitado — exibir no mapa com névoa parcial. */
+    reachable?: boolean;
+    /** Rota partindo da região atual. */
+    fromCurrent?: boolean;
 }
 
 export interface WorldMapSnapshot {
@@ -116,30 +120,30 @@ export const deleteCharacterById = async (characterId: string | number) => {
 };
 
 
-// --- Session Management ---
+// --- Session Management (PENAI v2 exclusivo) ---
 
 export const createGameSession = async (
     nome: string,
-    characterId: number,
-    options?: { forceNew?: boolean; clientInstanceId?: string },
+    _characterId: number,
+    _options?: { forceNew?: boolean; clientInstanceId?: string },
 ) => {
-    return apiClient<{ sessao: SessaoIA, isNew: boolean }>('/sessoes', {
-        method: 'POST',
-        body: JSON.stringify({
-            nome,
-            characterId,
-            forceNew: options?.forceNew ?? false,
-            clientInstanceId: options?.clientInstanceId,
-        }),
-    });
+    const { createPenaiSession } = await import('./penaiApi');
+    const session = await createPenaiSession(nome);
+    return { sessao: session as unknown as SessaoIA, isNew: true };
 };
 
 export const getGameSessions = async (): Promise<SessaoIA[]> => {
-    return apiClient<SessaoIA[]>('/sessoes', { method: 'GET' });
+    const { fetchPenaiSessions } = await import('./penaiApi');
+    const { penaiSessionToSessaoIA } = await import('@/lib/penaiCharacterAdapter');
+    const res = await fetchPenaiSessions();
+    return (res.sessions ?? []).map(row => penaiSessionToSessaoIA(row));
 };
 
 export const getSessionDetails = async (sessionId: number): Promise<SessaoIA> => {
-    return apiClient<SessaoIA>(`/sessoes/${sessionId}`, { method: 'GET' });
+    const { fetchPenaiSession } = await import('./penaiApi');
+    const { penaiSessionToSessaoIA } = await import('@/lib/penaiCharacterAdapter');
+    const row = await fetchPenaiSession(sessionId);
+    return penaiSessionToSessaoIA(row);
 };
 
 /** @deprecated Gameplay usa PENAI v2 — delega para penaiApi. */
@@ -155,8 +159,8 @@ export const getSessionFacts = async (sessionId: number): Promise<SessionFactsRe
         recentEvents: summary.recentFacts.map((f, idx) => ({
             turn: Math.max(0, summary.actionSequence - idx),
             timestamp: f.at,
-            action: f.type,
-            summary: f.summary,
+            action: f.category,
+            summary: f.subject ? `${f.summary}` : f.summary,
         })),
         activeNPCs: [],
         activeQuests: (campaign?.activeQuests ?? []).map(q => ({
@@ -168,7 +172,8 @@ export const getSessionFacts = async (sessionId: number): Promise<SessionFactsRe
         })),
         atomicFacts: summary.recentFacts.map(f => ({
             id: f.at,
-            category: f.type,
+            category: f.category,
+            subject: f.subject ?? null,
             fact: f.summary,
             regionSlug: summary.currentRegionSlug,
         })),

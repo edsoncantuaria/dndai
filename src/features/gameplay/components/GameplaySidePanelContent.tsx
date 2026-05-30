@@ -31,7 +31,12 @@ export function GameplaySidePanelContent({
       );
     case 'campanha':
     case 'story':
-      return <CampanhaPanel sessionId={sessionId} />;
+      return (
+        <CampanhaPanel
+          sessionId={sessionId}
+          onOpenMap={_slug => onOpenWorldMap()}
+        />
+      );
     case 'inventory':
       return <GameplayInventoryPanel />;
     case 'logs':

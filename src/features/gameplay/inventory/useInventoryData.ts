@@ -4,6 +4,8 @@ import { useMemo } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import type { InventoryItem } from '@/types';
 import { translateEquipment } from '@/utils/translator';
+import { calculateWeight } from '@/utils/characterUtils';
+import { COIN_WEIGHT } from '@/utils/currency';
 
 export const COIN_TYPES = ['pp', 'gp', 'ep', 'sp', 'cp'] as const;
 const COIN_INDEX_SET = new Set<string>(COIN_TYPES);
@@ -59,7 +61,19 @@ export function useInventoryData() {
   return useMemo(() => {
     if (!character) return null;
 
-    const currentWeight = Number(character.currentWeight ?? 0);
+    const coinCount =
+      (character.currency?.pp ?? 0) +
+      (character.currency?.gp ?? 0) +
+      (character.currency?.ep ?? 0) +
+      (character.currency?.sp ?? 0) +
+      (character.currency?.cp ?? 0);
+    const fallbackWeight =
+      calculateWeight(character.inventory ?? []) + coinCount * COIN_WEIGHT;
+    const currentWeight = Number(
+      character.currentWeight != null && character.currentWeight > 0
+        ? character.currentWeight
+        : fallbackWeight
+    );
     const carryingCapacity = Number(
       character.carryingCapacity ?? (character.attributes?.strength ? character.attributes.strength * 15 : 0)
     );

@@ -5,19 +5,17 @@ import { v4 as uuidv4 } from 'uuid';
 import * as GameService from '@/services/gameService';
 import type {
     Character,
-    CombatState,
     GameMasterResponse,
     LogEntry,
-    LootOffer,
     NewCharacterInfo,
     ProgressionFeedItem,
-    ShopState,
 } from '@/types';
 import { hasSessionBeenOpened, markSessionOpened } from '@/lib/sessionDevStorage';
 import { deriveAmbientSoundFromWorld } from '@/hooks/game/ambientSound';
 import { setTurnPipelinePhase } from '@/hooks/game/turnPipelineStore';
 import { patchCharacter } from './characterPatch';
 import { loadPenaiGameSession } from '@/lib/penaiCharacterAdapter';
+import { applyPenaiMechanicalInteractionSlice } from '@/lib/penaiMechanicalHydrate';
 import { getPenaiBridge } from '@/lib/penaiBridge';
 import { deletePenaiSession } from '@/services/penaiApi';
 import type { useGameLog } from '../useGameLog';
@@ -67,7 +65,7 @@ export function useGameSession(options: UseGameSessionOptions) {
 
     const bootstrappedSessionsRef = useRef(new Set<number>());
 
-    const updateCharacter = useCallback(
+    const applyCharacterPatch = useCallback(
         (updates: Partial<Character>) => {
             setCharacter(prev => (prev ? patchCharacter(prev, updates) : null));
         },
@@ -92,13 +90,13 @@ export function useGameSession(options: UseGameSessionOptions) {
             }
 
             if (response.updatedCharacter) {
-                updateCharacter(response.updatedCharacter);
+                applyCharacterPatch(response.updatedCharacter);
             }
 
             if (response.worldState) {
-                updateCharacter({ worldState: response.worldState });
+                applyCharacterPatch({ worldState: response.worldState });
             } else if (character?.worldState) {
-                updateCharacter({ worldState: character.worldState });
+                applyCharacterPatch({ worldState: character.worldState });
             }
 
             if (response.playerRollRequest && Object.keys(response.playerRollRequest).length > 0) {
@@ -163,7 +161,7 @@ export function useGameSession(options: UseGameSessionOptions) {
         },
         [
             logState,
-            updateCharacter,
+            applyCharacterPatch,
             interactionState,
             toast,
             setProgressionFeed,
@@ -195,7 +193,7 @@ export function useGameSession(options: UseGameSessionOptions) {
 
             const bridge = getPenaiBridge();
             if (bridge?.active) {
-                bridge.sendProcessAction(opening);
+                bridge.sendProcessAction(opening, { bootstrap: true });
                 return;
             }
             if (typeof window !== 'undefined') {
@@ -210,54 +208,11 @@ export function useGameSession(options: UseGameSessionOptions) {
 
     const hydratePenaiMechanical = useCallback(
         (mechanical: Record<string, unknown>) => {
-            const combatRaw = mechanical.combatState as Record<string, unknown> | undefined;
-            if (combatRaw && typeof combatRaw === 'object') {
-                const combatants = Array.isArray(combatRaw.combatants)
-                    ? (combatRaw.combatants as Array<Record<string, unknown>>)
-                    : [];
-                const order = Array.isArray(combatRaw.initiativeOrder)
-                    ? (combatRaw.initiativeOrder as string[])
-                    : combatants.map(c => String(c.entityKey ?? ''));
-                interactionState.setCombatState({
-                    isActive: Boolean(combatRaw.isActive),
-                    round: Number(combatRaw.round ?? 1),
-                    turn: Number(combatRaw.turn ?? 0),
-                    initiativeOrder: order,
-                    combatants: combatants.map(c => ({
-                        id: String(c.entityKey ?? c.id ?? ''),
-                        name: String(c.displayName ?? c.name ?? 'Combatente'),
-                        isPlayer: c.side === 'hero',
-                        hp: { current: Number(c.hp ?? 0), max: Number(c.hpMax ?? 1) },
-                        ac: Number(c.armorClass ?? 10),
-                        initiative: Number(c.initiative ?? 10),
-                        hasMoved: false,
-                        hasActed: false,
-                        actionPoints: 3,
-                        bonusActionPoints: 1,
-                        conditions: [],
-                        rollHistory: [],
-                    })),
-                } as CombatState);
-            }
-
-            const loot = mechanical.pendingLootOffer as LootOffer | null | undefined;
-            if (loot && typeof loot === 'object') {
-                interactionState.setRequest({ type: 'loot', request: loot });
-            }
-
-            const shop = mechanical.shopState as Record<string, unknown> | null | undefined;
-            if (shop && typeof shop === 'object' && Array.isArray(shop.inventory)) {
-                interactionState.setRequest({
-                    type: 'shop',
-                    request: {
-                        isOpen: true,
-                        isHaggling: false,
-                        name: String(shop.name ?? 'Loja'),
-                        inventory: shop.inventory,
-                        sellPrices: {},
-                    } as ShopState,
-                });
-            }
+            applyPenaiMechanicalInteractionSlice(mechanical, {
+                setCombatState: interactionState.setCombatState,
+                setRequest: args =>
+                    interactionState.setRequest(args as Parameters<typeof interactionState.setRequest>[0]),
+            });
         },
         [interactionState],
     );
@@ -268,16 +223,27 @@ export function useGameSession(options: UseGameSessionOptions) {
             setApiError(null);
             try {
                 const userId = (user as { id?: number } | undefined)?.id ?? 1;
-                const { session, mechanical, character: penaiCharacter } =
+                const { session, mechanical, character: penaiCharacter, progressionFeed } =
                     await loadPenaiGameSession(id, userId);
 
                 setCharacter(penaiCharacter);
+                if (progressionFeed.length) {
+                    setProgressionFeed(progressionFeed);
+                }
                 logState.setLog([]);
                 setSessionId(id);
                 clientStateVersionRef.current =
                     Number(mechanical.stateVersion ?? session.stateVersion ?? 0);
                 lastLogVersionRef.current = clientStateVersionRef.current;
                 hydratePenaiMechanical(mechanical);
+
+                if (Array.isArray(mechanical.actionOptions) && mechanical.actionOptions.length) {
+                    interactionState.setActionOptions(
+                        mechanical.actionOptions as Parameters<
+                            typeof interactionState.setActionOptions
+                        >[0],
+                    );
+                }
 
                 const regionSlug = String(
                     mechanical.currentRegionSlug ??
@@ -289,13 +255,9 @@ export function useGameSession(options: UseGameSessionOptions) {
                     setAmbientSound(deriveAmbientSoundFromWorld({ currentRegion: regionSlug }));
                 }
 
-                if (hasSessionBeenOpened(id)) {
+                bootstrappedSessionsRef.current.add(id);
+                if (!hasSessionBeenOpened(id)) {
                     markSessionOpened(id);
-                    bootstrappedSessionsRef.current.add(id);
-                } else if (!bootstrappedSessionsRef.current.has(id)) {
-                    bootstrappedSessionsRef.current.add(id);
-                    markSessionOpened(id);
-                    await startGame(id);
                 }
 
                 return { character: penaiCharacter, logs: [] as LogEntry[] };
@@ -322,6 +284,7 @@ export function useGameSession(options: UseGameSessionOptions) {
             logState,
             toast,
             clearGameState,
+            setProgressionFeed,
             setIsLoading,
             setApiError,
             setCharacter,
@@ -407,7 +370,6 @@ export function useGameSession(options: UseGameSessionOptions) {
     );
 
     return {
-        updateCharacter,
         handleApiResponse,
         clearGameState,
         startGame,

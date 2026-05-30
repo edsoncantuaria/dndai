@@ -103,8 +103,7 @@ const BundleCard: React.FC<{
     onUninstall: (bundle: HomebrewService.HomebrewBundle) => void;
     onEdit: (bundle: HomebrewService.HomebrewBundle) => void;
     onDelete: (bundle: HomebrewService.HomebrewBundle) => void;
-    onExport: (bundle: HomebrewService.HomebrewBundle) => void;
-}> = ({ bundle, isOwner, installedIds, onInstall, onUninstall, onEdit, onDelete, onExport }) => {
+}> = ({ bundle, isOwner, installedIds, onInstall, onUninstall, onEdit, onDelete }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const isBundleInstalled = useMemo(() => installedIds.has(bundle.id), [bundle.id, installedIds]);
 
@@ -171,12 +170,6 @@ const BundleCard: React.FC<{
                             </button>
                         </div>
                     )}
-                    <button
-                        onClick={() => onExport(bundle)}
-                        className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-500/20"
-                    >
-                        <Download className="h-4 w-4" /> Exportar JSON
-                    </button>
                     <button
                         onClick={() => (isBundleInstalled ? onUninstall(bundle) : onInstall(bundle))}
                         className={`flex-1 inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
@@ -376,22 +369,6 @@ const HomebrewStore: React.FC<HomebrewStoreProps> = ({
         } finally {
             setIsLoading(false);
             setItemToDelete(null);
-        }
-    };
-
-    const handleExportBundle = async (bundle: HomebrewService.HomebrewBundle) => {
-        try {
-            const manifest = await HomebrewService.exportBundle(bundle.id);
-            const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const anchor = document.createElement('a');
-            anchor.href = url;
-            anchor.download = `${bundle.name.toLowerCase().replace(/\s+/g, '-')}-bundle.json`;
-            anchor.click();
-            URL.revokeObjectURL(url);
-            toast({ title: 'Pacote exportado', description: `"${bundle.name}" salvo como JSON.` });
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Falha na exportação', description: error.message });
         }
     };
 
@@ -599,7 +576,6 @@ const HomebrewStore: React.FC<HomebrewStoreProps> = ({
                         onUninstall={(b) => handleUninstallClick(b, 'bundle')}
                         onEdit={handleEditBundle}
                         onDelete={handleDeleteClick}
-                        onExport={handleExportBundle}
                     />
                 ))}
             </div>
@@ -642,7 +618,6 @@ const HomebrewStore: React.FC<HomebrewStoreProps> = ({
                                     onUninstall={(b) => handleUninstallClick(b, 'bundle')}
                                     onEdit={handleEditBundle}
                                     onDelete={handleDeleteClick}
-                                    onExport={handleExportBundle}
                                 />
                             ))}
                         </div>

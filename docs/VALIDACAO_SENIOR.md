@@ -72,6 +72,29 @@
 
 - [ ] `session_members` + WS party 4–5 jogadores
 
+### P9 — Verdade consultável (mundo supremo fase 1)
+
+- [x] `NarrativeContextDTO` no turno (`narrativeContextDto.ts`, `promptComposer.ts`)
+- [x] Micro-pulso pós-mecânico (`microPulse.ts`, evento `MICRO_WORLD_TICK`)
+- [x] Macro-pulso expandido (viagem, descanso, combate — não a cada turno)
+- [x] `FACT_RECORDED` + proveniência (`provenanceMemory.ts`)
+- [x] `FACTION_TICK` só via projector (ticks event-only)
+
+### P10–P12 — Shard compartilhado e replay
+
+- [x] Ticks simulação event-only + projectors (`REGION_MOOD_CHANGED`, `PRICE_CHANGED`, …)
+- [x] `penai:replay-projectors` — reaplica projectors do event log
+- [x] KG v2 alimentado por eventos (`kgProjector.ts`)
+- [x] `world_shards` + `shardBackgroundWorkflow` (política regional compartilhada)
+- [x] Campanha REST: `shard` + `timelineRecent` (`SharedWorldShardCard` UI)
+- [x] `PENAI_NARRATION_TO_GLOBAL_RAG=false` (default) — narração não polui Qdrant global
+
+### Bootstrap de sessão e SRD Docker
+
+- [x] `worldBootstrapWorkflow` + `SessionWorldLoadingScreen`
+- [x] Snapshot SRD via `requireSnapshotDir()` — compose monta `./data` em `/app/srd-data`
+- [x] Seed PT-BR tolerante: aviso se snapshot ausente (`data-source.ts`)
+
 ---
 
 ## Checklist de validação (marcar na revisão)

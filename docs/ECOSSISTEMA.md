@@ -2,13 +2,13 @@
 
 > **Documento canônico** para revisão sênior, onboarding e agentes de IA. Descreve o sistema **como está implementado** (maio/2026). Complemento visual: **DESIGN_FRONTEND.md**. Índice de revisão: **VALIDACAO_SENIOR.md**.
 >
-> **Última revisão:** maio de 2026 (GameMaster 9/10: adapters, memory split, simulation engine, GOAP)
+> **Última revisão:** maio de 2026 (GameMaster 9/10: adapters, memory split, simulation engine, GOAP, world bootstrap, shard Temporal)
 
 ---
 
 ## PENAI (motor greenfield — maio/2026)
 
-> Documento dedicado: **[PENAI.md](./PENAI.md)**. Bootstrap: `npm run dev:penai` (Fastify :8071), **não** `dev:legacy`.
+> Documento dedicado: **[PENAI.md](./PENAI.md)**. Bootstrap recomendado: **`npm run dev:all`** (Docker hot reload) ou `npm run dev:penai` (API local) — **não** `dev:legacy`.
 
 ### Camadas GameMaster (Core → Rules → World → Adapters)
 
@@ -53,7 +53,22 @@ flowchart TB
     canon --> campaign
 ```
 
-**Regra P7:** economia, reputação, quests, knowledge e region state são **por sessão/campanha**. Não há contadores globais cross-jogador. Multiplayer 4–5 jogadores = **P8 futuro** (`session_members`).
+**Regra P7:** economia, reputação, quests, knowledge e region state são **por sessão/campanha** (overlay). **P12** introduz `world_shards` (estado compartilhado por região canônica) sem MMO global. Multiplayer 4–5 jogadores = **P8 futuro** (`session_members`).
+
+**P9 (maio/2026):** micro-pulso determinístico a cada turno; macro-pulso com Gemini só em gatilhos; turno consulta missões/pulso/timeline via `NarrativeContextDTO`; memória longa via `FACT_RECORDED` (não prosa LLM).
+
+**P10–P12 (maio/2026):** ticks de simulação só emitem eventos (`REGION_MOOD_CHANGED`, `PRICE_CHANGED`, `RUMOR_FADED`, `SUPPLY_SHORTAGE`); projectors aplicam SQL; replay `penai:replay-projectors`; KG alimentado por `FACTION_TICK` / `RELATION_CHANGED` / `TRAVEL_COMPLETED`; `world_shards` com version bump e workflow `shardBackgroundWorkflow`; campanha REST expõe `shard` + `timelineRecent`; narração bruta **não** indexa Qdrant global por default (`PENAI_NARRATION_TO_GLOBAL_RAG`).
+
+```mermaid
+flowchart LR
+    Turn[Turno WS] --> Micro[MICRO_WORLD_TICK]
+    Micro --> Events[world_events]
+    Events --> Proj[projectors]
+    Proj --> Overlay[session_* overlay]
+    Events --> ShardEv[eventos com shardId]
+    ShardEv --> ShardWF[shardBackgroundWorkflow]
+    ShardWF --> Sim[simulation/engine]
+```
 
 | Camada | Exemplos |
 |--------|----------|
@@ -191,7 +206,8 @@ Evolução **sem feature flags** de arquitetura no `.env` — comportamento úni
 6. Modo único `AI_PIPELINE_MODE=narration_only`.
 7. **Influenciar ≠ mudar:** texto livre e narração LLM não aplicam `stateDelta` (ouro, itens, HP, XP). Recursos só via intents fechados (`claim-loot`, loja, combate, descanso, equip).
 8. **Rolagens server-authoritative:** `submitRollResult` envia só `requestId`; o servidor rola com `executeAutomatedRoll` e publica `serverRolls`/`rollTotal` no `mechanicalStateUpdate`.
-9. **SRD PT-BR via homebrew:** bundle `srd-ptbr-core` (seed `penai:seed:srd-ptbr`) auto-instalado no registro; merge em `unifiedDataService` + `GET /api/v2/translations`. Ver **`docs/DATA_SRD.md`** (leitura única via `/api/v2/data`).
+9. **SRD PT-BR via homebrew:** bundle `srd-ptbr-core` (seed `penai:seed:srd-ptbr`) auto-instalado no registro; merge em `unifiedDataService` + `GET /api/v2/translations`. Snapshot EN em `./data/srd/2014/` (Docker: volume `./data` → `/app/srd-data`). Ver **`docs/DATA_SRD.md`** (leitura única via `/api/v2/data`).
+10. **Bootstrap de sessão:** `POST /api/v2/sessions/:id/world-bootstrap` → Temporal `worldBootstrapWorkflow` (agentes Gemini); UI bloqueia mesa até `ui-state.worldBootstrap.ready`.
 
 ### 3.2 Removido (não reintroduzir)
 
@@ -1347,6 +1363,18 @@ Isso reduz custo de I/O e parsing, e protege o event loop contra strings enormes
 ### E.3 Cache regional
 
 `region_graph:{slug}` com TTL longo (~24h) para evitar recalcular grafo de região.
+
+### E.4 Mundo padrão — continente Aurathis
+
+Seed embutido: `backend/src/data/regionsSeed.json` (import via `seed:regions` ou bootstrap vazio em `ensureDefaultSpawnRegions`).
+
+- **Um continente** (`aurathis`, type `world`): sete jurisdições (`metadata.role`: `kingdom` ou `frontier`), cada uma com `metadata.ruler` (nome, título, alinhamento, notas).
+- **Spawn pool** (`isSpawnPool` + `metadata.spawnTier`): **intro** (sorteio padrão PENAI) — Cidadela do Aço-Luz, Vila Prata-Lua, Porto Corsário; **capital** (escolha explícita `spawnRegionSlug`) — Valdarin, Clareira Verde, Vorngard, Miragem de Zahir. API: `GET /api/v2/world/spawn-pool`.
+- **POIs canônicos** com palácios/forjas/tavernas; `formatRegionGraphSummary` inclui soberano e rivais quando o personagem está num reino.
+- **Reaplicar seed PENAI** (Postgres, stack atual): `npm run dev:infra` e depois `PENAI_WORLD_SEED_FORCE=true npm run seed:penai-world --prefix backend`.
+- **Seed legado MySQL** (mapa TypeORM antigo): exige `docker compose up -d mysql` e `DB_HOST=localhost` no `backend/.env`; `npm run seed:regions --prefix backend`.
+- **Mapa artístico 1:1:** `docs/AURATHIS_MAP_OVERLAY.md` — canvas 1100×780, arte `public/assets/AI/aurathis-continente-v3.svg` (`npm run map:generate-aurathis`), coordenadas em `mapLayout.nodes`.
+- **Facções fixas (10):** `backend/src/GameMaster/world/factionCatalog.ts` — sede (`headquarters`), capítulos (`chapters`), NPCs notáveis (`notableNpcs`), rivais/aliados. Não nascem em runtime; sync → tabela `factions` via `ensureFactionCatalogInDatabase`. Descoberta: ao criar sessão (`discoverFactionsByRegion` no spawn), ao concluir viagem (`TRAVEL_COMPLETED` → região + POI opcional). API: `GET /api/v2/world/factions`. Snapshot do mapa inclui `factionSlugs` por POI.
 
 ---
 

@@ -10,19 +10,25 @@ import type { WorldMapSnapshot } from '@/services/gameService';
 import type { RegionDTO } from '@/services/regionClient';
 import {
   buildRegionHierarchy,
-  computeHierarchyLayout,
   slugifyLabel,
   type RegionTreeNode,
 } from '@/utils/regionTree';
+import { buildMapLayout, filterVisibleMapLinks } from '@/utils/worldMapLayout';
+import { resolvePlayerMapPosition } from '@/utils/worldMapPlayer';
+import { PoiMapMarker, PoiIconLegendSwatch } from './PoiMapMarker';
+import { PlayerMapMarker } from './PlayerMapMarker';
+import { POI_ICON_LEGEND, resolvePoiIconKind, type PoiMapMarkerModel } from '@/lib/poiMapIcons';
 
 type MarkerFilters = {
   player: boolean;
   npc: boolean;
   quest: boolean;
+  poi: boolean;
 };
 
 const markerFilterOptions: Array<{ key: keyof MarkerFilters; label: string }> = [
   { key: 'player', label: 'Você' },
+  { key: 'poi', label: 'Locais' },
   { key: 'npc', label: 'NPCs' },
   { key: 'quest', label: 'Missões' },
 ];
@@ -37,6 +43,7 @@ type WorldMapModalProps = {
 const WorldMapModal = ({ isOpen, onClose, snapshot, isLoading = false }: WorldMapModalProps) => {
   const [markerFilters, setMarkerFilters] = useState<MarkerFilters>({
     player: true,
+    poi: true,
     npc: true,
     quest: true,
   });
@@ -61,9 +68,9 @@ const WorldMapModal = ({ isOpen, onClose, snapshot, isLoading = false }: WorldMa
       eyebrow="Exploração"
       subtitle="Arraste e dê zoom para navegar. Toque nos filtros para destacar marcadores."
       onClose={onClose}
-      maxWidth="max-w-4xl"
+      maxWidth="max-w-6xl"
       edgeToEdge
-      className="md:max-w-4xl"
+      className="md:max-w-6xl"
       footer={
         <div className="flex justify-end">
           <DndButton variant="goldOutline" className="min-h-[44px] w-full sm:w-auto" onClick={onClose}>
@@ -113,80 +120,6 @@ const WorldMapModal = ({ isOpen, onClose, snapshot, isLoading = false }: WorldMa
   );
 };
 
-type WorldLayoutResult = {
-  nodePositions: Map<string, { x: number; y: number }>;
-  continentBounds: Array<{ slug: string; name: string; x: number; y: number; width: number; height: number }>;
-  width: number;
-  height: number;
-};
-
-const buildWorldLayoutPositions = (roots: RegionTreeNode[]): WorldLayoutResult => {
-  const nodePositions = new Map<string, { x: number; y: number }>();
-  const continentBounds: WorldLayoutResult['continentBounds'] = [];
-  if (!roots.length) {
-    return {
-      nodePositions,
-      continentBounds,
-      width: 1280,
-      height: 860,
-    };
-  }
-
-  const margin = 140;
-  const gapBetweenContinents = 320;
-  let offsetX = margin;
-  let maxHeight = 0;
-
-  const resolveLayoutForRoot = (root: RegionTreeNode) => {
-    const stored = root.region.metadata?.mapLayout?.nodes as Record<string, { x: number; y: number }> | undefined;
-    if (stored && Object.keys(stored).length) {
-      return stored;
-    }
-    return computeHierarchyLayout([root]);
-  };
-
-  roots.forEach(root => {
-    const layout = resolveLayoutForRoot(root);
-    const entries = Object.entries(layout);
-    if (!entries.length) return;
-
-    const xs = entries.map(([, pos]) => pos.x);
-    const ys = entries.map(([, pos]) => pos.y);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-    const width = maxX - minX + margin * 2;
-    const height = maxY - minY + margin * 2;
-
-    entries.forEach(([slug, pos]) => {
-      nodePositions.set(slug, {
-        x: offsetX + (pos.x - minX) + margin,
-        y: (pos.y - minY) + margin,
-      });
-    });
-
-    continentBounds.push({
-      slug: root.region.slug,
-      name: root.region.name,
-      x: offsetX - margin * 0.6,
-      y: margin * 0.25,
-      width,
-      height: Math.max(height, 420),
-    });
-
-    offsetX += width + gapBetweenContinents;
-    maxHeight = Math.max(maxHeight, height + margin);
-  });
-
-  return {
-    nodePositions,
-    continentBounds,
-    width: Math.max(offsetX, 1400),
-    height: Math.max(maxHeight, 900),
-  };
-};
-
 type WorldMapCanvasProps = {
   hierarchy: RegionTreeNode[];
   snapshot: WorldMapSnapshot;
@@ -194,319 +127,413 @@ type WorldMapCanvasProps = {
 };
 
 const WorldMapCanvas = ({ hierarchy, snapshot, markerFilters }: WorldMapCanvasProps) => {
-  const { nodePositions, continentBounds, width, height } = useMemo(
-    () => buildWorldLayoutPositions(hierarchy),
-    [hierarchy]
+  const regionDtos = snapshot.regions as RegionDTO[];
+  const { nodePositions, continentBounds, width, height, mapArt } = useMemo(
+    () => buildMapLayout(regionDtos, hierarchy),
+    [regionDtos, hierarchy],
   );
-  const fallbackPositions = useMemo(() => {
-    const fallback = computeHierarchyLayout(hierarchy);
-    return new Map<string, { x: number; y: number }>(Object.entries(fallback));
-  }, [hierarchy]);
-  const getPosition = useCallback(
-    (slug: string) => nodePositions.get(slug) ?? fallbackPositions.get(slug),
-    [nodePositions, fallbackPositions]
-  );
+
   const canonicalSlug = useCallback((value?: string | null) => {
     if (!value) return '';
     return slugifyLabel(value);
   }, []);
+
+  const getPosition = useCallback(
+    (slug: string) => nodePositions.get(slug),
+    [nodePositions],
+  );
+
+  const currentRegionSlug = canonicalSlug(snapshot.currentRegionSlug);
+  const currentPos = currentRegionSlug ? getPosition(currentRegionSlug) : null;
+
+  const layoutPois = useMemo(() => {
+    const world = regionDtos.find(r => r.slug === 'aurathis' || r.type === 'world');
+    return world?.metadata?.mapLayout?.pois as
+      | Record<string, { x: number; y: number; regionSlug?: string }>
+      | undefined;
+  }, [regionDtos]);
+
+  const playerPos = useMemo(
+    () => resolvePlayerMapPosition(snapshot, nodePositions, layoutPois, canonicalSlug),
+    [snapshot, nodePositions, layoutPois, canonicalSlug],
+  );
+
+  const focusPoint = playerPos ?? currentPos;
+
+  const hasIllustratedMap = Boolean(
+    mapArt?.url && (mapArt.url.endsWith('.png') || mapArt.url.includes('continente-v4')),
+  );
+
   const visitedRegionSet = useMemo(() => {
     const set = new Set<string>();
     (snapshot.visitedRegions ?? []).forEach(slug => {
       const normalized = canonicalSlug(slug);
       if (normalized) set.add(normalized);
     });
-    const current = canonicalSlug(snapshot.currentRegionSlug);
-    if (current) set.add(current);
+    if (currentRegionSlug) set.add(currentRegionSlug);
     return set;
-  }, [snapshot.visitedRegions, snapshot.currentRegionSlug, canonicalSlug]);
+  }, [snapshot.visitedRegions, currentRegionSlug, canonicalSlug]);
+
   const visitedPoiSet = useMemo(() => {
     const set = new Set<string>();
     (snapshot.visitedPois ?? []).forEach(poi => {
       const regionSlug = canonicalSlug(poi.regionSlug);
       const poiSlug = canonicalSlug(poi.poiSlug);
-      if (regionSlug && poiSlug) {
-        set.add(`${regionSlug}::${poiSlug}`);
-      }
+      if (regionSlug && poiSlug) set.add(`${regionSlug}::${poiSlug}`);
     });
     return set;
   }, [snapshot.visitedPois, canonicalSlug]);
+
   const backgroundBySlug = useMemo(() => {
     const map = new Map<string, string>();
+    if (mapArt?.url) map.set('aurathis', mapArt.url);
     hierarchy.forEach(node => {
       if (node.region.type !== 'world') return;
-      const url = node.region.metadata?.mapBackground?.url;
+      const url =
+        (node.region.metadata?.mapBackground?.url as string | undefined) ??
+        (node.region.slug === 'aurathis' ? mapArt?.url : undefined);
       if (url) map.set(node.region.slug, url);
     });
     return map;
-  }, [hierarchy]);
-  const currentPos = snapshot.currentRegionSlug ? getPosition(snapshot.currentRegionSlug) : null;
+  }, [hierarchy, mapArt]);
+
+  const renderableRegions = useMemo(
+    () =>
+      snapshot.regions.filter(region => {
+        if (region.type === 'world') return false;
+        if ((region.metadata?.role as string | undefined) === 'kingdom') return false;
+        if (!nodePositions.has(region.slug)) return false;
+        return true;
+      }),
+    [snapshot.regions, nodePositions],
+  );
+
+  const visibleLinks = useMemo(() => {
+    const base = filterVisibleMapLinks(snapshot.links);
+    if (!currentRegionSlug) return base;
+    return base.filter(
+      link =>
+        link.fromCurrent ||
+        link.fromSlug === currentRegionSlug ||
+        link.toSlug === currentRegionSlug,
+    );
+  }, [snapshot.links, currentRegionSlug]);
+
+  const visibleMarkers = useMemo(
+    () =>
+      (snapshot.markers ?? []).filter(
+        marker => marker.type !== 'player' && markerFilters[marker.type] !== false,
+      ),
+    [snapshot.markers, markerFilters],
+  );
+
+  const poiMetaBySlug = useMemo(() => {
+    const map = new Map<string, { name: string; type: string; regionSlug: string }>();
+    for (const region of snapshot.regions) {
+      const regionSlug = canonicalSlug(region.slug);
+      for (const poi of region.pointsOfInterest ?? []) {
+        const slug = canonicalSlug(poi.slug);
+        if (!slug) continue;
+        map.set(slug, { name: poi.name, type: poi.type ?? 'landmark', regionSlug });
+      }
+    }
+    return map;
+  }, [snapshot.regions, canonicalSlug]);
+
+  const poiMapMarkers = useMemo((): PoiMapMarkerModel[] => {
+    const world = regionDtos.find(r => r.slug === 'aurathis' || r.type === 'world');
+    const layoutPois = world?.metadata?.mapLayout?.pois as
+      | Record<string, { x: number; y: number; regionSlug?: string }>
+      | undefined;
+    if (!layoutPois) return [];
+
+    const currentPoi = canonicalSlug(snapshot.currentPoiSlug);
+
+    return Object.entries(layoutPois)
+      .map(([slug, pos]) => {
+        const normSlug = canonicalSlug(slug);
+        const regionSlug = canonicalSlug(pos.regionSlug ?? '');
+        const meta = poiMetaBySlug.get(normSlug);
+        const discovered = regionSlug ? visitedRegionSet.has(regionSlug) : false;
+        const visited = visitedPoiSet.has(`${regionSlug}::${normSlug}`);
+        return {
+          slug: normSlug,
+          name: meta?.name ?? slug.replace(/-/g, ' '),
+          x: pos.x,
+          y: pos.y,
+          regionSlug,
+          iconKind: resolvePoiIconKind(normSlug, meta?.type),
+          discovered,
+          visited,
+          isCurrent: Boolean(currentPoi && currentPoi === normSlug),
+        };
+      })
+      .filter(
+        p =>
+          p.discovered &&
+          (p.regionSlug === currentRegionSlug || p.visited || p.isCurrent) &&
+          !(playerPos?.poiSlug && p.slug === playerPos.poiSlug),
+      )
+      .sort((a, b) => (a.isCurrent ? -1 : 0) - (b.isCurrent ? -1 : 0));
+  }, [
+    regionDtos,
+    visitedRegionSet,
+    visitedPoiSet,
+    poiMetaBySlug,
+    canonicalSlug,
+    snapshot.currentPoiSlug,
+    currentRegionSlug,
+    playerPos?.poiSlug,
+  ]);
+
   const fogGradientId = useMemo(() => `fog-gradient-${Math.random().toString(36).slice(2)}`, []);
   const fogMaskId = useMemo(() => `fog-mask-${Math.random().toString(36).slice(2)}`, []);
-  const renderableRegions = useMemo(
-    () => snapshot.regions.filter(region => region.type !== 'world'),
-    [snapshot.regions]
-  );
-  const visibleMarkers = useMemo(
-    () => (snapshot.markers ?? []).filter(marker => markerFilters[marker.type] !== false),
-    [snapshot.markers, markerFilters]
-  );
 
   return (
     <div className="space-y-3">
-      <WorldMapPanZoom width={width} height={height}>
+      <WorldMapPanZoom width={width} height={height} focusPoint={focusPoint}>
         <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="select-none">
-          <defs>
-            <linearGradient id="worldGrid" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="rgba(148,163,184,0.08)" />
-              <stop offset="100%" stopColor="rgba(15,23,42,0.25)" />
-            </linearGradient>
-            <pattern id="worldGridPattern" width="60" height="60" patternUnits="userSpaceOnUse">
-              <path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(71,85,105,0.15)" strokeWidth="1" />
-            </pattern>
-            <radialGradient id={fogGradientId}>
-              <stop offset="0%" stopColor="black" stopOpacity="0" />
-              <stop offset="60%" stopColor="black" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="black" stopOpacity="1" />
-            </radialGradient>
-            <mask id={fogMaskId}>
-              <rect width={width} height={height} fill="white" />
-              {currentPos && (
-                <circle cx={currentPos.x} cy={currentPos.y} r={520} fill={`url(#${fogGradientId})`} />
-              )}
-            </mask>
-          </defs>
-          <rect width={width} height={height} fill="#020617" />
+          {!hasIllustratedMap && (
+            <defs>
+              <linearGradient id="worldGrid" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor="rgba(148,163,184,0.08)" />
+                <stop offset="100%" stopColor="rgba(15,23,42,0.25)" />
+              </linearGradient>
+              <pattern id="worldGridPattern" width="60" height="60" patternUnits="userSpaceOnUse">
+                <path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(71,85,105,0.15)" strokeWidth="1" />
+              </pattern>
+              <radialGradient id={fogGradientId}>
+                <stop offset="0%" stopColor="black" stopOpacity="0" />
+                <stop offset="70%" stopColor="black" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="black" stopOpacity="0.65" />
+              </radialGradient>
+              <mask id={fogMaskId}>
+                <rect width={width} height={height} fill="white" />
+                {currentPos && (
+                  <circle cx={currentPos.x} cy={currentPos.y} r={200} fill={`url(#${fogGradientId})`} />
+                )}
+              </mask>
+            </defs>
+          )}
+
+          <rect width={width} height={height} fill={hasIllustratedMap ? '#0a1219' : '#020617'} />
+
           {continentBounds.map(bound => {
             const backgroundUrl = backgroundBySlug.get(bound.slug);
             if (!backgroundUrl) return null;
+            const isCanonicalArt = mapArt?.url === backgroundUrl;
             return (
               <image
                 key={`bg-${bound.slug}`}
                 href={backgroundUrl}
-                x={bound.x}
-                y={bound.y}
-                width={bound.width}
-                height={bound.height}
-                preserveAspectRatio="xMidYMid slice"
-                opacity={0.35}
+                x={isCanonicalArt ? 0 : bound.x}
+                y={isCanonicalArt ? 0 : bound.y}
+                width={isCanonicalArt ? width : bound.width}
+                height={isCanonicalArt ? height : bound.height}
+                preserveAspectRatio={isCanonicalArt ? 'xMidYMid meet' : 'xMidYMid slice'}
+                opacity={isCanonicalArt ? 1 : 0.35}
               />
             );
           })}
-          <rect width={width} height={height} fill="url(#worldGrid)" />
-          <rect width={width} height={height} fill="url(#worldGridPattern)" />
-          <rect width={width} height={height} fill="rgba(2,6,23,0.82)" mask={`url(#${fogMaskId})`} />
 
-          {continentBounds.map(bound => (
-            <g key={bound.slug}>
-              <rect
-                x={bound.x}
-                y={bound.y}
-                width={bound.width}
-                height={bound.height}
-                fill="rgba(8,47,73,0.15)"
-                stroke="rgba(56,189,248,0.2)"
-                strokeDasharray="12 8"
-              />
-              <text
-                x={bound.x + 16}
-                y={bound.y + 28}
-                fontSize={14}
-                fill="#38bdf8"
-                className="uppercase tracking-[0.3em]"
-              >
-                {bound.name}
-              </text>
-            </g>
-          ))}
+          {!hasIllustratedMap && (
+            <>
+              <rect width={width} height={height} fill="url(#worldGrid)" />
+              <rect width={width} height={height} fill="url(#worldGridPattern)" />
+              <rect width={width} height={height} fill="rgba(2,6,23,0.55)" mask={`url(#${fogMaskId})`} />
+              {continentBounds.map(bound => (
+                <g key={`frame-${bound.slug}`}>
+                  <rect
+                    x={bound.x}
+                    y={bound.y}
+                    width={bound.width}
+                    height={bound.height}
+                    fill="rgba(8,47,73,0.15)"
+                    stroke="rgba(56,189,248,0.2)"
+                    strokeDasharray="12 8"
+                  />
+                </g>
+              ))}
+            </>
+          )}
 
-          {snapshot.links
-            .filter(link => link.discovered)
-            .map(link => {
-              const fromPos = getPosition(link.fromSlug);
-              const toPos = getPosition(link.toSlug);
-              if (!fromPos || !toPos) return null;
-              const color = link.isLocked ? '#f87171' : '#38bdf8';
-              return (
+          {visibleLinks.map(link => {
+            const fromPos = getPosition(link.fromSlug);
+            const toPos = getPosition(link.toSlug);
+            if (!fromPos || !toPos) return null;
+            const isFull = link.discovered;
+            const isActive = link.fromCurrent;
+            const color = link.isLocked
+              ? '#f87171'
+              : isActive
+                ? '#fde047'
+                : isFull
+                  ? '#7dd3fc'
+                  : '#64748b';
+            const strokeWidth = isActive ? (hasIllustratedMap ? 2 : 3) : 1.75;
+            const lineOpacity = hasIllustratedMap
+              ? isActive
+                ? 0.55
+                : isFull
+                  ? 0.4
+                  : 0.28
+              : isActive
+                ? 0.95
+                : 0.7;
+            return (
+              <g key={`${link.fromSlug}-${link.toSlug}`} opacity={lineOpacity}>
                 <line
-                  key={`${link.fromSlug}-${link.toSlug}`}
                   x1={fromPos.x}
                   y1={fromPos.y}
                   x2={toPos.x}
                   y2={toPos.y}
                   stroke={color}
-                  strokeWidth={3}
+                  strokeWidth={strokeWidth}
                   strokeLinecap="round"
-                  opacity={0.9}
                   strokeDasharray={link.isLocked ? '8 6' : undefined}
                 />
-              );
-            })}
+                <title>
+                  {link.fromSlug} → {link.toSlug}
+                  {link.travelMode ? ` (${link.travelMode}` : ''}
+                  {link.travelTimeMinutes != null ? `, ${link.travelTimeMinutes} min)` : ')'}
+                  {link.isLocked ? ' [bloqueada]' : ''}
+                </title>
+              </g>
+            );
+          })}
 
           {renderableRegions.map(region => {
             const pos = getPosition(region.slug);
             if (!pos) return null;
-            const canonicalRegionSlug =
-              canonicalSlug(region.slug) || canonicalSlug(region.name ?? '');
+            const canonicalRegionSlug = canonicalSlug(region.slug);
             const isDiscovered =
-              region.isDiscovered ??
-              (canonicalRegionSlug ? visitedRegionSet.has(canonicalRegionSlug) : false);
-            const radius = region.type === 'city' ? 14 : 10;
-            const fill = !isDiscovered
-              ? '#1f2937'
-              : region.type === 'city'
+              region.isDiscovered ?? visitedRegionSet.has(canonicalRegionSlug);
+            if (!isDiscovered && !region.isCurrent) return null;
+            if (hasIllustratedMap && region.isCurrent) return null;
+
+            const radius =
+              region.type === 'city' ? 10 : region.type === 'dungeon' ? 8 : 6;
+            const fill =
+              region.type === 'city'
                 ? '#22d3ee'
                 : region.type === 'dungeon'
                   ? '#f97316'
                   : '#a855f7';
-            const stroke = region.isCurrent ? '#facc15' : isDiscovered ? '#e2e8f0' : '#0f172a';
-            const opacity = isDiscovered ? 1 : 0.35;
-            const label = region.name;
+            const stroke = '#e2e8f0';
+            const showLabel = region.type === 'city' && !region.isCurrent;
 
             return (
               <g key={region.slug} transform={`translate(${pos.x}, ${pos.y})`}>
-                {region.isCurrent && (
-                  <circle
-                    r={radius + 10}
-                    fill="none"
-                    stroke="#facc15"
-                    strokeWidth={3}
-                    className="animate-ping"
-                  />
-                )}
-                <circle r={radius} fill={fill} stroke={stroke} strokeWidth={2} opacity={opacity} />
-                {isDiscovered && (
+                <circle r={radius + 3} fill="rgba(0,0,0,0.35)" />
+                <circle r={radius} fill={fill} stroke={stroke} strokeWidth={1.5} opacity={0.95} />
+                {showLabel && (
                   <text
                     x={0}
-                    y={radius + 16}
+                    y={radius + 14}
                     textAnchor="middle"
                     fontSize={10}
-                    fill="#e2e8f0"
+                    fill="#f8fafc"
+                    stroke="#0f172a"
+                    strokeWidth={2.5}
+                    paintOrder="stroke"
                   >
-                    {label.length > 18 ? `${label.slice(0, 15)}…` : label}
+                    {region.name.length > 20 ? `${region.name.slice(0, 17)}…` : region.name}
                   </text>
                 )}
                 <title>
-                  {label}
+                  {region.name}
                   {region.isCurrent ? ' (posição atual)' : ''}
                 </title>
               </g>
             );
           })}
+
+          {markerFilters.poi &&
+            poiMapMarkers.map(poi => (
+              <PoiMapMarker
+                key={`poi-${poi.slug}`}
+                x={poi.x}
+                y={poi.y}
+                kind={poi.iconKind}
+                name={poi.name}
+                size={13}
+                discovered={poi.discovered}
+                visited={poi.visited}
+                isCurrent={poi.isCurrent}
+              />
+            ))}
+
           {visibleMarkers.map(marker => {
             const pos = getPosition(marker.regionSlug);
             if (!pos) return null;
-            const canonicalMarkerRegion = canonicalSlug(marker.regionSlug);
-            const canonicalMarkerPoi = canonicalSlug(marker.poiSlug);
-            const markerKey =
-              canonicalMarkerRegion && canonicalMarkerPoi
-                ? `${canonicalMarkerRegion}::${canonicalMarkerPoi}`
-                : null;
-            const markerIsDiscovered =
-              marker.isDiscovered ??
-              (markerKey ? visitedPoiSet.has(markerKey) : visitedRegionSet.has(canonicalMarkerRegion));
-            const opacity = markerIsDiscovered ? 1 : 0.3;
             const label = marker.label;
-            const description = marker.description
-              ? ` • ${marker.description}`
-              : marker.status
-                ? ` (${marker.status})`
-                : '';
             return (
-              <g key={marker.id} transform={`translate(${pos.x}, ${pos.y - 6})`} opacity={opacity}>
+              <g key={marker.id} transform={`translate(${pos.x}, ${pos.y})`}>
                 {marker.type === 'player' ? (
                   <>
-                    <circle r={16} fill="none" stroke="#fef08a" strokeWidth={2} />
-                    <circle r={10} fill="#facc15" stroke="#b45309" strokeWidth={2} />
+                    <circle r={12} fill="none" stroke="#fef08a" strokeWidth={2} />
+                    <circle r={7} fill="#facc15" stroke="#b45309" strokeWidth={1.5} />
                   </>
                 ) : marker.type === 'npc' ? (
                   <rect
-                    x={-8}
-                    y={-8}
-                    width={16}
-                    height={16}
+                    x={-6}
+                    y={-6}
+                    width={12}
+                    height={12}
                     fill="#34d399"
                     stroke="#065f46"
-                    strokeWidth={2}
+                    strokeWidth={1.5}
                     transform="rotate(45)"
                   />
                 ) : (
-                  <rect
-                    x={-7}
-                    y={-7}
-                    width={14}
-                    height={14}
-                    fill="#fb7185"
-                    stroke="#7f1d1d"
-                    strokeWidth={2}
-                    rx={2}
-                  />
+                  <rect x={-6} y={-6} width={12} height={12} fill="#fb7185" stroke="#7f1d1d" strokeWidth={1.5} rx={1} />
                 )}
-                <text
-                  x={0}
-                  y={marker.type === 'player' ? 26 : 22}
-                  textAnchor="middle"
-                  fontSize={10}
-                  fill="#e2e8f0"
-                >
-                  {label.length > 18 ? `${label.slice(0, 15)}…` : label}
-                </text>
-                <title>
-                  {label}
-                  {description}
-                </title>
+                <title>{label}</title>
               </g>
             );
           })}
+
+          {markerFilters.player && playerPos && (
+            <PlayerMapMarker x={playerPos.x} y={playerPos.y} label={playerPos.label} />
+          )}
         </svg>
       </WorldMapPanZoom>
 
       <p className="font-ui text-[11px] leading-relaxed text-dnd-parchment-muted">
-        Rotas só aparecem após serem exploradas. Use os filtros acima para NPCs e missões.
+        Zoom inicial na sua região. Rotas e locais mostram só o entorno imediato; use ↺ para recentralizar.
       </p>
 
-      <div className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg border border-dnd-gold/12 bg-dnd-obsidian-raised/40 p-3 font-ui text-[11px] text-dnd-parchment-muted sm:grid-cols-3">
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-3 w-3 shrink-0 rounded-full bg-[#22d3ee]" />
-          Cidade explorada
+      <details className="rounded-lg border border-dnd-gold/12 bg-dnd-obsidian-raised/40 p-3">
+        <summary className="cursor-pointer font-ui text-[10px] uppercase tracking-wider text-dnd-gold/80">
+          Legenda do mapa
+        </summary>
+        <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-3 md:grid-cols-4">
+          {POI_ICON_LEGEND.map(spec => (
+            <div key={spec.kind} className="flex items-center gap-2 font-ui text-[10px] text-dnd-parchment-muted">
+              <PoiIconLegendSwatch kind={spec.kind} size={8} />
+              <span>{spec.label}</span>
+            </div>
+          ))}
         </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-3 w-3 rounded-full bg-[#f97316]" />
-          Dungeon / ameaça
+        <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 font-ui text-[10px] text-dnd-parchment-muted sm:grid-cols-3">
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#22d3ee]" />
+            Cidade
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#f97316]" />
+            Masmorra
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#facc15]" />
+            Você
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-5 h-0.5 bg-[#7dd3fc]" />
+            Rota próxima
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-3 w-3 rounded-full bg-[#a855f7]" />
-          Região selvagem / sublocal
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-3 w-3 rounded-full bg-[#1f2937]" />
-          Não explorado
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-6 h-[2px] bg-[#38bdf8]" />
-          Rotas conhecidas
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-3 w-3 rounded-full bg-[#facc15]" />
-          Você / grupo
-        </div>
-        <div className="flex items-center gap-2">
-          <span
-            className="inline-block"
-            style={{
-              width: '12px',
-              height: '12px',
-              backgroundColor: '#34d399',
-              transform: 'rotate(45deg)',
-            }}
-          />
-          NPCs rastreados
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-3 w-3 rounded bg-[#fb7185]" />
-          Missões em aberto
-        </div>
-      </div>
+      </details>
     </div>
   );
 };

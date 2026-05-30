@@ -112,6 +112,16 @@ export const useNewGameState = () => {
         }
     }, [session.sessionId, narration.resetActionPipeline, pipelineRefs.latestActionSequenceRef]);
 
+    /** PENAI: sendMotorAction liga isLoading/label legado — liberar ao fim do turno WS. */
+    useEffect(() => {
+        const onSettled = () => {
+            narration.setIsLoading(false);
+            narration.setActionPhaseLabel(null);
+        };
+        window.addEventListener('penai-turn-settled', onSettled);
+        return () => window.removeEventListener('penai-turn-settled', onSettled);
+    }, [narration.setIsLoading, narration.setActionPhaseLabel]);
+
     const applyLevelUp = useCallback(
         async (selections: LevelUpSelections) => {
             if (!session.character || !interactionState.levelUpState?.isPending) return;

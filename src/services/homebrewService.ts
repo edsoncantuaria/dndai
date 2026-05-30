@@ -111,7 +111,8 @@ export const listHomebrewContent = async (scope: 'public' | 'mine', createdBy?: 
     }
     
     const endpoint = `/v2/homebrew?${params.toString()}`;
-    return apiClient<HomebrewContent[]>(endpoint, { method: 'GET' });
+    const response = await apiClient<{ content: HomebrewContent[] }>(endpoint, { method: 'GET' });
+    return response.content ?? [];
 };
 
 export const createHomebrewContent = async (data: CreateHomebrewData): Promise<HomebrewContent> => {
@@ -140,7 +141,8 @@ export const getHomebrewDetails = async (id: string): Promise<HomebrewContent | 
 };
 
 export const getHomebrewDependencies = async (id: string): Promise<HomebrewContent[]> => {
-    return apiClient<HomebrewContent[]>(`/v2/homebrew/${id}/dependencies`);
+    const response = await apiClient<{ dependencies: HomebrewContent[] }>(`/v2/homebrew/${id}/dependencies`);
+    return response.dependencies ?? [];
 };
 
 export const listBundles = async (scope?: 'public' | 'mine', page: number = 1, limit: number = 100): Promise<HomebrewBundle[]> => {
@@ -148,7 +150,8 @@ export const listBundles = async (scope?: 'public' | 'mine', page: number = 1, l
     if (scope) {
         params.append('scope', scope);
     }
-    return apiClient<HomebrewBundle[]>(`/v2/homebrew/bundles?${params.toString()}`);
+    const response = await apiClient<{ bundles: HomebrewBundle[] }>(`/v2/homebrew/bundles?${params.toString()}`);
+    return response.bundles ?? [];
 };
 
 export const createBundle = async (data: BundleData): Promise<HomebrewBundle> => {
@@ -172,7 +175,8 @@ export const deleteBundle = async (id: string): Promise<void> => {
 };
 
 export const getBundleContents = async (id: string): Promise<HomebrewContent[]> => {
-    return apiClient<HomebrewContent[]>(`/v2/homebrew/bundles/${id}/contents`);
+    const response = await apiClient<{ contents: HomebrewContent[] }>(`/v2/homebrew/bundles/${id}/contents`);
+    return response.contents ?? [];
 };
 
 export const checkNameExists = async (name: string, type: HomebrewContentType): Promise<{ exists: boolean }> => {

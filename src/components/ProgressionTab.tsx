@@ -53,14 +53,20 @@ const ProgressionTab: React.FC = () => {
                 <div className="flex items-center gap-2 text-sm font-semibold text-amber-200 uppercase tracking-widest">
                     <Sparkles className="h-4 w-4" /> Linha de Progressão
                 </div>
+                {!character.classLevelsData?.length ? (
+                    <p className="text-xs text-stone-400 leading-relaxed">
+                        Carregando talentos de {character.characterClass}… Se persistir, confira se o
+                        servidor SRD está no ar.
+                    </p>
+                ) : null}
                 {allLevels.map(level => {
                     const classLevelData = character.classLevelsData?.find(l => l.level === level);
                     const subclassLevelData = character.subclassLevelsData?.find(l => l.level === level);
-                    
+
                     if (!classLevelData) return null;
-                    
+
                     return (
-                        <LevelCard 
+                        <LevelCard
                             key={level}
                             level={level}
                             classLevelData={classLevelData}
@@ -68,7 +74,7 @@ const ProgressionTab: React.FC = () => {
                             isCurrent={level === character.level}
                             isPast={level < character.level}
                         />
-                    )
+                    );
                 })}
              </div>
         </div>

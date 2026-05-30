@@ -64,14 +64,15 @@ export function InitiativeRail({
                 'relative flex w-[88px] shrink-0 flex-col rounded-md border px-2 py-1.5 text-left transition-all',
                 'bg-dnd-obsidian-raised/80',
                 attitudeBorder[attitude],
-                isActive && 'ring-2 ring-dnd-gold/70 shadow-[0_0_12px_var(--dnd-gold-glow)]',
-                c.isDead && 'opacity-45'
+                isActive &&
+                    'ring-2 ring-dnd-ember shadow-[0_0_16px_rgba(228,7,18,0.45)] animate-pulse',
+                c.isDead && 'opacity-45 grayscale'
               )}
             >
               {isActive ? (
                 <motion.span
                   layoutId="initiative-active"
-                  className="pointer-events-none absolute inset-0 rounded-md bg-dnd-gold/10"
+                  className="pointer-events-none absolute inset-0 rounded-md bg-dnd-ember/15"
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               ) : null}

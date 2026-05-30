@@ -23,6 +23,7 @@ import {
 import { StageTransition } from '@/components/motion/StageTransition';
 import { AmbientAudioEngine } from '@/components/AmbientAudioEngine';
 import { useStageAmbientSound } from '@/hooks/useStageAmbientSound';
+import { useWorldAmbientSound } from '@/hooks/useWorldAmbientSound';
 import { useMenuMusicCrossfade } from '@/hooks/useMenuMusicCrossfade';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import GameMenuContent from './game-menu/GameMenuContent';
@@ -79,6 +80,7 @@ const GameContainer = () => {
     }, [needsOnboarding, onboardingStep, gameStage]);
 
     useStageAmbientSound(gameStage);
+    useWorldAmbientSound(gameStage);
     useMenuMusicCrossfade({ gameStage, playMenuMusic, playAmbientMusic, volume, isMuted });
 
     const fetchInitialData = useCallback(async () => {

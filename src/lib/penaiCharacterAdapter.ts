@@ -1,5 +1,8 @@
-import type { Character, CharacterSpell, InventoryItem, SessaoIA } from '@/types';
+import type { Character, CharacterSpell, InventoryItem, ProgressionFeedItem, SessaoIA } from '@/types';
 import { markSessionAsPenai } from '@/lib/penaiEngine';
+import { calculateWeight, getXpThreshold } from '@/utils/characterUtils';
+import { COIN_WEIGHT } from '@/utils/currency';
+import type { ApiClassLevel } from '@/types';
 import {
     createPenaiSession,
     fetchPenaiMechanical,
@@ -50,6 +53,8 @@ export function mechanicalPackToCharacter(
     const maxHp = Number(ch?.maxHp ?? hp);
     const ac = Number(ch?.ac ?? 12);
     const level = Number(ch?.level ?? 1);
+    const xp = Number(ch?.xp ?? 0);
+    const xpToNextLevel = Number(ch?.xpToNextLevel ?? getXpThreshold(level));
     const name = String(ch?.name ?? sessionMeta?.nome ?? 'Herói');
     const coins = asRecord(ch?.coins) ?? {};
     const attrs = asRecord(ch?.attributes) ?? {};
@@ -63,15 +68,43 @@ export function mechanicalPackToCharacter(
     const charisma = Number(attrs.charisma ?? 10);
 
     const inventory: InventoryItem[] = Array.isArray(ch?.inventory)
-        ? (ch!.inventory as Array<Record<string, unknown>>).map((item, idx) => ({
-              id: String(item.id ?? item.index ?? idx),
-              index: String(item.index ?? item.itemKey ?? idx),
-              name: String(item.name ?? 'Item'),
-              quantity: Number(item.quantity ?? 1),
-              equipped: Boolean(item.equipped),
-              itemData: (item.itemData as Record<string, unknown>) ?? {},
-          }))
+        ? (ch!.inventory as Array<Record<string, unknown>>).map((item, idx) => {
+              const itemData = (item.itemData as Record<string, unknown>) ?? {};
+              const unitFromPack =
+                  typeof item.weight === 'number'
+                      ? item.weight
+                      : typeof itemData.unitWeightLb === 'number'
+                        ? itemData.unitWeightLb
+                        : undefined;
+              return {
+                  id: String(item.id ?? item.index ?? idx),
+                  index: String(item.index ?? item.itemKey ?? idx),
+                  name: String(item.name ?? 'Item'),
+                  quantity: Number(item.quantity ?? 1),
+                  equipped: Boolean(item.equipped),
+                  weight: unitFromPack,
+                  itemData,
+              };
+          })
         : [];
+
+    const currencyFromCoins = {
+        pp: Number(coins.pp ?? 0),
+        gp: Number(coins.gp ?? 0),
+        ep: Number(coins.ep ?? 0),
+        sp: Number(coins.sp ?? 0),
+        cp: Number(coins.cp ?? 0),
+    };
+    const coinCount = Object.values(currencyFromCoins).reduce((s, n) => s + n, 0);
+    const coinWeight = coinCount * COIN_WEIGHT;
+    const inventoryWeight = calculateWeight(inventory);
+    const computedWeight = Math.round((inventoryWeight + coinWeight) * 100) / 100;
+    const packWeight = Number(ch?.currentWeight);
+    const currentWeight = Number.isFinite(packWeight) ? packWeight : computedWeight;
+    const packCapacity = Number(ch?.carryingCapacity);
+    const carryingCapacity = Number.isFinite(packCapacity)
+        ? packCapacity
+        : Math.max(150, strength * 15);
 
     const spells = normalizeSpells(ch?.spells);
     const spellSlots =
@@ -139,24 +172,23 @@ export function mechanicalPackToCharacter(
         proficiencyBonus,
         hp: { current: hp, max: maxHp, temp: 0 },
         ac: { value: ac, source: 'penai' },
-        xp: 0,
-        xpToNextLevel: 300,
+        xp,
+        xpToNextLevel: Number.isFinite(xpToNextLevel) ? xpToNextLevel : getXpThreshold(level),
         hitDie: 10,
         hitDice: { current: 1, total: 1 },
         speed: 30,
         deathSaves: { successes: 0, failures: 0 },
         conditions: [],
-        currency: {
-            pp: Number(coins.pp ?? 0),
-            gp: Number(coins.gp ?? 0),
-            ep: Number(coins.ep ?? 0),
-            sp: Number(coins.sp ?? 0),
-            cp: Number(coins.cp ?? 0),
-        },
-        currentWeight: 0,
-        carryingCapacity: Math.max(150, strength * 15),
+        currency: currencyFromCoins,
+        currentWeight,
+        carryingCapacity,
         spellSlots,
-        classLevelsData: [],
+        classLevelsData: Array.isArray(ch?.classLevelsData)
+            ? (ch!.classLevelsData as ApiClassLevel[])
+            : [],
+        subclassLevelsData: Array.isArray(ch?.subclassLevelsData)
+            ? (ch!.subclassLevelsData as ApiClassLevel[])
+            : [],
         traits: [],
         feats: Array.isArray(ch?.feats) ? (ch!.feats as Character['feats']) : [],
         languages: ['Comum'],
@@ -206,6 +238,26 @@ export function penaiSessionToSessaoIA(row: Record<string, unknown>, heroName?: 
     };
 }
 
+function mergeProgressionFeedFromPack(
+    pack: MechanicalPack,
+): ProgressionFeedItem[] {
+    const raw = pack.progressionFeed;
+    if (!Array.isArray(raw)) return [];
+    return raw.map((entry, idx) => {
+        const e = entry as Record<string, unknown>;
+        return {
+            id: `penai-${idx}-${String(e.type ?? 'xp')}`,
+            type: (e.type === 'level_up' ? 'level_up' : 'xp_gain') as ProgressionFeedItem['type'],
+            summary: String(e.summary ?? ''),
+            source: typeof e.source === 'string' ? e.source : undefined,
+            detail: typeof e.detail === 'string' ? e.detail : undefined,
+            xp: typeof e.xp === 'number' ? e.xp : undefined,
+            level: typeof e.level === 'number' ? e.level : undefined,
+            timestamp: new Date().toISOString(),
+        };
+    });
+}
+
 export async function loadPenaiGameSession(sessionId: number, userId: number) {
     const [session, mechanical] = await Promise.all([
         fetchPenaiSession(sessionId),
@@ -213,7 +265,8 @@ export async function loadPenaiGameSession(sessionId: number, userId: number) {
     ]);
     markSessionAsPenai(sessionId);
     const character = mechanicalPackToCharacter(sessionId, userId, mechanical, session);
-    return { session, mechanical, character };
+    const progressionFeed = mergeProgressionFeedFromPack(mechanical);
+    return { session, mechanical, character, progressionFeed };
 }
 
 export async function createAndLoadPenaiSession(

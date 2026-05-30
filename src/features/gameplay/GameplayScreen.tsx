@@ -31,9 +31,10 @@ import { useInputGate } from '@/hooks/game/useInputGate';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePenaiTurnPipeline } from '@/hooks/usePenaiTurnPipeline';
 import { PenaiGameplayProvider } from '@/contexts/PenaiGameplayContext';
-import { isPenaiSession } from '@/lib/penaiEngine';
 import { PenaiMechanicalSync } from '@/components/PenaiMechanicalSync';
 import { setPenaiBridge } from '@/lib/penaiBridge';
+import { usePenaiWorldBootstrap } from '@/hooks/usePenaiWorldBootstrap';
+import { SessionWorldLoadingScreen } from './components/SessionWorldLoadingScreen';
 
 export interface GameplayScreenProps {
   returnToMenu: () => void;
@@ -67,12 +68,9 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
   const { hasSeenGuidedTips, setHasSeenGuidedTips } = useSettingsContext();
   const gate = useInputGate();
   const { user } = useAuth();
-  const penaiMode = isPenaiSession(sessionId);
-  const penaiTurn = usePenaiTurnPipeline(
-    sessionId,
-    user?.id ?? 1,
-    penaiMode && sessionId != null,
-  );
+  const penaiTurn = usePenaiTurnPipeline(sessionId, user?.id ?? 1, sessionId != null);
+  const worldBootstrap = usePenaiWorldBootstrap(sessionId, sessionId != null);
+  const worldReady = worldBootstrap.ready;
 
   const [freeActionOpen, setFreeActionOpen] = useState(false);
   const [freeText, setFreeText] = useState('');
@@ -84,14 +82,10 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
   const [guidedDismissed, setGuidedDismissed] = useState(false);
   const [guidedStep, setGuidedStep] = useState(0);
 
-  const activeRollRequest = penaiMode ? penaiTurn.playerRollRequest : playerRollRequest;
+  const activeRollRequest = penaiTurn.playerRollRequest ?? playerRollRequest;
   const showDiceModal = Boolean(activeRollRequest);
-  const penaiServerRolls = penaiMode
-    ? (penaiTurn.lastMechanical?.serverRolls as number[] | undefined)
-    : undefined;
-  const penaiServerRollTotal = penaiMode
-    ? (penaiTurn.lastMechanical?.rollTotal as number | undefined)
-    : undefined;
+  const penaiServerRolls = penaiTurn.lastMechanical?.serverRolls as number[] | undefined;
+  const penaiServerRollTotal = penaiTurn.lastMechanical?.rollTotal as number | undefined;
   const showCombatHud = combatState?.isActive;
 
   useGameplayScrollLock(Boolean(character));
@@ -120,15 +114,11 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
   }, [character, hasSeenGuidedTips, guidedDismissed]);
 
   useEffect(() => {
-    if (!penaiMode || !penaiTurn.lastError) return;
+    if (!penaiTurn.lastError) return;
     toast({ variant: 'destructive', description: penaiTurn.lastError });
-  }, [penaiMode, penaiTurn.lastError, toast]);
+  }, [penaiTurn.lastError, toast]);
 
   useEffect(() => {
-    if (!penaiMode) {
-      setPenaiBridge(null);
-      return;
-    }
     setPenaiBridge({
       active: true,
       sendProcessAction: penaiTurn.sendProcessAction,
@@ -138,18 +128,31 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
       submitRollResult: penaiTurn.submitRollResult,
     });
     return () => setPenaiBridge(null);
-  }, [penaiMode, penaiTurn.sendProcessAction, penaiTurn.submitRollResult]);
+  }, [penaiTurn.sendProcessAction, penaiTurn.submitRollResult]);
 
   useEffect(() => {
-    if (!penaiMode || !penaiTurn.connected || sessionId == null) return;
-    const key = `cda:session:${sessionId}:penaiBootstrap`;
+    if (!penaiTurn.connected || sessionId == null || !worldReady) return;
+    if (!penaiTurn.storyHydrated) return;
+    const hasNarration = penaiTurn.storyFeed.some(
+      e => e.kind === 'narration' && Boolean(String(e.content ?? '').trim()),
+    );
+    if (hasNarration) return;
+    const key = `cda:session:${sessionId}:penaiOpening`;
     if (typeof window === 'undefined') return;
-    if (!sessionStorage.getItem(key)) return;
-    sessionStorage.removeItem(key);
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, '1');
     penaiTurn.sendProcessAction(
       'A aventura começa. Onde eu estou e o que está acontecendo?',
+      { bootstrap: true },
     );
-  }, [penaiMode, penaiTurn.connected, penaiTurn.sendProcessAction, sessionId]);
+  }, [
+    penaiTurn.connected,
+    penaiTurn.sendProcessAction,
+    penaiTurn.storyFeed,
+    penaiTurn.storyHydrated,
+    sessionId,
+    worldReady,
+  ]);
 
   const handleNarrationToggle = useCallback(() => {
     if (isNarrationActive) {
@@ -195,6 +198,18 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
     );
   }
 
+  if (sessionId != null && !worldReady) {
+    return (
+      <SessionWorldLoadingScreen
+        sessionName={character?.nome}
+        steps={worldBootstrap.steps}
+        currentStep={worldBootstrap.currentStep}
+        error={worldBootstrap.error}
+        onRetry={worldBootstrap.retry}
+      />
+    );
+  }
+
   if (!character) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 text-dnd-danger">
@@ -210,12 +225,19 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
     character.worldState?.currentRegion || character.currentRegion || 'Região desconhecida';
 
   const penaiContextValue = {
-    active: penaiMode,
+    active: true,
     connected: penaiTurn.connected,
+    contractOk: penaiTurn.contractOk,
+    actionCursor: penaiTurn.actionCursor,
+    narrationWorkflowId: penaiTurn.narrationWorkflowId,
     storyFeed: penaiTurn.storyFeed,
+    storyHydrated: penaiTurn.storyHydrated,
+    narrationPending: penaiTurn.narrationPending,
     worldPulse: penaiTurn.worldPulse,
+    worldPulseHeadline: penaiTurn.worldPulseHeadline,
     playerRollRequest: penaiTurn.playerRollRequest,
     lastMechanical: penaiTurn.lastMechanical,
+    lastError: penaiTurn.lastError,
     phase: penaiTurn.phase,
     sendProcessAction: penaiTurn.sendProcessAction,
     sendStructuredIntent: (
@@ -274,11 +296,7 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
         {showDiceModal && activeRollRequest && (
           <DiceRollModal
             request={activeRollRequest}
-            onRoll={
-              penaiMode
-                ? penaiTurn.handleRollResult(penaiTurn.submitRollResult)
-                : handleRollResult
-            }
+            onRoll={penaiTurn.handleRollResult(penaiTurn.submitRollResult)}
             show={showDiceModal}
             anchorId="dice-roll-modal-anchor"
             serverRolls={penaiServerRolls ?? null}

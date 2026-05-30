@@ -394,7 +394,11 @@ export const useDataManager = (
       return;
     }
 
-    const key = `${race}|${subrace || ''}`;
+    if (subrace && !subraceDetails) {
+      return;
+    }
+
+    const key = `${race}|${subrace || ''}|${subraceDetails?.index ?? ''}`;
     if (traitsCacheKey.current === key) {
       return;
     }

@@ -15,7 +15,23 @@ import StructuredRestPanel from '@/components/StructuredRestPanel';
 import {
   collectOptionTexts,
   resolveContextualDockVisibility,
+  type PenaiMotorActionOption,
 } from '../lib/contextualDockActions';
+import type { StructuredIntent } from '@/hooks/game/motorIntents';
+
+function resolveStructuredFromOption(
+  raw: string | PenaiMotorActionOption,
+  displayText: string,
+): StructuredIntent | undefined {
+  if (typeof raw !== 'object' || !raw.needsRoll || !raw.skill) return undefined;
+  return {
+    type: 'skill-check',
+    payload: {
+      skillIndex: raw.skill,
+      ...(raw.dc ? { dc: raw.dc } : {}),
+    },
+  };
+}
 
 function actionLabel(action: string | { text: string; action: string; skill?: string }): string {
   if (typeof action === 'string') return action;
@@ -48,10 +64,26 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
   const gate = useInputGate();
   const [showStructuredTools, setShowStructuredTools] = useState(false);
 
-  const loadingState = useMemo(
-    () => resolveLoadingState({ isLoading, isRollPending, actionPhaseLabel }),
-    [isLoading, isRollPending, actionPhaseLabel]
-  );
+  const gateOverlayMessage = useMemo(() => {
+    if (gate === 'LOCKED_NARRATING' || turnPipelinePhase === 'narrating') {
+      return 'O Mestre está narrando via Temporal…';
+    }
+    if (gate === 'LOCKED_MECHANICAL' || turnPipelinePhase === 'mechanical') {
+      return 'Motor Computando Decisões…';
+    }
+    if (gate === 'LOCKED_ROLLING' || isRollPending) {
+      return 'Aguardando rolagem 3D…';
+    }
+    return null;
+  }, [gate, turnPipelinePhase, isRollPending]);
+
+  const gateOverlay = gateOverlayMessage ? (
+    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-dnd-obsidian/70 backdrop-blur-sm">
+      <p className="animate-pulse px-4 text-center font-ui text-sm text-dnd-parchment">
+        {gateOverlayMessage}
+      </p>
+    </div>
+  ) : null;
 
   const isPlayerTurn = useMemo(() => {
     if (!combatState.isActive || !character) return !combatState.isActive;
@@ -70,17 +102,17 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
     isRollPending ||
     !!pendingLootOffer ||
     !!pendingHitDiceRequest ||
-    isLoading;
+    isLoading ||
+    turnPipelinePhase === 'mechanical' ||
+    turnPipelinePhase === 'narrating';
 
-  const gateOverlay = isStateChangingBlocked(gate) ? (
-    <div className="pointer-events-none absolute inset-0 z-20 rounded-2xl bg-dnd-obsidian/55 backdrop-blur-[1px]" />
-  ) : null;
+  const loadingState = useMemo(
+    () => resolveLoadingState({ isLoading, isRollPending, actionPhaseLabel }),
+    [isLoading, isRollPending, actionPhaseLabel]
+  );
 
-  const statusLabel = useMemo(() => {
-    if (gate === 'LOCKED_NARRATING') return 'O motor validou. O Mestre descreve o desfecho…';
-    if (gate === 'LOCKED_MECHANICAL') return 'Resolvendo a ação…';
-    return loadingState.shortLabel ?? actionPhaseLabel ?? undefined;
-  }, [actionPhaseLabel, gate, loadingState.shortLabel]);
+  const statusLabel =
+    gateOverlayMessage ?? loadingState.shortLabel ?? actionPhaseLabel ?? undefined;
 
   const optionTexts = useMemo(
     () => collectOptionTexts(actionOptions),
@@ -119,13 +151,20 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
       sendMotorAction(text);
       return;
     }
+    const playerText =
+      typeof raw === 'object' && raw.text?.trim()
+        ? raw.text.trim()
+        : text.split(' · ')[0]?.trim() || text;
+    const structured = resolveStructuredFromOption(raw, playerText);
+    if (structured) {
+      sendMotorAction(playerText, structured);
+      return;
+    }
     const cmd =
-      typeof raw === 'object' && raw.text
-        ? raw.text
-        : typeof raw === 'object' && raw.action
-          ? raw.action
-          : text;
-    sendMotorAction(cmd);
+      typeof raw === 'object' && raw.action
+        ? raw.action
+        : playerText;
+    sendMotorAction(typeof cmd === 'string' && cmd.length > 2 ? playerText : cmd);
   };
 
   const handleReopenShop = () => {
@@ -257,13 +296,20 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
     ) : null;
 
   return (
-    <ActionBar
-      options={optionTexts}
-      disabled={isActionLocked}
-      statusLabel={isActionLocked ? (isLoading || turnPipelinePhase !== 'idle' ? 'Aguarde o Mestre…' : statusLabel) : undefined}
-      panelHeader={actionPanelHeader}
-      onSelect={handleSelect}
-      onFreeAction={onFreeAction}
-    />
+    <div className="pointer-events-auto relative mx-3 mb-2 max-w-lg md:mx-auto md:mb-0 md:max-w-none">
+      {gateOverlay}
+      <ActionBar
+        options={actionOptions}
+        disabled={isActionLocked}
+        statusLabel={
+          isActionLocked
+            ? (gateOverlayMessage ?? loadingState.shortLabel ?? actionPhaseLabel ?? 'Aguarde…')
+            : undefined
+        }
+        panelHeader={actionPanelHeader}
+        onSelect={handleSelect}
+        onFreeAction={onFreeAction}
+      />
+    </div>
   );
 }

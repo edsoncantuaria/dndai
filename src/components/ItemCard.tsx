@@ -171,7 +171,15 @@ const ItemCard: React.FC<ItemCardProps> = ({
               isV2 ? 'text-dnd-parchment-muted' : 'text-stone-400'
             )}
           >
-            {currentItem.weight !== undefined && <span>{currentItem.weight} lbs</span>}
+            {currentItem.weight !== undefined && (
+              <span>
+                {currentItem.quantity > 1
+                  ? `${currentItem.weight} lb/un × ${currentItem.quantity} = ${(
+                        currentItem.weight * currentItem.quantity
+                    ).toFixed(2)} lb`
+                  : `${currentItem.weight} lb`}
+              </span>
+            )}
             {canBeEquipped && <ProficiencyIndicator proficient={isProficient} />}
             {canBeEquipped && currentItem.equipped && (
               <span className="rounded-full bg-dnd-gold/20 px-2 py-0.5 text-dnd-gold">Equipado</span>

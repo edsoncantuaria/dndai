@@ -47,7 +47,7 @@ export function CombatantCardV2({
 
   if (combatant.isDead) {
     return (
-      <DndCard padding="sm" hover={false} className="flex items-center justify-between opacity-60">
+      <DndCard padding="sm" hover={false} className="flex items-center justify-between opacity-50 grayscale">
         <span className="flex items-center gap-2 font-ui text-sm text-dnd-parchment-muted line-through">
           <Skull className="h-4 w-4" />
           {combatant.name}
@@ -67,7 +67,7 @@ export function CombatantCardV2({
       hover={false}
       className={cn(
         'border transition-shadow',
-        isCurrentTurn ? 'border-dnd-gold/50 shadow-[0_0_16px_var(--dnd-gold-glow)]' : 'border-dnd-gold/15',
+        isCurrentTurn ? 'border-dnd-ember/50 shadow-[0_0_16px_rgba(228,7,18,0.35)] animate-pulse' : 'border-dnd-gold/15',
         attitude === 'hostile' && !isCurrentTurn && 'border-dnd-danger/25',
         attitude === 'ally' && !isCurrentTurn && 'border-dnd-success/20'
       )}

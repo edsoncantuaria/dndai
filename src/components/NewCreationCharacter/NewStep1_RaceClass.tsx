@@ -147,8 +147,10 @@ const NewStep1_RaceClass: React.FC<Props> = ({ hook, races, classes, nextStep, h
     const canProceed = useMemo(() => {
         if (!race || !characterClass) return false;
         if (race === 'dragonborn' && !draconicAncestry) return false;
+        const needsSubrace = (raceDetails?.subraces?.length ?? 0) > 0;
+        if (needsSubrace && !subrace) return false;
         return true;
-    }, [race, characterClass, draconicAncestry]);
+    }, [race, characterClass, draconicAncestry, raceDetails?.subraces?.length, subrace]);
 
     const classSavingThrows = classDetails?.saving_throws?.map(st => st.name).join(', ');
     const classHitDie = classDetails?.hit_die ? `d${classDetails.hit_die}` : '—';

@@ -4,7 +4,7 @@
 >
 > **Referência de atmosfera (não copiar assets):** [Dungeons & Dragons — site oficial](https://www.dungeonsanddragons.com/)
 >
-> **Última revisão:** maio de 2026 (cinematográfico/BG3-like + InputGate)
+> **Última revisão:** maio de 2026 (V3 PENAI-only — remoção legado UI + sync mecânico WS v2)
 
 ---
 
@@ -13,7 +13,7 @@
 1. [Princípios de design](#1-princípios-de-design)
 2. [Identidade visual vs site WotC](#2-identidade-visual-vs-site-wotc)
 3. [Tokens — referência completa](#3-tokens--referência-completa)
-4. [UI v2 vs legado](#4-ui-v2-vs-legado)
+4. [UI V3 — PENAI exclusivo](#4-ui-v3--penai-exclusivo)
 5. [Arquitetura de navegação (GameStage)](#5-arquitetura-de-navegação-gamestage)
 6. [GameplayShell — layout](#6-gameplayshell--layout)
 7. [Pipeline visual do turno](#7-pipeline-visual-do-turno)
@@ -58,7 +58,7 @@ O [site D&D](https://www.dungeonsanddragons.com/) (2026) usa:
 |-----------|---------------|
 | Hero vídeo + vermelho | `--dnd-bg-cinematic` + CTAs `dnd-ember` |
 | “Continue your journey” | Hub → retomar sessão / cofre |
-| Actual play / comunidade | Log + `StoryHighlightsCard` |
+| Actual play / comunidade | `PenaiStoryFeed` + `SessionFactsPanel` |
 | D&D Beyond (ecossistema) | Integração SRD + homebrew próprio |
 | Multiverso (games, streaming) | **Fora de escopo** — foco mesa IA |
 
@@ -118,22 +118,28 @@ Fonte: `src/design-system/tokens.css` → Tailwind `dnd.*`.
 
 ---
 
-## 4. UI v2 vs legado
+## 4. UI V3 — PENAI exclusivo (maio/2026)
 
-| Área | v2 (padrão) | Legado (`NEXT_PUBLIC_UI_V2=false`) |
-|------|-------------|-------------------------------------|
-| Entrada | `AuthGateV2` | `AuthGate` |
-| Hub | `features/hub/HubShell` | `GameMenuContentLegacy` |
-| Mesa | `GameplayScreen` + `GameplayShell` | `GameScreenLegacy` |
-| Combate | `GameplayCombatTracker` | `NewCombatTracker` (branch) |
-| Personagem | `CharacterCreationWizard` | `NewCreationCharacter` steps |
-| Homebrew | `HomebrewStorePage` | `HomebrewStore` monólito |
+| Área | Implementação |
+|------|----------------|
+| Entrada | `AuthGateV2` |
+| Hub / lobby | `GameMenuContent` + `GET/POST /api/v2/sessions` |
+| Mesa | `GameplayScreen` + `GameplayShell` + WS Contract v2 |
+| Narração | `PenaiStoryFeed` (storyFeed WS + TTS v2) |
+| Combate | `GameplayCombatTracker` + FSM P0.4 |
+| Bootstrap sessão | `SessionWorldLoadingScreen` + `worldBootstrapWorkflow` |
 
-**Política (realista, alinhada ao código atual):**
+**Política:** não existe coexistência com Express/MySQL/BullMQ no cliente. `NEXT_PUBLIC_PENAI_WS=true` e `NEXT_PUBLIC_PENAI_UI=true` são o único caminho.
 
-- O legado **ainda existe** e está atrás de `NEXT_PUBLIC_UI_V2=false` por compatibilidade.
-- **Não adicionar features** nem melhorias no legado. Qualquer mudança deve ir para v2.
-- Objetivo: **remover a necessidade da flag** e deletar caminhos `*Legacy` quando a v2 estiver estável o suficiente para produção (sem “limbo” de turno, sem regressões de gameplay).
+**Removidos (não reintroduzir):** `NewNarrativeLog`, `NewJournal`, `StoryHighlightsCard`, `NewRelationships`, `GameScreen`, `MobileToolbar`, `StoryTimeline`, mapeamento `ActionLog` → narrativa legada.
+
+| Peça V3 | Substitui |
+|---------|-----------|
+| `GameplayNarrativeLog` + `PenaiStoryFeed` | `NewNarrativeLog` |
+| `CampanhaPanel` | aba História + highlights legados |
+| `ReputationPanel` | `NewRelationships` (reputação PENAI) |
+| `usePenaiTurnPipeline` + `usePenaiMechanicalSync` | log WS legado + `m.combat` |
+| `penaiMechanicalHydrate.ts` | hidratação duplicada combate/loot/loja |
 
 ---
 
@@ -301,8 +307,8 @@ Estado `InputGate` (derivado do pipeline + sinais WS):
 | `narrationComplete` | Volta `idle` |
 | `narrationStream` | Preview opcional — **não canônico** |
 | `startLoading` / `stopLoading` | Spinner global |
-| `actionResolution` | Caminhos híbridos legados |
 | `pendingRollState` | Heal: reabre rolagem pendente após reconnect |
+| `storyFeedUpdate` / `uiStateReplay` | Crônica PENAI + opções pós-reconnect |
 
 ### 8.3 Fluxo envio de ação
 
@@ -321,25 +327,27 @@ sequenceDiagram
 
 ---
 
-## 9. Componentes da mesa
+## 9. Componentes da mesa (V3)
 
 | Componente | Função |
 |------------|--------|
-| `NewNarrativeLog` | Scroll log; destaques; TTS por entrada |
+| `GameplayNarrativeLog` | Coluna central — `PenaiStoryFeed` + loading Temporal |
+| `PenaiStoryFeed` | Crônica estilo livro; TTS via `/api/v2/tts/generate` |
 | `GameplayActionDock` | Botões contextuais (exploração, social, combate) |
 | `GameplayTopBar` | Região, relógio, **HeroVitalsStrip**, toggle narração/TTS |
 | `HeroVitalsStrip` | PV (barra), CA (badge + tooltip equipado), FOR/DES/CON compactos |
-| `GameplaySidePanel` | Tabs desktop — **Mapa | Campanha | Bolsa** (3 abas) |
+| `GameplaySidePanel` | Tabs desktop — **Mapa \| Campanha \| Bolsa** |
 | `GameplayMobileMenuPanel` | Drawer **Mais** — ficha (magias/XP), campanha, config |
 | `GameplayMaisSheetSection` | Magias + progressão dentro de Mais |
 | `GameplayInventoryPanel` | Bolsa + seção **Equipado agora** + `ItemCard` v2 |
-| `ItemCard` v2 | Botões **Equipar** / **Desequipar** (intent `inventoryItemId`) |
-| `CampanhaPanel` | Mood, quests, reputação, pulso PENAI |
+| `CampanhaPanel` | Mood, reputação, pulso, crônica, journal, cast, fatos |
+| `GameplayCombatTracker` | Iniciativa + `CombatantCardV2` (tokens `dnd-*`) |
+| `SessionFactsPanel` | Fatos de sessão (`GET /v2/sessions/:id/facts`) |
+| `SessionCastPanel` | Elenco / vitals PATCH |
 | `GameplaySessionLogPanel` | Debug WS — **dev only** (`NEXT_PUBLIC_DEBUG_WS`) |
 | `PenaiEngineIntro` | Hub — onboarding leigo (motor / narrador / mundo offline) |
 | `DiceRollModal` | Integração dice-box |
 | `ShopModal` / level-up modais | Motor disparou estado |
-| `StoryHighlightsCard` | Resumo momentos (hub/log) |
 | `SettingsModal` | Modelo, voz, velocidade |
 
 ### 9.1 Dock contextual
@@ -348,7 +356,7 @@ Ações derivadas de `contextualDockActions` — mudam com região, combate, fas
 
 ### 9.2 Combate na mesa
 
-`showCombat` no shell → faixa `NewCombatTracker` acima do log — iniciativa e HP visíveis sem cobrir narrativa.
+`showCombat` no shell → faixa `GameplayCombatTracker` acima do log — iniciativa e HP visíveis sem cobrir narrativa.
 
 ### 9.3 Aba Campanha (P7.5)
 
@@ -358,14 +366,41 @@ Side panel tab **`campanha`** (substitui História legado):
 |-------|--------|
 | `PenaiExplainerAccordion` | Copy estática — motor, IA, mundo offline |
 | `RegionMoodCard` | `GET /v2/sessions/:id/campaign` → `regionState` |
-| `QuestTrackerCard` | `activeQuests[]` |
-| `ReputationStrip` | `heroReputation[]` |
-| `MundoVivoPanel` | WS `worldPulse` + REST eventos |
-| `PenaiStoryFeed` / journal | WS + REST journal |
+| `QuestTrackerCard` | `activeQuests[]` (dentro de `MundoVivoPanel`) |
+| `ReputationPanel` | Barras por região/facção — tiers `reputationTiers` |
+| `MundoVivoPanel` | WS `worldPulse` + REST eventos + quests |
+| `PenaiStoryFeed` / `PenaiJournalPanel` | WS + REST journal |
+| `SessionFactsPanel` / `SessionCastPanel` | Fatos RAG + elenco editável |
+| `SharedWorldShardCard` | Shard regional compartilhado (`campaign.shard`, `timelineRecent`) |
 
 Hook: `useSessionCampaign(sessionId)` — refetch em `worldPulse` e fim de narração.
 
 Hub: `PenaiIntroModal` (first visit `localStorage penai_intro_seen`) + `PenaiEngineIntro`.
+
+### 9.4 Bootstrap de sessão (tela de carga)
+
+Nova sessão PENAI **não** abre a mesa até `worldBootstrap.status === 'ready'`.
+
+| Peça | Função |
+|------|--------|
+| `usePenaiWorldBootstrap` | `POST /world-bootstrap` + poll `GET /ui-state` |
+| `SessionWorldLoadingScreen` | Overlay fullscreen — passos region → factions → npcs → quests → economy → simulation → pulse |
+| `GameplayScreen` | Monta hook com `sessionId`; retry em falha Gemini |
+
+Copy dos passos: `WORLD_BOOTSTRAP_STEP_LABELS` em `penaiApi.ts`.
+
+### 9.5 Mapa Aurathis (aba Mapa)
+
+| Peça | Função |
+|------|--------|
+| `WorldMapModal` / `WorldMapPanZoom` | Pan/zoom sobre arte SVG/PNG |
+| `aurathisMapArt.ts` | URL do asset (`/assets/AI/aurathis-continente-v*.svg`) |
+| `worldMapLayout.ts` | Posição POIs/regiões sobre a arte |
+| `PlayerMapMarker` | Marcador do herói |
+| `PoiMapMarker` | POIs da região ativa |
+| `RegionGraphView` | Grafo de viagem (fallback/alternativa) |
+
+Calibração overlay: `docs/AURATHIS_MAP_OVERLAY.md` · prompt arte IA: `docs/AURATHIS_MAP_AI_PROMPT.md`.
 
 ---
 
@@ -411,7 +446,7 @@ Badges `sourceKind`: original | translation | fork.
 |---------|--------|
 | `useStageAmbientSound` | Hub vs `playing` |
 | `useMenuMusicCrossfade` | Menu principal |
-| Narração TTS | Piper via backend após `gameStateUpdate` |
+| Narração TTS | Piper via `/api/v2/tts/generate` (`penaiStoryTts.ts`) |
 | Vinheta dados | CSS flash em `globals.css` |
 
 Config: `narrationVoice` (faber, razo, miro, dii), `narrationSpeed` no WS.

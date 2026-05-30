@@ -31,9 +31,32 @@ const getAuthHeaders = (): HeadersInit | null => {
         return null;
     }
     return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
     };
+};
+
+/** Fastify rejeita DELETE/GET com Content-Type JSON e corpo vazio. */
+const mergeRequestHeaders = (
+    authHeaders: HeadersInit | null,
+    customHeaders: HeadersInit | undefined,
+    options: RequestInit,
+): HeadersInit => {
+    const headers: Record<string, string> = {
+        ...(authHeaders as Record<string, string> | undefined),
+        ...(customHeaders as Record<string, string> | undefined),
+    };
+    const hasBody = options.body != null && options.body !== '';
+    if (hasBody && !headers['Content-Type'] && !headers['content-type']) {
+        const body = options.body;
+        if (typeof body === 'string' || body instanceof URLSearchParams) {
+            headers['Content-Type'] = 'application/json';
+        }
+    }
+    if (!hasBody) {
+        delete headers['Content-Type'];
+        delete headers['content-type'];
+    }
+    return headers;
 };
 
 // Lista de rotas que não exigem autenticação.
@@ -69,12 +92,8 @@ const buildRequestOptions = (endpoint: string, options: RequestInit = {}) => {
     }
 
     const requestOptions: RequestInit = {
-        headers: {
-            ...(authHeaders || {}),
-            ...customHeaders,
-            'Content-Type': 'application/json',
-        },
-        ...customOptions
+        ...customOptions,
+        headers: mergeRequestHeaders(authHeaders, customHeaders, customOptions),
     };
 
     return { fullUrl, requestOptions };
@@ -107,12 +126,8 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
     }
 
     const requestOptions: RequestInit = {
-        headers: {
-            ...(authHeaders || {}),
-            ...customHeaders,
-            'Content-Type': 'application/json',
-        },
-        ...customOptions
+        ...customOptions,
+        headers: mergeRequestHeaders(authHeaders, customHeaders, customOptions),
     };
 
     const response = await fetch(fullUrl, requestOptions);

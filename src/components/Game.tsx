@@ -4,7 +4,7 @@
 import React from 'react';
 import dynamic from 'next/dynamic';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import GameScreen from '@/components/GameScreen';
+import { GameplayScreen } from '@/features/gameplay/GameplayScreen';
 import PremiumLoader from '@/components/ui/PremiumLoader';
 
 const CharacterCreation = dynamic(
@@ -45,7 +45,7 @@ export default function Game({ onCharacterCreated, returnToMenu, gameStage, edit
 
     // Se o estágio é 'playing', e o personagem está carregado, mostre a tela de jogo.
     if (gameStage === 'playing' && character) {
-        return <GameScreen returnToMenu={returnToMenu} />;
+        return <GameplayScreen returnToMenu={returnToMenu} />;
     }
 
     // Se o estágio é criando ou editando personagem, mostre o criador.

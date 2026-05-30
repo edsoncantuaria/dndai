@@ -53,10 +53,105 @@ export async function fetchPenaiMechanical(sessionId: number) {
     return apiClient<Record<string, unknown>>(`/v2/sessions/${sessionId}/mechanical`);
 }
 
+export type PenaiWorldBootstrapStepId =
+    | 'region'
+    | 'factions'
+    | 'npcs'
+    | 'quests'
+    | 'economy'
+    | 'simulation'
+    | 'pulse';
+
+export type PenaiWorldBootstrapState = {
+    status: 'pending' | 'running' | 'ready' | 'failed';
+    step: PenaiWorldBootstrapStepId | null;
+    steps: Record<PenaiWorldBootstrapStepId, 'pending' | 'running' | 'done' | 'failed'>;
+    startedAt?: string;
+    finishedAt?: string;
+    error?: string;
+};
+
+export const WORLD_BOOTSTRAP_STEP_LABELS: Record<PenaiWorldBootstrapStepId, string> = {
+    region: 'Preparando região',
+    factions: 'Gerando facções',
+    npcs: 'Gerando NPCs',
+    quests: 'Gerando missões',
+    economy: 'Gerando economia',
+    simulation: 'Simulando o mundo',
+    pulse: 'Ativando pulso do mundo',
+};
+
+export type PenaiSessionUiState = {
+    sessionId: number;
+    actionOptions: Array<{
+        text: string;
+        action: string;
+        skill?: string;
+        needsRoll?: boolean;
+        dc?: number;
+    }>;
+    worldPulse: { headline: string | null; events: string[]; updatedAt: string } | null;
+    worldBootstrap: PenaiWorldBootstrapState;
+    memoryValidation?: {
+        ok: boolean;
+        sessionMemoryCount: number;
+        npcStateCount: number;
+        issues: string[];
+    } | null;
+};
+
+export async function fetchPenaiSessionUiState(sessionId: number) {
+    return apiClient<PenaiSessionUiState>(`/v2/sessions/${sessionId}/ui-state`);
+}
+
+export type PenaiWorldBootstrapRunResponse = PenaiSessionUiState & {
+    async?: boolean;
+    sync?: boolean;
+    workflowId?: string;
+};
+
+export async function runPenaiWorldBootstrap(sessionId: number) {
+    return apiClient<PenaiWorldBootstrapRunResponse>(`/v2/sessions/${sessionId}/world-bootstrap`, {
+        method: 'POST',
+    });
+}
+
+export type PenaiStoryFeedEntry = {
+    id?: string;
+    timestamp: string;
+    content: string;
+    tone?: string;
+    kind?: string;
+    consequences?: string[];
+};
+
+export type PenaiStoryFeedResponse = {
+    entries: PenaiStoryFeedEntry[];
+    spawnBriefing: boolean;
+    pendingNarration: boolean;
+    pendingReason: string | null;
+    actionSequence: number;
+    actionCursor: number;
+};
+
+export async function fetchPenaiStoryFeed(sessionId: number) {
+    return apiClient<PenaiStoryFeedResponse>(`/v2/sessions/${sessionId}/story-feed`);
+}
+
+export type PenaiHumanizedEvent = {
+    id: string;
+    type: string;
+    category: string;
+    subject?: string;
+    summary: string;
+    at: string;
+    importance: number;
+};
+
 export async function fetchSessionWorldEvents(sessionId: number, limit = 40) {
-    return apiClient<{
-        events: Array<{ id: string; type: string; payload: Record<string, unknown>; createdAt: string }>;
-    }>(`/v2/world/sessions/${sessionId}/events?limit=${limit}`);
+    return apiClient<{ events: PenaiHumanizedEvent[]; locale: string }>(
+        `/v2/world/sessions/${sessionId}/events?limit=${limit}`,
+    );
 }
 
 export type PenaiSessionSummary = {
@@ -72,7 +167,13 @@ export type PenaiSessionSummary = {
         gameClock: { day: number; hour: number; weather: string };
     };
     gameClock: { day: number; hour: number; weather: string };
-    recentFacts: Array<{ type: string; summary: string; at: string }>;
+    recentFacts: Array<{
+        type: string;
+        category: string;
+        subject?: string;
+        summary: string;
+        at: string;
+    }>;
     actionSequence: number;
 };
 
@@ -90,13 +191,55 @@ export type PenaiSessionCampaign = {
         title: string;
         stage: number;
         status: string;
+        regionSlug: string | null;
+        regionName: string | null;
+        synopsis: string;
+        stageLabel: string;
+        kind: 'local' | 'travel';
+        isHere: boolean;
     }>;
     heroReputation: Array<{ targetSlug: string; score: number }>;
+    reputation: {
+        region: {
+            regionSlug: string;
+            displayName: string;
+            targetSlug: string;
+            score: number;
+            tierId: string;
+            tierLabel: string;
+        } | null;
+        factions: Array<{
+            factionSlug: string;
+            displayName: string;
+            archetype: string;
+            targetSlug: string;
+            score: number;
+            tierId: string;
+            tierLabel: string;
+            discoveredAt: string;
+        }>;
+    };
     knowledgeCount: number;
     knowledgeSnippets: string[];
     gameClock: { day: number; hour: number; weather: string };
     lastPulseAt: string | null;
     campaignDigest: { questCount: number; regionFear: number };
+    shard: {
+        id: string;
+        regionSlug: string;
+        displayName: string;
+        version: number;
+        politicsState: 'stable' | 'tense' | 'coup_risk';
+        politicsLabel: string;
+    } | null;
+    timelineRecent: Array<{
+        eventId: string;
+        eventType: string;
+        category: string;
+        summary: string;
+        worldDay: number;
+        at: string;
+    }>;
 };
 
 export async function fetchSessionCampaignState(sessionId: number) {

@@ -61,9 +61,10 @@ Invariante: a IA **não** altera HP, inventário nem geografia canônica.
 |------|--------|------|
 | `narrationWorkflow` | ✅ | `temporal/workflows/narrationWorkflow.ts` |
 | Activity `runTurnPipeline` | ✅ | `temporal/activities/runTurnPipeline.ts` |
-| Fallback síncrono sem Temporal | ✅ | `temporal/client.ts` |
+| Narração só via fila Temporal (API não embute worker) | ✅ | `SKIP_TEMPORAL_WORKER` + `temporal-worker-dev` |
+| Fallback síncrono | só testes | `TEMPORAL_DISABLED=true` |
 | `healthWorkflow` | ✅ | smoke |
-| `worldPulseWorkflow` | ✅ | rumores/eventos → WS |
+| `worldPulseWorkflow` | ✅ | viagem/descanso/abertura → simulação SQL → cópia PT (`pulseCopy`) → WS |
 | `memoryCompactionWorkflow` | ✅ | resume → `narrative_summaries` |
 | Worker | ✅ | `npm run worker:temporal` |
 
@@ -111,10 +112,22 @@ Exemplo canônico (48 h base, terreno 1):
 | `memory/narrativeMemory.ts` | `narrative_summaries` + compactação Temporal |
 | `memory/recall.ts` | Facade dos 3 bancos lógicos |
 | `adapters/qdrant/vectorStore.ts` | Coleções vetoriais |
-| `narrative_summaries` | Compactação via Temporal (a cada ~8 turnos no pipeline) |
+| `narrative_summaries` | Compactação via Temporal (a cada ~8 turnos); **Gemini summarizer** (`adapters/gemini/summarizer.ts`) ou fallback concat local |
 | `findEntityCandidatesByEmbedding` | Busca NPC por similaridade |
 | `findOrReuseNpcEntity` | Evita duplicar NPC com mesmo nome |
+| **Ficha NPC** | `givenName` + `roleTitle` → `displayName` ("Uldric, Mestre da Forja"); schema Gemini exige `maxHp`; `npcSheet.ts` persiste `vida`/`vidaMax`; inventário lazy em `sessionOverlay` |
+| **Seed NPCs canônicos** | `npm run penai:seed:canon-npcs -- --region <slug> --count 20` — **só Gemini** (`GEMINI_GENERATION_MODEL` default `gemini-2.5-flash-lite`); sem preenchimento procedural; JSON com `atributos` |
+| **Bootstrap mundial (IA)** | `worldBootstrap*Agent` + `worldQuestSeedAgent` + `worldPulseNarratorAgent` — falha com `WorldGeminiGenerationError`; sem cópia determinística local |
 | Pack narrativo | `narrativePack.ts` usa recall + embedding |
+| **Prompt composer** | `ai/promptComposer.ts` — `arbiter` \| `narrator` \| `summarizer`; pack com `elenco`, `ambiente` (read model), `orquestracao` |
+| **Mundo vivo (IA)** | **Micro-pulso** por turno (simulação determinística, `MICRO_WORLD_TICK`) + **macro-pulso** narrado só via Gemini (`worldPulseNarratorAgent`) |
+| **NarrativeContextDTO** | `narrativeContextDto.ts` — missões, pulso, timeline, fatos `[FATO]` mandatórios no turno (não só RAG) |
+| **Memória com proveniência** | `provenanceMemory.ts` + evento `FACT_RECORDED`; macro-pulso não grava `memoryFacts` Gemini |
+| **Livro de missões** | `session_quests.payload` com `regionSlug`, `kind` (`local` \| `travel`); progresso por `TRAVEL_COMPLETED`; UI `QuestTrackerCard` |
+| **P10–P12** | Ticks event-only + projectors; KG via `kgProjector`; cadeia `SUPPLY_SHORTAGE`; shard Temporal + campanha; `penai:replay-projectors` |
+| **Anti-RAG narração** | `PENAI_NARRATION_TO_GLOBAL_RAG=false` (default) — narração só em `session_memory` com `importanceScore` baixo; fatos via `[FATO]` |
+| **Facções** | Catálogo fixo — IA só gera boatos sobre slugs descobertos, nunca slug novo |
+| **Structured output** | `ai/geminiSchemas.ts` — narração, opções, NPC batch, facção, economia, **pulso**, **quests** |
 
 ### P4 — Entidades e mundo rico ✅ (esqueleto operacional)
 
@@ -178,6 +191,22 @@ Exemplo canônico (48 h base, terreno 1):
 | Rumor → knowledge | `rumorTick.ts` + `spreadKnowledgeFromRumor` |
 | Migrations prod | `npm run penai:migration:run` |
 | UI aba Campanha | `CampanhaPanel`, hub `PenaiEngineIntro` |
+
+### P7.6 — Bootstrap de sessão (mundo vivo inicial) ✅
+
+Ao entrar numa sessão nova, o cliente chama `POST /api/v2/sessions/:id/world-bootstrap` (via `usePenaiWorldBootstrap`). O workflow Temporal executa agentes Gemini em sequência:
+
+| Passo | Agent / módulo | Persiste |
+|-------|----------------|----------|
+| `region` | Contexto ambiental da região | `session_ui_state` |
+| `factions` | `worldBootstrapFactionAgent` | facções descobertas + boatos |
+| `npcs` | `worldBootstrapNpcAgent` + materialize | elenco inicial |
+| `quests` | `worldQuestSeedAgent` | `session_quests` |
+| `economy` | `worldBootstrapEconomyAgent` | preços/scarcity regional |
+| `simulation` | tick inicial determinístico | eventos + projectors |
+| `pulse` | `worldPulseNarratorAgent` | primeiro `worldPulse` PT |
+
+Estado exposto em `GET /api/v2/sessions/:id/ui-state` → `worldBootstrap.status` (`pending` \| `running` \| `ready` \| `failed`). UI: `SessionWorldLoadingScreen` até `ready`. Falha Gemini → `WorldGeminiGenerationError` (sem fallback determinístico).
 
 ---
 
@@ -314,21 +343,57 @@ sequenceDiagram
 
 ## 6. API REST v2
 
-Base: `http://localhost:8071/api` (prefixo `/api` + rotas abaixo).
+Base: `http://localhost:8071/api` (prefixo `/api` + rotas abaixo). Rotas autenticadas exigem `Authorization: Bearer <JWT>` (registro/login em `/v2/auth/*`).
+
+### Sessão e mesa
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| GET | `/v2/health` | Saúde API |
-| GET | `/v2/admin/health` | Postgres, Redis, Temporal, Qdrant |
-| POST | `/v2/sessions` | Nova sessão (`nome`, `heroName?`) + módulo `srd-ptbr-core` |
-| GET | `/v2/sessions` | Lista sessões do `userId` (Postgres) |
+| POST | `/v2/sessions` | Nova sessão (`nome`, `heroName?`, `spawnRegionSlug?`) + módulo `srd-ptbr-core` |
+| GET | `/v2/sessions` | Lista sessões do usuário |
 | GET | `/v2/sessions/:id` | Detalhe da sessão |
-| GET | `/v2/sessions/:id/mechanical` | Pack mecânico (character HP, combate, loja, loot) |
-| GET | `/v2/world/regions` | Lista regiões canônicas |
+| PATCH | `/v2/sessions/:id` | Atualiza metadados (nome, etc.) |
+| DELETE | `/v2/sessions/:id` | Remove sessão |
+| GET | `/v2/sessions/:id/mechanical` | Pack mecânico (HP, combate, loja, loot) |
+| GET | `/v2/sessions/:id/ui-state` | Estado UI: `worldBootstrap`, `worldPulse`, `actionOptions` |
+| POST | `/v2/sessions/:id/world-bootstrap` | Dispara `worldBootstrapWorkflow` (202 async ou sync se Temporal off) |
+| GET | `/v2/sessions/:id/story-feed` | Crônica persistida (REST fallback do WS) |
+| GET | `/v2/sessions/:id/campaign` | Mood, quests, reputação, shard, timeline recente |
+| GET | `/v2/sessions/:id/world-map` | Grafo regiões + posição do herói |
+| GET | `/v2/sessions/:id/summary` | Resumo narrativo compacto |
+| GET | `/v2/sessions/:id/journal` | Journal estruturado |
+| GET | `/v2/sessions/:id/cast` | Elenco da sessão |
+| PATCH | `/v2/sessions/:id/cast/:memberId` | Atualiza membro do elenco |
+| POST | `/v2/sessions/:id/clone` | Clona sessão (módulos, elenco, inventário) |
+| PATCH | `/v2/sessions/:id/modules` | Instala/remove homebrew na sessão |
+| GET | `/v2/sessions/:id/replay` | Replay narrativo (event log) |
+| GET | `/v2/sessions/:id/replay/mechanical` | Replay mecânico (MVP) |
+| POST | `/v2/sessions/:id/canon/proposals` | Proposta canon jogador → `canonApprovalWorkflow` |
+
+### Mundo, dados e personagens
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/v2/world/regions` | Regiões canônicas |
+| GET | `/v2/world/spawn-pool` | Regiões intro vs capital (spawn) |
+| GET | `/v2/world/factions` | Catálogo fixo de facções |
 | GET | `/v2/world/entities/search` | Candidatos NPC/entidade |
 | GET | `/v2/world/travel/preview` | `?from=&to=&mode=` — km fixos, horas por modo |
 | GET | `/v2/world/travel/modes` | Catálogo de transporte |
-| GET | `/v2/world/sessions/:id/events` | Timeline `world_events` |
+| GET | `/v2/world/sessions/:sessionId/events` | Timeline `world_events` |
+| GET | `/v2/data/:resource` | SRD unificado EN+PT (`unifiedDataService`) |
+| GET | `/v2/data/:resource/:index` | Detalhe de recurso |
+| GET | `/v2/translations` | Mapas de rótulos UI (perícias, raças…) |
+| POST/GET/PUT/DELETE | `/v2/characters/*` | Cofre de heróis (`isVaultTemplate`) |
+| GET/POST/PUT/DELETE | `/v2/homebrew/*` | Oficina + bundles + import SRD |
+| POST | `/v2/auth/register` · `/v2/auth/login` | Conta PENAI |
+| GET | `/v2/users/me` | Perfil + `installedHomebrewIds` |
+| POST | `/v2/licenses/activate` | BYOK / licenças |
+| POST | `/v2/tts/generate` | TTS v2 (Piper/MinIO) |
+| GET | `/v2/health` · `/v2/admin/health` | Saúde API e dependências |
+| GET/POST | `/v2/admin/canon/*` | Aprovação canon admin |
+
+Detalhe SRD/homebrew: **`docs/DATA_SRD.md`**. Rotas Express legado **não** fazem parte do gameplay PENAI.
 
 ### Exemplo — preview de viagem
 
@@ -355,10 +420,29 @@ curl "http://localhost:8071/api/v2/world/travel/preview?from=cidadela-do-acoluz&
 
 ## 7. Bootstrap local
 
+### Opção A — stack completa com hot reload (recomendado)
+
 ```bash
-# Infra (Postgres 5433, Redis 6381, Temporal, Qdrant 6335)
+# Infra + API + frontend + worker Temporal (docker-compose.penai.yml + docker-compose.dev.yml)
+npm run dev:all
+# ou em background: npm run dev:all:detach
+# logs: npm run dev:all:logs   |   parar: npm run dev:all:down
+```
+
+| Serviço compose | Porta | Papel |
+|-----------------|-------|--------|
+| `backend-dev` | 8071 | API Fastify + WS (`SKIP_TEMPORAL_WORKER=true`) |
+| `temporal-worker-dev` | — | Worker `penai-narration` (narração, pulso, bootstrap) |
+| `frontend-dev` | 9002 | Next.js com `NEXT_PUBLIC_PENAI_UI=true` |
+| Postgres / Redis / Temporal / Qdrant | 5433 / 6381 / 7233 / 6335 | Infra PENAI |
+
+**Volumes Docker dev:** `./backend/src` (hot reload), `./backend/data` → `/app/data` (tradutores/overrides PT), **`./data` → `/app/srd-data`** (snapshot SRD EN). Seeds PT-BR usam `requireSnapshotDir()` — ver **`docs/DATA_SRD.md`**.
+
+### Opção B — API local + worker separado
+
+```bash
 docker compose -f docker-compose.penai.yml --profile penai up -d
-npm run srd:up
+npm run srd:up   # opcional — 5e-srd-api ao vivo
 
 cd backend
 cp .env.penai.example .env   # GEMINI_API_KEY opcional — jogador usa BYOK na UI
@@ -371,6 +455,15 @@ npm run dev:penai
 npm run worker:temporal
 ```
 
+### Primeira vez — banco + mundo + SRD PT-BR
+
+```bash
+npm run penai:db:prepare --prefix backend   # migrations + seed:penai-world
+npm run penai:import:foundry-bundle --prefix backend
+npm run penai:seed:srd-ptbr --prefix backend
+# smoke: npm run penai:smoke:srd-ptbr --prefix backend
+```
+
 ### Variáveis importantes
 
 | Variável | Default | Uso |
@@ -378,11 +471,13 @@ npm run worker:temporal
 | `DATABASE_URL` | `postgres://penai:...@localhost:5433/penai` | Postgres |
 | `REDIS_URL` | `redis://localhost:6381` | Pub/sub WS |
 | `TEMPORAL_ADDRESS` | `localhost:7233` | Filas |
-| `TEMPORAL_DISABLED` | `false` | Se true, narração síncrona no handler |
-| `SKIP_TEMPORAL_WORKER` | `false` no dev local | `true` na API em compose (worker separado) |
+| `TEMPORAL_DISABLED` | `false` | Só testes: narração síncrona no API |
+| `SKIP_TEMPORAL_WORKER` | `true` no API Docker | API **não** embute worker; use `temporal-worker-dev` ou `npm run worker:temporal` |
 | `PENAI_DB_SYNC` | — | `true` cria tabelas (dev) |
 | `penai:migration:run` | — | Migrations Postgres P7 (prod) |
-| `PENAI_SEED_ON_BOOT` | — | Seed mapa + rotas + modos |
+| `PENAI_SEED_ON_BOOT` | — | Seed mapa + rotas + modos + bundle `srd-ptbr-core` (ignora SRD se snapshot ausente) |
+| `SRD_SNAPSHOT_DIR` | auto | Override do diretório `data/srd/2014/normalized` (Docker: `/app/srd-data/srd/2014/normalized`) |
+| `SRD_OFFLINE_ONLY` | — | Adapter SRD só lê snapshot local |
 | `QDRANT_ENABLED` | `false` | Liga recall vetorial |
 | `GEMINI_API_KEY` | — (opcional) | Fallback plataforma; **jogadores usam BYOK** após login (AuthGateV2) |
 
@@ -403,7 +498,9 @@ NEXT_PUBLIC_PENAI_UI=true
 |----------|------------|----------------------|
 | `narrationWorkflow` | `penai-narration` | `narration:{sessionId}:{actionSequence}` |
 | `memoryCompactionWorkflow` | `penai-narration` | `memory:{sessionId}:{toActionSequence}` |
-| `worldPulseWorkflow` | `penai-narration` | por sessão |
+| `worldPulseWorkflow` | `penai-narration` | Macro-pulso pós-viagem/descanso |
+| `worldBootstrapWorkflow` | `penai-narration` | `worldBootstrap:{sessionId}` — região, facções, NPCs, quests, economia, simulação, pulso inicial (`worldBootstrapActivity`) |
+| `shardBackgroundWorkflow` | `penai-narration` | `shardBackground:{shardId}` — tick offline do `world_shards` compartilhado |
 | `campaignGcWorkflow` | `penai-narration` | `campaignGc:{sessionId}` — long-rest |
 | `canonApprovalWorkflow` | `penai-narration` | `canon:{proposalId}` |
 | `healthWorkflow` | `penai-narration` | smoke |
@@ -578,20 +675,31 @@ Hooks: `usePenaiTurnPipeline`, `usePenaiGameSession`, `PenaiGameplayContext`, `l
 | WS `syncPendingRoll`, `gameStateUpdate` | `wsHandlers.ts` |
 | API mechanical | `GET /api/v2/sessions/:id/mechanical` |
 | Mesa default PENAI | `NEXT_PUBLIC_PENAI_WS=true` (`.env.example`) |
+| UI V3 PENAI-only | `GameplayScreen` → WS Contract v2; removidos `NewNarrativeLog`, `NewJournal`, `StoryHighlightsCard`, `NewRelationships`, `GameScreen`, `MobileToolbar`; sync combate via `penaiMechanicalHydrate.ts` |
 | Legado gameplay off | `PENAI_ONLY=true` no Express WS |
 
 ---
 
 ## 14. Comandos rápidos
 
----
-
 | Comando | Função |
 |---------|--------|
+| `npm run dev:all` | Stack Docker completa (infra + API + frontend + worker) |
 | `npm run dev:penai` | API Fastify (:8071) — **único stack de gameplay** |
 | `npm run worker:temporal` | Worker fila `penai-narration` |
-| `npm run test` | Testes PENAI (19+) |
-| `npm run penai:smoke` | Smoke leve |
+| `npm run penai:db:prepare` | Migrations + `seed:penai-world` |
+| `npm run penai:migration:run` | Só migrations Postgres |
+| `npm run seed:penai-world` | Seed regiões/POIs/links (`PENAI_WORLD_SEED_FORCE=true` força) |
+| `npm run penai:import:foundry-bundle` | Cache compendiums Foundry PT (`.tmp/foundry-decito/`) |
+| `npm run penai:seed:srd-ptbr` | Bundle Postgres `srd-ptbr-core` |
+| `npm run penai:smoke:srd-ptbr` | Smoke offline + seed SRD PT |
+| `npm run penai:replay-projectors` | Reaplica projectors a partir do event log |
+| `npm run penai:seed:canon-npcs` | NPCs canônicos por região (Gemini) |
+| `npm run test --prefix backend` | Testes PENAI (integração com Postgres opcional) |
+| `npm run penai:smoke` | Smoke leve (locale, action options) |
+| `npm run temporal:smoke` | Smoke Temporal (requer infra up) |
+
+Mais scripts (`penai:import:foundry-overrides`, `penai:migrate:homebrew-mysql`, `penai:smoke:byok`, …): `backend/package.json`.
 
 ---
 
@@ -606,4 +714,4 @@ Hooks: `usePenaiTurnPipeline`, `usePenaiGameSession`, `PenaiGameplayContext`, `l
 
 ---
 
-*Última atualização: maio/2026 — PENAI_MOTOR, WS submitRollResult, BG3 InputGate, dice-box no path PENAI, canon Postgres + workflow.*
+*Última atualização: maio/2026 — API v2 completa, `dev:all`, worldBootstrap/shard Temporal, snapshot SRD Docker (`srd-data`).*

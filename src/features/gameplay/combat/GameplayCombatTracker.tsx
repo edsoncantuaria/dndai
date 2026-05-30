@@ -31,10 +31,10 @@ export function GameplayCombatTracker() {
   return (
     <motion.div
       className={cn(
-        'dnd-border-gold dnd-surface-glass relative overflow-hidden rounded-lg',
+        'relative overflow-hidden rounded-lg border border-dnd-gold/20 bg-dnd-obsidian-raised',
         isPlayerTurn
-          ? 'shadow-[0_0_20px_var(--dnd-gold-glow)] ring-1 ring-dnd-ember/25'
-          : 'shadow-[0_0_12px_rgba(196,30,58,0.2)]'
+          ? 'shadow-[0_0_24px_rgba(228,7,18,0.25)] ring-1 ring-dnd-ember/40'
+          : 'shadow-[0_0_12px_rgba(0,0,0,0.45)]'
       )}
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}

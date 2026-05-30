@@ -70,7 +70,10 @@ export function GameplayMobileMenuPanel({
 
       <DndCard padding="md" hover={false}>
         <p className="mb-3 font-ui text-[10px] uppercase tracking-wider text-dnd-parchment-muted">Campanha</p>
-        <CampanhaPanel sessionId={sessionId ?? null} />
+        <CampanhaPanel
+          sessionId={sessionId ?? null}
+          onOpenMap={onOpenWorldMap ? () => onOpenWorldMap() : undefined}
+        />
       </DndCard>
     </div>
   );

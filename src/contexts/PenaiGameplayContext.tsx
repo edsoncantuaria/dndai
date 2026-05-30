@@ -8,10 +8,17 @@ import type { TurnPipelinePhase } from '@/hooks/game/turnPipelineStore';
 export type PenaiGameplayValue = {
     active: boolean;
     connected: boolean;
+    contractOk: boolean;
+    actionCursor: number;
+    narrationWorkflowId: string | null;
     storyFeed: PenaiStoryEntry[];
+    storyHydrated: boolean;
+    narrationPending: boolean;
     worldPulse: string[];
+    worldPulseHeadline: string | null;
     playerRollRequest: PlayerRollRequest | null;
     lastMechanical: Record<string, unknown> | null;
+    lastError: string | null;
     phase: TurnPipelinePhase;
     sendProcessAction: (playerAction: string, payload?: Record<string, unknown>) => void;
     sendStructuredIntent: (
@@ -25,12 +32,19 @@ export type PenaiGameplayValue = {
 };
 
 const defaultValue: PenaiGameplayValue = {
-    active: false,
+    active: true,
     connected: false,
+    contractOk: false,
+    actionCursor: 0,
+    narrationWorkflowId: null,
     storyFeed: [],
+    storyHydrated: false,
+    narrationPending: false,
     worldPulse: [],
+    worldPulseHeadline: null,
     playerRollRequest: null,
     lastMechanical: null,
+    lastError: null,
     phase: 'idle',
     sendProcessAction: () => {},
     sendStructuredIntent: () => {},

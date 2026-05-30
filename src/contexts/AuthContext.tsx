@@ -50,7 +50,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/api';
+const API_URL =
+    process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') || 'http://localhost:8071/api';
 
 const normalizeFieldErrors = (details?: ApiFieldErrors | null): Record<string, string[]> | undefined => {
     if (!details || typeof details !== 'object') {
@@ -111,11 +112,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     });
                     logout();
                 } else {
-                    logout();
+                    console.warn('[AuthContext] revalidateUserSession HTTP', response.status);
                 }
             } catch (e) {
                 console.error('Falha na revalidação da sessão', e);
-                logout();
             }
         }
     }, [loadSettings, setApiKey]);
@@ -268,6 +268,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
             const response = await authService.activateUserLicense(licenseKey);
             if (response.success) {
+                setIsLicenseActive(true);
+                setUser(prev => (prev ? { ...prev, licenseKey: { isActivated: true } } : prev));
                 await revalidateUserSession();
                 toast({
                     title: "Licença Ativada!",

@@ -20,6 +20,19 @@
 | Smoke offline | `npm run penai:smoke:srd-ptbr --prefix backend` | Valida `human.json`, forks elf/high-elf, traits PT |
 | Smoke + DB | `DATABASE_URL=… npm run penai:smoke:srd-ptbr --prefix backend` | Inclui seed e contagem do bundle |
 
+### Snapshot SRD offline (Docker e local)
+
+O adapter (`srdApiAdapter`) e os **seeds PT-BR** (`buildFoundrySrdPtBrTranslations`, forks raça/trait) resolvem o diretório via `requireSnapshotDir()` em `backend/src/utils/srdSnapshotPaths.ts`:
+
+| Ordem | Caminho (cwd = `/app` no Docker dev) |
+|-------|--------------------------------------|
+| 1 | `$SRD_SNAPSHOT_DIR` (override explícito) |
+| 2 | `./srd-data/srd/2014/normalized` ← **volume `./data` no compose dev** |
+| 3 | `./data/srd/2014/normalized` (legado backend/data — vazio no Docker) |
+| 4 | `../data/srd/2014/normalized` (repo local ao rodar `npm run dev:penai` na pasta backend) |
+
+Se o snapshot não existir, `PENAI_SEED_ON_BOOT` loga aviso e **pula** `seedSrdPtBrHomebrew` — rode `penai:import:foundry-bundle` + confirme que `./data/srd/2014/normalized/spells.json` está montado.
+
 **Checklist manual (~5 min):** registrar → `installedHomebrewIds` contém `srd-ptbr-core`; login de conta legada também instala o bundle; `GET /api/v2/data/races` retorna nomes PT; criar Alto Elfo Mago → cofre → nova sessão → magias no load.
 
 ## Seed e tradução PT-BR

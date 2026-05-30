@@ -12,7 +12,7 @@ export interface GameStateContextType {
     character: Character | null;
     log: LogEntry[];
     sessionId: number | null;
-    actionOptions: (string | { text: string; action: string; skill?: string; })[];
+    actionOptions: (string | { text: string; action: string; skill?: string; needsRoll?: boolean; dc?: number })[];
     combatState: CombatState;
     levelUpState: LevelUpState | null;
     shopState: ShopState | null;
@@ -30,6 +30,7 @@ export interface GameStateContextType {
     ambientSound: string;
     setAmbientSound: React.Dispatch<React.SetStateAction<string>>;
     progressionFeed: ProgressionFeedItem[];
+    setProgressionFeed: React.Dispatch<React.SetStateAction<ProgressionFeedItem[]>>;
     reinstallModal: { open: boolean, deps: HomebrewContent[], onConfirm: () => void };
     setReinstallModal: React.Dispatch<React.SetStateAction<{ open: boolean, deps: HomebrewContent[], onConfirm: () => void }>>;
     clearApiError: () => void;
@@ -83,7 +84,10 @@ export interface GameStateContextType {
     triggerTestSkillCheck: (skillName: string) => void;
     setPendingStructuredIntent: React.Dispatch<React.SetStateAction<any | null>>;
     setCombatState: React.Dispatch<React.SetStateAction<CombatState>>;
-    setRequest: (args: { type: 'shop' | 'loot'; request: ShopState | LootOffer }) => void;
+    setRequest: (args: {
+        type: 'shop' | 'loot' | 'levelUp';
+        request: ShopState | LootOffer | LevelUpState;
+    }) => void;
     setActionOptions: React.Dispatch<
         React.SetStateAction<(string | { text: string; action: string; skill?: string })[]>
     >;

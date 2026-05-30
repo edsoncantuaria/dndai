@@ -87,18 +87,25 @@ export function SessionFactsPanel({ sessionId }: { sessionId: number | null }) {
         </FactSection>
       ) : null}
       {facts.atomicFacts && facts.atomicFacts.length > 0 ? (
-        <FactSection title={`Fatos (${facts.atomicFacts.length})`}>
+        <FactSection title={`Fatos registrados (${facts.atomicFacts.length})`} defaultOpen>
           <ul className="space-y-2">
             {facts.atomicFacts.slice(0, 12).map((fact) => (
               <li
                 key={fact.id}
                 className="rounded-md border border-dnd-gold/10 bg-dnd-obsidian/50 p-2"
               >
-                <p className="font-ui text-[10px] uppercase text-dnd-parchment-muted">
+                <p className="font-ui text-[10px] font-semibold uppercase tracking-wide text-dnd-gold">
                   {fact.category}
-                  {fact.subject ? ` · ${fact.subject}` : ''}
+                  {fact.subject ? (
+                    <span className="font-normal normal-case text-dnd-parchment-muted">
+                      {' '}
+                      · {fact.subject}
+                    </span>
+                  ) : null}
                 </p>
-                <p className="mt-0.5 text-sm text-dnd-parchment">{fact.fact}</p>
+                <p className="mt-1 font-narrative text-sm leading-relaxed text-dnd-parchment">
+                  {fact.fact}
+                </p>
               </li>
             ))}
           </ul>
