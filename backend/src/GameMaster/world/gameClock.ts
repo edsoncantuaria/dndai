@@ -1,5 +1,6 @@
 import { PenaiDataSource } from '../database/data-source.js';
 import { GameSession } from '../database/entities/GameSession.js';
+import { appendWorldEvent } from '../events/store.js';
 
 export type PenaiGameClock = {
     day: number;
@@ -12,6 +13,11 @@ export type PenaiWorldStateView = {
     weather: string;
     currentRegion: string | null;
     location: string | null;
+    regionSlug?: string | null;
+    regionType?: string | null;
+    poiSlug?: string | null;
+    poiName?: string | null;
+    environmentTags?: string[];
     gameClock: PenaiGameClock;
 };
 
@@ -109,5 +115,31 @@ export async function advanceSessionGameClock(
 ): Promise<PenaiGameClock> {
     const current = await loadSessionGameClock(sessionId);
     const next = advanceGameClock(current, hours);
-    return saveSessionGameClock(sessionId, next);
+    const saved = await saveSessionGameClock(sessionId, next);
+
+    if (hours > 0) {
+        await appendWorldEvent({
+            type: 'TIME_ADVANCED',
+            sessionId,
+            payload: {
+                fromDay: current.day,
+                fromHour: current.hour,
+                toDay: saved.day,
+                toHour: saved.hour,
+                hoursAdvanced: hours,
+                worldDay: saved.day,
+                worldHour: saved.hour,
+            },
+        });
+
+        if (saved.day > current.day) {
+            const { maybeScheduleWorldPulse } = await import('./simulation/pulseSchedule.js');
+            void maybeScheduleWorldPulse(sessionId, 'game_day', {
+                fromDay: current.day,
+                toDay: saved.day,
+            }).catch(() => undefined);
+        }
+    }
+
+    return saved;
 }

@@ -205,7 +205,9 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
         steps={worldBootstrap.steps}
         currentStep={worldBootstrap.currentStep}
         error={worldBootstrap.error}
+        usedOfflineFallback={worldBootstrap.usedOfflineFallback}
         onRetry={worldBootstrap.retry}
+        onRetryOffline={worldBootstrap.retryOffline}
       />
     );
   }

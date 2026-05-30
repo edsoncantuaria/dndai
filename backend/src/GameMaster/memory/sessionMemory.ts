@@ -6,6 +6,10 @@ import { defaultProviders } from '../adapters/index.js';
 import { bumpMemoriesOnRecall } from './decayPolicy.js';
 
 const SESSION_COLLECTION = 'penai_session_memories';
+const STORY_MAX_CHARS = 12_000;
+const FACT_MAX_CHARS = 500;
+
+export type SessionStoryKind = 'opening' | 'narration' | 'system';
 
 export async function recallSessionMemory(opts: {
     sessionId: number;
@@ -43,9 +47,14 @@ export async function storeSessionMemory(opts: {
     sessionId: number;
     text: string;
     actionSequence?: number;
-}): Promise<void> {
-    const trimmed = opts.text.trim().slice(0, 500);
-    if (!trimmed) return;
+    storyKind?: SessionStoryKind;
+    storyTone?: string;
+    importanceScore?: number;
+}): Promise<SessionMemory | null> {
+    const isStory = Boolean(opts.storyKind);
+    const max = isStory ? STORY_MAX_CHARS : FACT_MAX_CHARS;
+    const trimmed = opts.text.trim().slice(0, max);
+    if (!trimmed) return null;
 
     const repo = PenaiDataSource.getRepository(SessionMemory);
     const row = await repo.save(
@@ -53,15 +62,18 @@ export async function storeSessionMemory(opts: {
             sessionId: opts.sessionId,
             text: trimmed,
             locale: 'pt-BR',
-            importanceScore: 55,
+            importanceScore: opts.importanceScore ?? (opts.storyKind === 'opening' ? 48 : 55),
             lastReferencedAt: new Date(),
+            storyKind: opts.storyKind ?? null,
+            storyTone: opts.storyTone ?? null,
+            actionSequence: opts.actionSequence ?? null,
         }),
     );
 
-    if (!defaultProviders.vectorStore.isReady()) return;
+    if (!defaultProviders.vectorStore.isReady()) return row;
 
     const vector = await defaultProviders.embedding.embed(trimmed);
-    if (!vector.length) return;
+    if (!vector.length) return row;
 
     await defaultProviders.vectorStore.upsert(SESSION_COLLECTION, randomUUID(), vector, {
         sessionId: opts.sessionId,
@@ -69,5 +81,8 @@ export async function storeSessionMemory(opts: {
         text: trimmed,
         actionSequence: opts.actionSequence ?? 0,
         importanceScore: row.importanceScore,
+        storyKind: opts.storyKind ?? null,
     });
+
+    return row;
 }

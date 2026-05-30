@@ -1,7 +1,8 @@
 import { PenaiDataSource } from '../database/data-source.js';
 import { SessionSnapshot } from '../database/entities/SessionSnapshot.js';
 import { GameSession } from '../database/entities/GameSession.js';
-import { getOrCreateRegionState, listTopReputations } from '../world/campaignState.js';
+import { getOrCreateRegionState } from '../world/campaignState.js';
+import { loadHeroReputationView, type HeroReputationView } from '../world/reputationView.js';
 import { listActiveQuests } from '../world/sessionQuests.js';
 import { SessionKnowledge } from '../database/entities/SessionKnowledge.js';
 
@@ -11,6 +12,7 @@ export type SessionAggregateView = {
     regionState: Record<string, unknown> | null;
     activeQuests: Array<{ questSlug: string; title: string; stage: number }>;
     heroReputation: Array<{ targetSlug: string; score: number }>;
+    reputation: HeroReputationView;
     knowledgeCount: number;
 };
 
@@ -32,9 +34,16 @@ export async function loadSessionAggregate(sessionId: number): Promise<SessionAg
 
     const quests = await listActiveQuests(sessionId);
     const heroId = session?.heroWorldEntityId ?? null;
-    const heroReputation = heroId
-        ? await listTopReputations(sessionId, heroId, 5)
-        : [];
+    const reputation = heroId
+        ? await loadHeroReputationView(sessionId, heroId, regionSlug)
+        : { region: null, factions: [] };
+
+    const heroReputation = [
+        ...(reputation.region
+            ? [{ targetSlug: reputation.region.regionSlug, score: reputation.region.score }]
+            : []),
+        ...reputation.factions.map(f => ({ targetSlug: f.factionSlug, score: f.score })),
+    ];
 
     const knowledgeCount = await PenaiDataSource.getRepository(SessionKnowledge).count({
         where: { sessionId },
@@ -50,6 +59,7 @@ export async function loadSessionAggregate(sessionId: number): Promise<SessionAg
             stage: q.stage,
         })),
         heroReputation,
+        reputation,
         knowledgeCount,
     };
 }

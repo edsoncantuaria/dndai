@@ -35,7 +35,7 @@ interface PaginationOptions {
 }
 
 export const createHomebrewContent = async (authorId: number, data: z.infer<typeof CreateHomebrewSchema>) => {
-    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const homebrewRepo = AppDataSource.getRepository(PenaiHomebrewContent);
 
     if (data.type === 'translation') {
         const existing = await homebrewRepo.findOne({ where: { type: 'translation', name: data.name, authorId } });
@@ -60,7 +60,7 @@ export const createHomebrewContent = async (authorId: number, data: z.infer<type
         await assertOfficialResourceExists(sourceResource, sourceIndex);
     }
 
-    const newContent = new HomebrewContent();
+    const newContent = new PenaiHomebrewContent();
     newContent.authorId = authorId;
     newContent.type = data.type;
     newContent.name = data.name;
@@ -117,7 +117,7 @@ export const createHomebrewFromSrd = async (authorId: number, data: z.infer<type
 };
 
 export const updateHomebrewContent = async (contentId: string, authorId: number, data: z.infer<typeof CreateHomebrewSchema>) => {
-    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const homebrewRepo = AppDataSource.getRepository(PenaiHomebrewContent);
     const contentToUpdate = await homebrewRepo.findOneBy({ id: contentId });
 
     if (!contentToUpdate) {
@@ -162,7 +162,7 @@ export const deleteHomebrewContent = async (contentId: string, authorId: number)
 };
 
 export const getPublicHomebrewContent = async (type?: HomebrewContentType, createdBy?: 'user' | 'ai', pagination?: PaginationOptions) => {
-    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const homebrewRepo = AppDataSource.getRepository(PenaiHomebrewContent);
     const whereCondition: FindManyOptions<HomebrewContent>['where'] = { 
         isPublic: true,
     };
@@ -183,7 +183,7 @@ export const getPublicHomebrewContent = async (type?: HomebrewContentType, creat
 };
 
 export const getPrivateHomebrewContentForUser = async (authorId: number, type?: HomebrewContentType) => {
-    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const homebrewRepo = AppDataSource.getRepository(PenaiHomebrewContent);
     const whereCondition: FindManyOptions<HomebrewContent>['where'] = { authorId, isPublic: false };
     if (type) whereCondition.type = type;
 
@@ -192,7 +192,7 @@ export const getPrivateHomebrewContentForUser = async (authorId: number, type?: 
 
 
 export const getHomebrewContentByAuthor = async (authorId: number, type?: HomebrewContentType, pagination?: PaginationOptions) => {
-    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const homebrewRepo = AppDataSource.getRepository(PenaiHomebrewContent);
     const whereCondition: FindManyOptions<HomebrewContent>['where'] = { authorId };
     const { page = 1, limit = 100 } = pagination || {};
     if (type) whereCondition.type = type;
@@ -209,7 +209,7 @@ export const getHomebrewContentByAuthor = async (authorId: number, type?: Homebr
 };
 
 export const getHomebrewContentById = async (contentId: string, userId?: number) => {
-    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const homebrewRepo = AppDataSource.getRepository(PenaiHomebrewContent);
     const content = await homebrewRepo.findOneBy({ id: contentId });
     if (!content) throw createError(404, 'Conteúdo Homebrew não encontrado.');
     if (!content.isPublic && content.authorId !== userId && userId !== 1) throw createError(403, 'Você não tem permissão para visualizar este conteúdo.');
@@ -218,7 +218,7 @@ export const getHomebrewContentById = async (contentId: string, userId?: number)
 
 export const getMultipleHomebrewContentByIds = async (contentIds: string[], type?: HomebrewContentType): Promise<HomebrewContent[]> => {
     if (contentIds.length === 0) return [];
-    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const homebrewRepo = AppDataSource.getRepository(PenaiHomebrewContent);
     const whereCondition: FindManyOptions<HomebrewContent>['where'] = { id: In(contentIds) };
     if (type) whereCondition.type = type;
     return homebrewRepo.find({ where: whereCondition });
@@ -228,7 +228,7 @@ export const getMultipleHomebrewContentByIds = async (contentIds: string[], type
 // e foi removida para evitar confusão.
 
 export const findAdminTranslation = async (officialIndex: string, type: HomebrewContentType): Promise<HomebrewContent | null> => {
-    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const homebrewRepo = AppDataSource.getRepository(PenaiHomebrewContent);
     
     const query = homebrewRepo.createQueryBuilder("hb");
 
@@ -246,7 +246,7 @@ export const findAdminTranslation = async (officialIndex: string, type: Homebrew
 }
 
 export const getAdminTranslations = async (type: HomebrewContentType): Promise<HomebrewContent[]> => {
-    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const homebrewRepo = AppDataSource.getRepository(PenaiHomebrewContent);
     return homebrewRepo.find({
         where: {
             authorId: 1, // Admin user ID
@@ -260,7 +260,7 @@ export const getAdminTranslations = async (type: HomebrewContentType): Promise<H
 export const getHomebrewDependencies = async (contentId: string, visited = new Set<string>()): Promise<HomebrewContent[]> => {
     if (visited.has(contentId)) return [];
     visited.add(contentId);
-    const repo = AppDataSource.getRepository(HomebrewContent);
+    const repo = AppDataSource.getRepository(PenaiHomebrewContent);
     const content = await repo.findOne({ where: { id: contentId }, relations: ['bundle', 'bundle.contents'] });
     if (!content) return [];
     const bundleDependencies = content.bundle ? content.bundle.contents.filter(c => c.id !== content.id) : [];
@@ -276,7 +276,7 @@ export const getHomebrewDependencies = async (contentId: string, visited = new S
 };
 
 export const checkIfNameExists = async (name: string, type: HomebrewContentType): Promise<{ exists: boolean }> => {
-    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const homebrewRepo = AppDataSource.getRepository(PenaiHomebrewContent);
     const index = name.toLowerCase().replace(/\s+/g, '-');
     const count = await homebrewRepo.count({
         where: [{ type, name: Like(name) }, { type, content: Like(`%"index":"${index}"%`) }]
@@ -287,7 +287,7 @@ export const checkIfNameExists = async (name: string, type: HomebrewContentType)
 // --- Bundle Functions ---
 export const getBundles = async (options: { userId?: number; scope?: 'public' | 'mine'; page: number; limit: number }) => {
     const { userId, scope, page, limit } = options;
-    const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
+    const bundleRepo = AppDataSource.getRepository(PenaiHomebrewBundle);
     const query = bundleRepo.createQueryBuilder('bundle')
         .leftJoinAndSelect('bundle.contents', 'contents')
         .loadRelationCountAndMap('bundle.contentCount', 'bundle.contents')
@@ -305,7 +305,7 @@ export const getBundles = async (options: { userId?: number; scope?: 'public' | 
 };
 
 export const getContentsOfBundle = async (bundleId: string): Promise<HomebrewContent[]> => {
-    const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
+    const bundleRepo = AppDataSource.getRepository(PenaiHomebrewBundle);
     const bundle = await bundleRepo.findOne({
         where: { id: bundleId },
         relations: ['contents']
@@ -315,8 +315,8 @@ export const getContentsOfBundle = async (bundleId: string): Promise<HomebrewCon
 };
 
 export const createBundle = async (authorId: number, data: z.infer<typeof CreateBundleSchema>) => {
-    const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
-    const contentRepo = AppDataSource.getRepository(HomebrewContent);
+    const bundleRepo = AppDataSource.getRepository(PenaiHomebrewBundle);
+    const contentRepo = AppDataSource.getRepository(PenaiHomebrewContent);
     const contents = await contentRepo.find({ where: { id: In(data.contentIds), authorId } });
     if (contents.length !== data.contentIds.length) throw createError(403, 'Um ou mais itens de conteúdo não foram encontrados ou você não tem permissão para usá-los.');
     const contentAlreadyInBundle = await contentRepo.count({ where: { id: In(data.contentIds), bundleId: Not(IsNull()) } });
@@ -326,8 +326,8 @@ export const createBundle = async (authorId: number, data: z.infer<typeof Create
 };
 
 export const updateBundle = async (bundleId: string, authorId: number, data: Partial<z.infer<typeof UpdateBundleSchema>>) => {
-    const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
-    const contentRepo = AppDataSource.getRepository(HomebrewContent);
+    const bundleRepo = AppDataSource.getRepository(PenaiHomebrewBundle);
+    const contentRepo = AppDataSource.getRepository(PenaiHomebrewContent);
     const bundle = await bundleRepo.findOne({ where: { id: bundleId }, relations: ['contents'] });
     if (!bundle) throw createError(404, 'Pacote não encontrado.');
     if (bundle.authorId !== authorId) throw createError(403, 'Você não tem permissão para editar este pacote.');
@@ -348,8 +348,8 @@ export const updateBundle = async (bundleId: string, authorId: number, data: Par
 }
 
 export const deleteBundle = async (bundleId: string, authorId: number) => {
-    const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
-    const contentRepo = AppDataSource.getRepository(HomebrewContent);
+    const bundleRepo = AppDataSource.getRepository(PenaiHomebrewBundle);
+    const contentRepo = AppDataSource.getRepository(PenaiHomebrewContent);
     const bundle = await bundleRepo.findOneBy({ id: bundleId, authorId });
     if (!bundle) throw createError(404, 'Pacote não encontrado ou você não tem permissão.');
     await contentRepo.update({ bundleId }, { bundle: null, bundleId: null });
@@ -366,7 +366,7 @@ function contentExportKey(content: HomebrewContent): string {
 }
 
 export const exportBundle = async (bundleId: string, userId?: number) => {
-    const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
+    const bundleRepo = AppDataSource.getRepository(PenaiHomebrewBundle);
     const bundle = await bundleRepo.findOne({
         where: { id: bundleId },
         relations: ['contents'],
@@ -410,7 +410,7 @@ export const importBundle = async (
     data: z.infer<typeof ImportBundleSchema>,
 ) => {
     const { manifest, makePublic } = data;
-    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const homebrewRepo = AppDataSource.getRepository(PenaiHomebrewContent);
     const created: HomebrewContent[] = [];
     const idByKey = new Map<string, string>();
 

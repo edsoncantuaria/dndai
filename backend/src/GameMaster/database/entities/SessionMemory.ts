@@ -27,6 +27,16 @@ export class SessionMemory {
     @Column({ type: 'timestamptz', nullable: true })
     decayedAt!: Date | null;
 
+    /** Crônica visível ao jogador: opening | narration | system */
+    @Column({ type: 'varchar', length: 16, nullable: true })
+    storyKind!: string | null;
+
+    @Column({ type: 'varchar', length: 32, nullable: true })
+    storyTone!: string | null;
+
+    @Column({ type: 'int', nullable: true })
+    actionSequence!: number | null;
+
     @CreateDateColumn({ type: 'timestamptz' })
     createdAt!: Date;
 }

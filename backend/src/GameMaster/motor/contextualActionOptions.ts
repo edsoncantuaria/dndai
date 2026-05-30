@@ -1,4 +1,6 @@
-type ActionOption = { text: string; action: string; skill?: string };
+import { SUMMON_SPELLS } from '../combat/summonCatalog.js';
+
+type ActionOption = { text: string; action: string; skill?: string; spellIndex?: string };
 
 export function buildContextualActionOptions(input: {
     domain?: 'exploration' | 'social' | 'combat' | 'rest';
@@ -37,6 +39,14 @@ export function buildContextualActionOptions(input: {
         options.push({ text: 'Esquivar', action: 'dodge' });
         options.push({ text: 'Recuar', action: 'disengage' });
         if (input.knownSpells?.length) {
+            const summonSpell = input.knownSpells.find(s => SUMMON_SPELLS[s.toLowerCase()]);
+            if (summonSpell) {
+                options.push({
+                    text: `Invocar ${summonSpell.replace(/-/g, ' ')}`,
+                    action: 'summon-spell',
+                    spellIndex: summonSpell.toLowerCase(),
+                });
+            }
             options.push({
                 text: `Conjurar ${input.knownSpells[0]}`,
                 action: 'spell-attack',

@@ -13,6 +13,8 @@ export type NarrationWorkflowInput = {
     actionSequence: number;
     actionId: string;
     rollSummary?: string;
+    motorHints?: string[];
+    intentType?: string;
 };
 
 export async function narrationWorkflow(input: NarrationWorkflowInput): Promise<{ narration: string }> {

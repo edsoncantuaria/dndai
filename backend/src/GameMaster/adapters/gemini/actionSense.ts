@@ -1,8 +1,19 @@
-import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 import { penaiEnv } from '../../../config/penaiEnv.js';
-import { PT_BR_SYSTEM_PREFIX } from '../../locale/defaultLocale.js';
+import { parseLlmJsonText, translateLlmPayload } from '../../ai/llmJsonTranslator.js';
+import { ACTION_SENSE_LLM_DICTIONARY } from '../../ai/llmJsonSchemas.js';
+import { ACTION_SENSE_RESPONSE_JSON_SCHEMA } from '../../ai/geminiSchemas.js';
+import { generateGeminiStructuredJson } from '../../ai/geminiStructured.js';
+import {
+    buildArbiterUserPayload,
+    composeSystemPrompt,
+    inferSceneMode,
+} from '../../ai/promptComposer.js';
 import type { ActionSenseProvider, PlausibilityResult } from '../contracts.js';
+import {
+    penaiPipelineAiRequest,
+    penaiPipelineAiResponse,
+} from '../../infra/pipelineLog.js';
 
 const ActionSenseSchema = z.object({
     acceptable: z.boolean(),
@@ -11,6 +22,41 @@ const ActionSenseSchema = z.object({
 });
 
 export type ActionPlausibilityResult = z.infer<typeof ActionSenseSchema>;
+
+export function normalizeActionSensePayload(value: unknown): unknown {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return { acceptable: true, reason: 'Resposta do modelo incompleta — aceito por padrão.' };
+    }
+
+    const { data } = translateLlmPayload(value, ACTION_SENSE_LLM_DICTIONARY);
+    const acceptable = typeof data.acceptable === 'boolean' ? data.acceptable : true;
+    const reason =
+        typeof data.reason === 'string' && data.reason.trim()
+            ? data.reason
+            : acceptable === false
+              ? 'Ação rejeitada pelo árbitro.'
+              : 'Ação aceita.';
+
+    return {
+        acceptable,
+        reason,
+        ...(typeof data.playerFacingHint === 'string' && data.playerFacingHint.trim()
+            ? { playerFacingHint: data.playerFacingHint }
+            : {}),
+    };
+}
+
+export function parseActionSenseGeminiText(raw: string): ActionPlausibilityResult {
+    const parsed = parseLlmJsonText(raw, ACTION_SENSE_LLM_DICTIONARY);
+    if (!parsed.ok) {
+        return { acceptable: true, reason: 'JSON inválido do Gemini — heurística permissiva.' };
+    }
+
+    const normalized = normalizeActionSensePayload(parsed.data);
+    const result = ActionSenseSchema.safeParse(normalized);
+    if (result.success) return result.data;
+    return { acceptable: true, reason: 'Formato parcial do Gemini — heurística permissiva.' };
+}
 
 export async function checkActionPlausibilityGemini(opts: {
     playerAction: string;
@@ -29,37 +75,42 @@ export const geminiActionSenseProvider: ActionSenseProvider = {
         }
 
         try {
-            const client = new GoogleGenAI({ apiKey });
-            const prompt = JSON.stringify(
-                {
-                    tarefa: 'Julgar se a ação do jogador faz sentido na cena D&D 5e.',
-                    regiaoAtual: opts.regionSlug,
-                    tipoIntent: opts.intentType,
-                    acao: opts.playerAction,
-                    fatos: opts.sessionFacts ?? [],
-                    regras: [
-                        'Rejeite meta-chat, pedidos OOC, comandos ao sistema, impossibilidades físicas claras.',
-                        'Aceite ações criativas mas tentáveis pelo personagem aventureiro.',
-                        'Responda reason em português brasileiro, curto e claro.',
-                    ],
-                },
-                null,
-                2,
-            );
-
-            const response = await client.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                config: {
-                    systemInstruction: `${PT_BR_SYSTEM_PREFIX}\nVocê é o árbitro mecânico-narrativo. Não narre — só julgue plausibilidade.`,
-                    responseMimeType: 'application/json',
-                    temperature: 0.2,
-                    maxOutputTokens: 256,
-                },
+            const model = 'gemini-2.5-flash';
+            const sceneMode = inferSceneMode({
+                playerAction: opts.playerAction,
+                intentType: opts.intentType,
+            });
+            const userPayload = buildArbiterUserPayload(opts);
+            const systemInstruction = composeSystemPrompt({
+                role: 'arbiter',
+                sceneMode: sceneMode === 'opening' ? 'default' : sceneMode,
             });
 
-            const raw = response.text ?? '{"acceptable":true,"reason":"ok"}';
-            return ActionSenseSchema.parse(JSON.parse(raw));
+            penaiPipelineAiRequest('actionSense', {}, {
+                model,
+                inputSummary: `scene=${sceneMode} schema=acceptable,reason`,
+                prompt: userPayload,
+            });
+
+            const t0 = performance.now();
+            const raw = await generateGeminiStructuredJson({
+                apiKey,
+                model,
+                systemInstruction,
+                userPayload,
+                responseJsonSchema: ACTION_SENSE_RESPONSE_JSON_SCHEMA as Record<string, unknown>,
+                temperature: 0.2,
+                maxOutputTokens: 256,
+            });
+
+            const parsed = parseActionSenseGeminiText(raw);
+            penaiPipelineAiResponse('actionSense', {}, {
+                ms: performance.now() - t0,
+                raw,
+                parsed,
+                ok: true,
+            });
+            return parsed;
         } catch (e) {
             console.warn('[actionSense] Gemini falhou:', e);
             const failClosed =

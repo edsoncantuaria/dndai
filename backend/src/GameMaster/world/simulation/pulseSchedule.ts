@@ -1,11 +1,18 @@
 import { startWorldPulseWorkflow } from '../../../temporal/client.js';
 
-/** Gatilhos que representam salto de tempo no mundo — não dispara a cada turno/ação. */
-export type WorldPulseTrigger = 'travel' | 'long-rest' | 'manual';
+/** Macro-pulso (simulação completa + Gemini). Micro-pulso = por turno, sem LLM. */
+export type WorldPulseTrigger =
+    | 'travel'
+    | 'long-rest'
+    | 'manual'
+    | 'combat_end'
+    | 'quest_major'
+    | 'game_day';
 
 export async function maybeScheduleWorldPulse(
     sessionId: number,
     trigger: WorldPulseTrigger,
+    meta?: Record<string, unknown>,
 ): Promise<void> {
-    await startWorldPulseWorkflow(sessionId, trigger);
+    await startWorldPulseWorkflow(sessionId, trigger, meta);
 }

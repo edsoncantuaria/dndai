@@ -134,7 +134,11 @@ export function useCombatTrackerData() {
     return list;
   }, [allCombatants, initiativeOrder, currentCombatantIndex]);
 
-  const isPlayerTurn = Boolean(currentCombatant?.isPlayer);
+  const isPlayerTurn = Boolean(
+    currentCombatant?.isPlayer ||
+      currentCombatant?.attitude === 'ally' ||
+      (currentCombatant as { side?: string } | undefined)?.side === 'ally',
+  );
 
   const ready =
     combatState.isActive &&

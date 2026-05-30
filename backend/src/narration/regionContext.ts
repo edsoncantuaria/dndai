@@ -6,6 +6,7 @@ export type RegionPromptContext = {
     name: string;
     type: string;
     summary?: string | null;
+    metadata?: Record<string, unknown> | null;
     breadcrumbs?: Array<{ slug: string; name: string }>;
     neighbors?: Array<{
         slug?: string;
@@ -135,6 +136,7 @@ export const resolveRegionContextForPrompt = async (
             name: payload.name,
             type: payload.type,
             summary: payload.summary ?? payload.description ?? null,
+            metadata: (payload.metadata as Record<string, unknown> | undefined) ?? null,
             breadcrumbs,
             neighbors,
             pointsOfInterest: payload.pointsOfInterest?.map(poi => ({
@@ -160,6 +162,17 @@ export const formatRegionGraphSummary = (context: RegionPromptContext): string =
         ? context.breadcrumbs.map(entry => entry.name).join(' > ')
         : context.name;
     lines.push(`Localização: ${breadcrumbLabel} [${context.slug}] (${context.type}) - ${baseSummary}`);
+
+    const meta = context.metadata as Record<string, unknown> | null | undefined;
+    const ruler = meta?.ruler as Record<string, unknown> | undefined;
+    if (ruler && typeof ruler.name === 'string') {
+        const title = typeof ruler.title === 'string' ? ruler.title : 'Soberano';
+        const notes = typeof ruler.notes === 'string' ? ` — ${ruler.notes}` : '';
+        lines.push(`Soberano: ${ruler.name} (${title})${notes}`);
+    }
+    if (meta?.role === 'kingdom' && Array.isArray(meta.rivals) && meta.rivals.length) {
+        lines.push(`Rivais regionais: ${(meta.rivals as string[]).join(', ')}`);
+    }
 
     if (context.activePoi) {
         const poiSummary = context.activePoi.summary ? ` - ${context.activePoi.summary}` : '';

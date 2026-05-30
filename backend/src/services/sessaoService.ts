@@ -828,6 +828,8 @@ export const getWorldMapSnapshot = async (sessionId: number, userId: number): Pr
                 const toSlug = neighbor.targetRegionSlug!;
                 const key = [fromSlug, toSlug].sort().join('::');
                 if (edgeMap.has(key)) return;
+                const fromVisited = visitedRegionSet.has(fromSlug);
+                const toVisited = visitedRegionSet.has(toSlug);
                 edgeMap.set(key, {
                     fromSlug,
                     toSlug,
@@ -836,7 +838,11 @@ export const getWorldMapSnapshot = async (sessionId: number, userId: number): Pr
                     difficulty: neighbor.difficulty,
                     isLocked: neighbor.isLocked,
                     metadata: neighbor.metadata,
-                    discovered: visitedRegionSet.has(fromSlug) && visitedRegionSet.has(toSlug),
+                    discovered: fromVisited && toVisited,
+                    reachable: fromVisited || toVisited,
+                    fromCurrent:
+                        Boolean(currentRegionSlug) &&
+                        (fromSlug === currentRegionSlug || toSlug === currentRegionSlug),
                 });
             });
     });

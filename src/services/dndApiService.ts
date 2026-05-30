@@ -63,25 +63,39 @@ async function fetchList<T extends ApiListItem>(endpoint: string): Promise<{ res
   return { results };
 }
 
+function isValidClassDetailPayload(data: unknown): boolean {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+  return typeof (data as ApiClass).hit_die === 'number';
+}
+
 /**
  * Obtém detalhes de um item específico (ex: /classes/barbarian, /equipment/greataxe).
- * Garante que sempre retorne um objeto, mesmo em caso de falha, para segurança no merge.
- * Adiciona normalização para endpoints /levels.
  */
 export async function getResourceDetails(resource: string, index: string): Promise<any | null> {
-    const data = await fetchJson<any>(`/${resource}/${index}`);
-  
-    // Se a resposta for um array direto (como em /classes/{index}/levels), retorne-o.
+    const endpoint = `/${resource}/${index}`;
+    const fullEndpoint = `${API_BASE}${endpoint}`;
+    const isClassRoot = resource === 'classes' && index !== 'levels' && !resource.includes('/');
+
+    let data = await fetchJson<any>(endpoint);
+
+    if (isClassRoot && !isValidClassDetailPayload(data)) {
+      cache.delete(fullEndpoint);
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`[dndApiService] Resposta inválida para classe ${index}, refetch…`);
+      }
+      data = await apiClient<any>(fullEndpoint);
+      if (isValidClassDetailPayload(data)) {
+        cache.set(fullEndpoint, data);
+      } else {
+        return null;
+      }
+    }
+
     if (Array.isArray(data)) {
       return data;
     }
-  
-    // Mantém a compatibilidade com outras respostas que podem ter um objeto com a propriedade `levels`
-    if (data && typeof data === 'object' && 'levels' in data && Array.isArray(data.levels)) {
-      return data.levels;
-    }
-  
-    return data || {}; // Retorna objeto vazio em falha
+
+    return data || {};
 }
 
 

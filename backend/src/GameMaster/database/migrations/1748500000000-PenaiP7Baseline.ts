@@ -131,6 +131,14 @@ export class PenaiP7Baseline1748500000000 implements MigrationInterface {
         ];
         for (const table of fkTables) {
             await queryRunner.query(`
+                DELETE FROM ${table} child
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM game_sessions parent WHERE parent.id = child."sessionId"
+                )
+            `);
+        }
+        for (const table of fkTables) {
+            await queryRunner.query(`
                 DO $$ BEGIN
                     ALTER TABLE ${table}
                     ADD CONSTRAINT "FK_${table}_session"

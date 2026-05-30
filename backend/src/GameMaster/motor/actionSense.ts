@@ -8,6 +8,7 @@ import type { PenaiActionIntent } from './types.js';
 import { inferSkillCheckFromFreeText } from '../../services/dm/freeActionClassifier.js';
 import { defaultProviders } from '../adapters/index.js';
 import { recallMemoryForTurn } from '../memory/recall.js';
+import { isSessionOpeningRequest } from '../ai/promptComposer.js';
 
 export type ActionSenseResult = {
     ok: boolean;
@@ -131,6 +132,14 @@ export async function validateActionSense(opts: {
 }): Promise<ActionSenseResult> {
     const text = normalizeText(opts.playerAction);
     const payload = opts.payload ?? {};
+
+    if (isSessionOpeningRequest(text, payload)) {
+        return {
+            ok: true,
+            reason: 'Pedido de abertura da sessão (cena inicial).',
+            refinedIntent: { type: 'free', payload: { opening: true, bootstrap: true } },
+        };
+    }
 
     const structured = payload.structuredIntent as { type?: string } | undefined;
     const structuredType = structured?.type ?? (payload.intent as string | undefined);
@@ -259,13 +268,26 @@ export async function validateActionSense(opts: {
             sessionId: opts.sessionId,
             query: text,
             limit: 4,
+            regionSlug: currentRegionSlug ?? undefined,
         });
+        const { penaiPipelineLog, penaiPipelineWait } = await import('../infra/pipelineLog.js');
+        penaiPipelineWait(
+            'ACTION_SENSE',
+            `Gemini (${intent.type}) — fatos=${recalled.sessionFacts.length + recalled.canonFacts.length}`,
+            { sessionId: opts.sessionId, userId: opts.userId },
+        );
         const gemini = await defaultProviders.actionSense.checkPlausibility({
             playerAction: text,
             regionSlug: currentRegionSlug,
             intentType: intent.type,
             sessionFacts: [...recalled.sessionFacts, ...recalled.canonFacts].slice(0, 6),
         });
+        penaiPipelineLog(
+            'ACTION_SENSE',
+            gemini.acceptable ? 'Gemini aceitou' : 'Gemini rejeitou',
+            { acceptable: gemini.acceptable, reason: gemini.reason },
+            { sessionId: opts.sessionId, userId: opts.userId },
+        );
         if (!gemini.acceptable) {
             return {
                 ok: false,

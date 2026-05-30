@@ -164,6 +164,97 @@
   inset: 0;
   background: radial-gradient(ellipse 80% 60% at 20% 0%, rgba(228, 7, 18, 0.2), transparent 55%);
   pointer-events: none;
+  z-index: 1;
+}
+
+/* Tile de estatística do hub (BG3-like) */
+.dnd-hub-stat {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--dnd-radius-xl);
+  border: 1px solid rgba(212, 175, 55, 0.14);
+  background:
+    linear-gradient(165deg, rgba(22, 22, 28, 0.94) 0%, rgba(8, 8, 10, 0.98) 100%);
+  box-shadow: var(--dnd-shadow-card);
+  transition:
+    border-color var(--dnd-duration-ui),
+    box-shadow var(--dnd-duration-ui),
+    transform var(--dnd-duration-ui);
+}
+
+.dnd-hub-stat::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 90% 55% at 50% -10%, rgba(212, 175, 55, 0.14), transparent 58%);
+  opacity: 0;
+  transition: opacity var(--dnd-duration-ui);
+  pointer-events: none;
+}
+
+.dnd-hub-stat:hover::before,
+.dnd-hub-stat:focus-visible::before {
+  opacity: 1;
+}
+
+.dnd-hub-stat-active {
+  border-color: rgba(212, 175, 55, 0.32);
+  box-shadow:
+    var(--dnd-shadow-card),
+    0 0 28px -10px var(--dnd-gold-glow);
+}
+
+.dnd-hub-stat-active::before {
+  opacity: 0.75;
+}
+
+/* Cantos ornamentados (painéis hub) */
+.dnd-ornate-corners {
+  position: relative;
+}
+
+.dnd-ornate-corners::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 10px;
+  border: 1px solid rgba(212, 175, 55, 0.08);
+  border-radius: calc(var(--dnd-radius-xl) - 6px);
+  mask-image: linear-gradient(#000 0 0);
+}
+
+.dnd-ornate-corners > .dnd-corner {
+  pointer-events: none;
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-color: rgba(212, 175, 55, 0.45);
+  border-style: solid;
+  opacity: 0.85;
+}
+
+.dnd-ornate-corners > .dnd-corner-tl {
+  top: 6px;
+  left: 6px;
+  border-width: 2px 0 0 2px;
+}
+
+.dnd-ornate-corners > .dnd-corner-tr {
+  top: 6px;
+  right: 6px;
+  border-width: 2px 2px 0 0;
+}
+
+.dnd-ornate-corners > .dnd-corner-bl {
+  bottom: 6px;
+  left: 6px;
+  border-width: 0 0 2px 2px;
+}
+
+.dnd-ornate-corners > .dnd-corner-br {
+  bottom: 6px;
+  right: 6px;
+  border-width: 0 2px 2px 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -9,7 +9,9 @@ type SessionWorldLoadingScreenProps = {
     steps: WorldBootstrapStepView[];
     currentStep: string | null;
     error: string | null;
+    usedOfflineFallback?: boolean;
     onRetry?: () => void;
+    onRetryOffline?: () => void;
 };
 
 function formatBootstrapError(raw: string | null): string | null {
@@ -38,7 +40,9 @@ export function SessionWorldLoadingScreen({
     steps,
     currentStep,
     error,
+    usedOfflineFallback = false,
     onRetry,
+    onRetryOffline,
 }: SessionWorldLoadingScreenProps) {
     const friendlyError = formatBootstrapError(error);
 
@@ -49,6 +53,11 @@ export function SessionWorldLoadingScreen({
                     <p className="font-display text-2xl tracking-wide text-dnd-gold">
                         Criando Mundo
                     </p>
+                    {usedOfflineFallback ? (
+                        <p className="mt-2 font-ui text-xs text-dnd-parchment-muted">
+                            A IA falhou — abrindo com personagens e missões do seed local.
+                        </p>
+                    ) : null}
                     {sessionName ? (
                         <p className="mt-2 font-ui text-sm text-dnd-parchment-muted">{sessionName}</p>
                     ) : null}
@@ -88,6 +97,15 @@ export function SessionWorldLoadingScreen({
                                 className="rounded-md border border-dnd-gold/50 px-4 py-2 font-ui text-sm text-dnd-gold hover:bg-dnd-gold/10"
                             >
                                 Tentar novamente
+                            </button>
+                        ) : null}
+                        {onRetryOffline ? (
+                            <button
+                                type="button"
+                                onClick={onRetryOffline}
+                                className="rounded-md border border-dnd-parchment/30 px-4 py-2 font-ui text-sm text-dnd-parchment hover:bg-dnd-obsidian-raised"
+                            >
+                                Entrar com mundo local (sem IA)
                             </button>
                         ) : null}
                     </div>

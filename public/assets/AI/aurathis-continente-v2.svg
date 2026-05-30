@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Aurathis v2  viewBox 0 0 1100 780 (1:1 com regionsSeed mapLayout) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 780" role="img" aria-label="Mapa do continente Aurathis">
+  <defs>
+    <linearGradient id="ocean" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a1628"/>
+      <stop offset="100%" stop-color="#040a12"/>
+    </linearGradient>
+    <linearGradient id="land" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4a6b45"/>
+      <stop offset="50%" stop-color="#2d4a32"/>
+      <stop offset="100%" stop-color="#1a3024"/>
+    </linearGradient>
+    <linearGradient id="desert" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a67c2e"/>
+      <stop offset="100%" stop-color="#d4af5a"/>
+    </linearGradient>
+    <linearGradient id="snow" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#4a5d6e"/>
+      <stop offset="100%" stop-color="#b8c9d9"/>
+    </linearGradient>
+    <linearGradient id="jungle" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e5c38"/>
+      <stop offset="100%" stop-color="#0f3d24"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 z" fill="#c9a227" opacity="0.35"/>
+    </marker>
+  </defs>
+
+  <rect width="1100" height="780" fill="url(#ocean)"/>
+
+  <!-- Ilhas e costa oeste -->
+  <path fill="#1e3a4f" opacity="0.7" d="M 20 380 Q 45 320 55 260 L 75 300 Q 95 360 70 430 L 40 450 Z"/>
+  <path fill="#1e3a4f" opacity="0.5" d="M 5 420 L 55 400 L 65 480 L 15 500 Z"/>
+
+  <!-- Massa continental -->
+  <path fill="url(#land)" stroke="#142a1c" stroke-width="2.5"
+    d="M 70 260 L 160 200 L 260 155 L 360 115 L 470 95 L 580 105 L 690 125 L 790 155 L 880 195 L 960 255 L 1010 330 L 1035 410 L 1015 490 L 940 555 L 840 595 L 720 615 L 580 635 L 440 625 L 310 595 L 190 550 L 110 490 L 60 410 L 55 330 Z"/>
+
+  <!-- Norte gelado -->
+  <path fill="url(#snow)" opacity="0.9" stroke="#8aa4b8" stroke-width="1"
+    d="M 250 55 L 520 35 L 580 125 L 450 155 L 300 140 Z"/>
+  <ellipse cx="400" cy="95" rx="200" ry="55" fill="url(#snow)" opacity="0.75"/>
+
+  <!-- Republica costa -->
+  <path fill="#2a4d62" opacity="0.65" d="M 55 300 L 150 280 L 165 380 L 90 400 Z"/>
+
+  <!-- Deserto leste -->
+  <ellipse cx="860" cy="450" rx="165" ry="115" fill="url(#desert)" opacity="0.88"/>
+  <path fill="#c4a35a" opacity="0.4" d="M 740 360 L 1000 340 L 1020 520 L 780 530 Z"/>
+
+  <!-- Selva sul -->
+  <ellipse cx="510" cy="555" rx="220" ry="95" fill="url(#jungle)" opacity="0.92"/>
+  <path fill="#145a32" opacity="0.8" d="M 350 490 L 700 475 L 740 630 L 380 650 Z"/>
+
+  <!-- Nevoa elfica -->
+  <ellipse cx="555" cy="295" rx="130" ry="75" fill="#5c4a7a" opacity="0.5" filter="url(#glow)"/>
+
+  <!-- Veu titanico -->
+  <path fill="#2d2840" opacity="0.85" stroke="#7c6aaa" stroke-width="1.5" stroke-dasharray="8 5"
+    d="M 800 55 L 1040 40 L 1070 190 L 920 215 L 850 130 Z"/>
+
+  <!-- Planicies centrais -->
+  <ellipse cx="295" cy="415" rx="155" ry="95" fill="#3d6b42" opacity="0.5"/>
+
+  <!-- Rios -->
+  <g fill="none" stroke="#3d7ab8" stroke-width="2.5" opacity="0.45" stroke-linecap="round">
+    <path d="M 360 120 Q 340 250 310 450"/>
+    <path d="M 520 280 Q 500 400 480 520"/>
+    <path d="M 130 350 Q 220 380 310 450"/>
+    <path d="M 840 500 Q 800 460 880 420"/>
+  </g>
+
+  <!-- Estradas e rotas comerciais (decorativo, sob camada do jogo) -->
+  <g stroke="#d4b86a" stroke-width="2" fill="none" opacity="0.22" stroke-linecap="round" marker-end="url(#arrow)">
+    <path d="M 310 450 L 130 350"/>
+    <path d="M 310 450 L 560 310"/>
+    <path d="M 310 450 L 480 520"/>
+    <path d="M 390 150 L 310 450"/>
+    <path d="M 840 500 L 130 350"/>
+    <path d="M 840 500 L 480 520"/>
+    <path d="M 560 310 L 860 200"/>
+    <path d="M 130 350 L 60 420"/>
+    <path d="M 390 150 L 560 310"/>
+    <path d="M 220 370 L 480 520"/>
+  </g>
+
+  <!-- Cidades (losangos dourados nas ancoras) -->
+  <g fill="#f5e6c8" stroke="#c9a227" stroke-width="1.2" opacity="0.85">
+    <polygon points="310,450 318,442 326,450 318,458"/>
+    <polygon points="130,350 138,342 146,350 138,358"/>
+    <polygon points="560,310 568,302 576,310 568,318"/>
+    <polygon points="480,520 488,512 496,520 488,528"/>
+    <polygon points="390,150 398,142 406,150 398,158"/>
+    <polygon points="840,500 848,492 856,500 848,508"/>
+    <polygon points="860,200 868,192 876,200 868,208"/>
+  </g>
+
+  <!-- POIs principais (pontos pequenos) -->
+  <g fill="#94a3b8" opacity="0.5">
+    <circle cx="306" cy="458" r="2.5"/>
+    <circle cx="322" cy="448" r="2"/>
+    <circle cx="138" cy="358" r="2"/>
+    <circle cx="558" cy="328" r="2"/>
+    <circle cx="488" cy="528" r="2"/>
+    <circle cx="848" cy="508" r="2"/>
+    <circle cx="852" cy="192" r="2"/>
+  </g>
+
+  <!-- Rotulos reinos -->
+  <g font-family="Georgia, 'Times New Roman', serif" font-size="12" fill="#e8dcc8" opacity="0.7" text-anchor="middle" letter-spacing="0.05em">
+    <text x="280" y="392">Reino do Sol</text>
+    <text x="520" y="268">Dominio Valdar</text>
+    <text x="500" y="528">Confederacao Ashari</text>
+    <text x="360" y="88">Marches do Norte</text>
+    <text x="800" y="442">Areias Douradas</text>
+    <text x="90" y="288">Nove Ancoras</text>
+    <text x="900" y="148">Veu Titanico</text>
+  </g>
+
+  <!-- Borda decorativa -->
+  <rect x="8" y="8" width="1084" height="764" fill="none" stroke="#3d5a6e" stroke-width="2" opacity="0.4" rx="4"/>
+
+  <!-- Ancoras calibracao (mapLayout.nodes) -->
+  <g id="map-anchors" opacity="0.08" stroke="#fbbf24" fill="#fbbf24" stroke-width="0.8">
+    <circle cx="280" cy="400" r="3"/><circle cx="520" cy="280" r="3"/><circle cx="500" cy="540" r="3"/>
+    <circle cx="360" cy="100" r="3"/><circle cx="800" cy="460" r="3"/><circle cx="90" cy="300" r="3"/>
+    <circle cx="900" cy="160" r="3"/><circle cx="310" cy="450" r="3"/><circle cx="220" cy="370" r="3"/>
+    <circle cx="560" cy="310" r="3"/><circle cx="480" cy="520" r="3"/><circle cx="390" cy="150" r="3"/>
+    <circle cx="840" cy="500" r="3"/><circle cx="130" cy="350" r="3"/><circle cx="860" cy="200" r="3"/>
+    <circle cx="530" cy="580" r="3"/><circle cx="400" cy="500" r="3"/><circle cx="600" cy="250" r="3"/>
+    <circle cx="420" cy="80" r="3"/><circle cx="880" cy="420" r="3"/><circle cx="60" cy="420" r="3"/>
+    <circle cx="940" cy="120" r="3"/><circle cx="340" cy="520" r="3"/><circle cx="620" cy="270" r="3"/>
+    <circle cx="450" cy="130" r="3"/><circle cx="920" cy="380" r="3"/><circle cx="980" cy="90" r="3"/>
+  </g>
+</svg>

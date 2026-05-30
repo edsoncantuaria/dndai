@@ -4,6 +4,13 @@ import { appendWorldEvent } from '../events/store.js';
 
 const XP_THRESHOLDS = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
 
+/** XP total necessário para alcançar o próximo nível (ex.: nível 1 → 300). */
+export function xpRequiredForNextLevel(currentLevel: number): number {
+    if (currentLevel >= 20) return Infinity;
+    const idx = Math.min(Math.max(1, currentLevel), XP_THRESHOLDS.length - 1);
+    return XP_THRESHOLDS[idx] ?? 355000;
+}
+
 export function levelFromXp(xp: number): number {
     let level = 1;
     for (let i = 1; i < XP_THRESHOLDS.length; i++) {

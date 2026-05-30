@@ -138,7 +138,7 @@ export function OnboardingCreateHeroBar() {
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-dnd-ember" />
           <p className="font-ui text-sm text-dnd-parchment">
-            <strong>Passo 3:</strong> Forje seu primeiro herói
+            <strong className="text-dnd-gold">Forje</strong> seu primeiro herói
           </p>
         </div>
         <DndButton variant="ghost" size="sm" onClick={() => advanceStep()}>

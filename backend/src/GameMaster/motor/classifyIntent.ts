@@ -40,6 +40,7 @@ const STRUCTURED_INTENTS = new Set([
     'sell-item',
     'close-shop',
     'start-encounter',
+    'summon-spell',
     'damage',
 ]);
 

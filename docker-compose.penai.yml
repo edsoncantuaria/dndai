@@ -17,7 +17,7 @@ x-penai-env: &penai-env
   JWT_SECRET: ${JWT_SECRET:-change-me-in-development}
   QDRANT_ENABLED: ${QDRANT_ENABLED:-false}
   QDRANT_URL: http://qdrant:6333
-  QDRANT_VECTOR_SIZE: '768'
+  QDRANT_VECTOR_SIZE: '3072'
 
 services:
   postgres:
@@ -85,6 +85,8 @@ services:
       POSTGRES_PWD: penai_secret
       POSTGRES_SEEDS: postgres
       DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/development-sql.yaml
+    volumes:
+      - ./infra/temporal/dynamicconfig:/etc/temporal/config/dynamicconfig
     ports:
       - '7233:7233'
 
@@ -97,6 +99,7 @@ services:
     environment:
       TEMPORAL_ADDRESS: temporal:7233
       TEMPORAL_CORS_ORIGINS: http://localhost:8233
+      TEMPORAL_UI_DEFAULT_NAMESPACE: penai
     ports:
       - '8233:8080'
 
@@ -107,11 +110,11 @@ services:
       dockerfile: Dockerfile
     command: ['npx', 'tsx', 'src/penaiServer.ts']
     restart: unless-stopped
+    volumes:
+      - ./data:/app/srd-data:ro
     environment:
       <<: *penai-env
       PORT: 8071
-    ports:
-      - '8071:8071'
     depends_on:
       postgres:
         condition: service_healthy
@@ -127,6 +130,8 @@ services:
       dockerfile: Dockerfile
     command: ['npx', 'tsx', 'src/temporalWorkerMain.ts']
     restart: unless-stopped
+    volumes:
+      - ./data:/app/srd-data:ro
     environment:
       <<: *penai-env
       SKIP_TEMPORAL_WORKER: 'false'

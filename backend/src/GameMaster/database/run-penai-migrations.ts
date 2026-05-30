@@ -1,10 +1,15 @@
 import 'reflect-metadata';
 import 'dotenv/config';
-import { PenaiDataSource } from '../GameMaster/database/data-source.js';
+import { PenaiDataSource } from './data-source.js';
+import { purgeOrphanPenaiSessionRows } from './purgeOrphanSessionRows.js';
 
 async function main() {
     if (!PenaiDataSource.isInitialized) {
         await PenaiDataSource.initialize();
+    }
+    const removed = await purgeOrphanPenaiSessionRows(PenaiDataSource);
+    if (removed > 0) {
+        console.log(`[penai-migrations] Total órfãos removidos: ${removed}`);
     }
     const executed = await PenaiDataSource.runMigrations({ transaction: 'each' });
     if (executed.length === 0) {

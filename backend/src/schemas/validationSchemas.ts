@@ -65,6 +65,9 @@ export const SettingsSchema = z.object({
     onboardingCompleted: z.boolean().optional(),
 });
 
+/** PATCH parcial — PUT /users/me/settings aceita só os campos enviados (ex.: apiKey BYOK). */
+export const SettingsPatchSchema = SettingsSchema.partial();
+
 // --- Sessao ---
 export const CreateSessaoSchema = z.object({
     nome: z.string().min(1, "O nome da sessão é obrigatório.").max(100),

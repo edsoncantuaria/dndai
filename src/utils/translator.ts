@@ -104,6 +104,66 @@ export const normalizeProficiencyName = (name: string): string => {
     return translateApiString(name);
 };
 
+function formatListPt(items: string[]): string {
+    if (items.length === 0) return '';
+    if (items.length === 1) return items[0]!;
+    if (items.length === 2) return `${items[0]} e ${items[1]}`;
+    return `${items.slice(0, -1).join(', ')} e ${items.at(-1)}`;
+}
+
+function proficiencyCountPhrase(count: number): string {
+    return count === 1 ? '1 perícia' : `${count} perícias`;
+}
+
+const ENGLISH_COUNT_WORDS: Record<string, number> = {
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    nine: 9,
+    ten: 10,
+};
+
+function translateProficiencyChoiceDesc(desc: string): string {
+    if (!desc) return 'Faça sua escolha';
+
+    const match = desc.match(/^Choose (\w+) from (.+?)\.?$/i);
+    if (!match) return desc;
+
+    const rawCount = match[1].toLowerCase();
+    const count = ENGLISH_COUNT_WORDS[rawCount] ?? parseInt(rawCount, 10);
+    const items = match[2]
+        .split(/,\s*|\s+and\s+/i)
+        .map((item) => normalizeProficiencyName(item.trim()))
+        .filter(Boolean);
+
+    if (Number.isNaN(count) || items.length === 0) return desc;
+    return `Escolha ${proficiencyCountPhrase(count)} entre ${formatListPt(items)}`;
+}
+
+/**
+ * Rótulo em PT-BR para grupos de escolha de proficiência/perícia.
+ */
+export function formatProficiencyChoiceLabel(choice: {
+    choose: number;
+    desc?: string;
+    options?: Array<{ name?: string | null }>;
+}): string {
+    const names = (choice.options ?? [])
+        .map((option) => normalizeProficiencyName(option.name ?? ''))
+        .filter(Boolean);
+
+    if (names.length > 0 && choice.choose > 0) {
+        return `Escolha ${proficiencyCountPhrase(choice.choose)} entre ${formatListPt(names)}`;
+    }
+
+    return translateProficiencyChoiceDesc(choice.desc ?? '');
+}
+
 
 /**
  * Traduz de forma profunda um objeto de equipamento, incluindo suas propriedades.

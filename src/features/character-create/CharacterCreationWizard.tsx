@@ -1,7 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ApiListItem } from '@/types';
 import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
 import { useGameStateContext } from '@/contexts/GameStateContext';
@@ -18,13 +17,13 @@ import NewStep7_Feats from '@/components/NewCreationCharacter/NewStep7_Feats';
 import NewStep8_Finalize from '@/components/NewCreationCharacter/NewStep8_Finalize';
 import ActionModal from '@/components/ui/ActionModal';
 import { LoadingOracle } from '@/features/gameplay/components/LoadingOracle';
-import { CreationStepper } from './CreationStepper';
-import { CharacterSummaryCollapsible } from './CharacterSummaryCollapsible';
-import { WizardShell, WizardStepLayout } from './WizardStepLayout';
-import { TOTAL_CREATION_STEPS } from './constants';
-import { canProceedFromStep } from './stepCompleteness';
-import { useBreakpoint } from '@/hooks/useBreakpoint';
-import { cn } from '@/lib/utils';
+import { AmbientBackground, DndButton } from '@/components/primitives';
+import { ArrowLeft } from 'lucide-react';
+import { ArchetypePicker } from './ArchetypePicker';
+import { LivingCharacterSheet } from './LivingCharacterSheet';
+import { SheetBlockEditor } from './SheetBlockEditor';
+import type { SheetBlockDef } from './sheetBlocks';
+import { getVisibleBlocks, isBlockComplete } from './sheetBlocks';
 
 export interface CharacterCreationWizardProps {
   races: ApiListItem[];
@@ -36,6 +35,8 @@ export interface CharacterCreationWizardProps {
   onCancel?: () => void;
   editCharacterId?: string | number;
 }
+
+type Phase = 'archetype' | 'sheet';
 
 export function CharacterCreationWizard({
   races,
@@ -50,6 +51,11 @@ export function CharacterCreationWizard({
   const { createCharacter, updateCharacter } = useGameStateContext();
   const { toast } = useToast();
   const isEditMode = editCharacterId != null;
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const [phase, setPhase] = useState<Phase>(isEditMode ? 'sheet' : 'archetype');
+  const [openBlock, setOpenBlock] = useState<SheetBlockDef | null>(null);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
   const [editHydration, setEditHydration] = useState<ReturnType<typeof vaultCharacterToCreatorState> | null>(
     null,
@@ -81,35 +87,22 @@ export function CharacterCreationWizard({
       cancelled = true;
     };
   }, [editCharacterId, isEditMode, onCancel, toast]);
-  const { isLgUp } = useBreakpoint();
 
-  const [currentStep, setCurrentStep] = useState(1);
-  const [highestStep, setHighestStep] = useState(isEditMode ? TOTAL_CREATION_STEPS : 1);
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const editorStep = openBlock?.step ?? 8;
 
   const hook = useCharacterCreator({
     allLanguages: allLanguages || [],
-    currentStep,
+    currentStep: editorStep,
     initialSnapshot: editHydration ?? undefined,
   });
 
   const noop = useCallback(() => {}, []);
 
-  const goNext = useCallback(() => {
-    setCurrentStep((s) => {
-      const next = Math.min(s + 1, TOTAL_CREATION_STEPS);
-      setHighestStep((h) => Math.max(h, next));
-      return next;
-    });
-  }, []);
-
-  const goPrev = useCallback(() => {
-    setCurrentStep((s) => Math.max(s - 1, 1));
-  }, []);
-
-  const goToStep = useCallback((step: number) => {
-    if (step <= highestStep) setCurrentStep(step);
-  }, [highestStep]);
+  useEffect(() => {
+    if (phase === 'sheet') {
+      scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, [phase, openBlock?.id]);
 
   const handleFinalizeAndSubmit = async () => {
     const data = hook.buildCharacter();
@@ -133,44 +126,21 @@ export function CharacterCreationWizard({
     }
   };
 
-  const canProceed = canProceedFromStep(currentStep, hook);
+  const openNextIncomplete = useCallback(() => {
+    const blocks = getVisibleBlocks(hook);
+    const next = blocks.find((b) => !isBlockComplete(b.step, hook));
+    if (next) setOpenBlock(next);
+    else if (hook.isComplete) setShowConfirmationModal(true);
+  }, [hook]);
 
-  useEffect(() => {
-    if (currentStep === 7 && !hook.isVariantHuman) {
-      setCurrentStep(8);
-      setHighestStep((h) => Math.max(h, 8));
-    }
-  }, [currentStep, hook.isVariantHuman]);
-
-  if (editLoading) {
-    return (
-      <WizardShell>
-        <LoadingOracle label="Carregando herói do cofre…" />
-      </WizardShell>
-    );
-  }
-
-  if (hook.loadingStates.isBlocking) {
-    return (
-      <WizardShell>
-        <LoadingOracle
-          label={hook.loadingStates.message || 'Preparando equipamentos…'}
-        />
-      </WizardShell>
-    );
-  }
-
-  const stepContent = (() => {
+  const stepContent = useMemo(() => {
     const nav = { hideNav: true as const };
-    switch (currentStep) {
+    const step = openBlock?.step ?? 1;
+    switch (step) {
       case 1:
-        return (
-          <NewStep1_RaceClass hook={hook} races={races} classes={classes} nextStep={noop} {...nav} />
-        );
+        return <NewStep1_RaceClass hook={hook} races={races} classes={classes} nextStep={noop} {...nav} />;
       case 2:
-        return (
-          <NewStep2_Attributes hook={hook} prevStep={noop} nextStep={noop} {...nav} />
-        );
+        return <NewStep2_Attributes hook={hook} prevStep={noop} nextStep={noop} {...nav} />;
       case 3:
         return (
           <NewStep3_Background
@@ -210,101 +180,80 @@ export function CharacterCreationWizard({
       default:
         return null;
     }
-  })();
+  }, [openBlock?.step, hook, races, classes, backgrounds, alignments, allLanguages, noop]);
+
+  if (editLoading) {
+    return (
+      <div className="relative h-full min-h-0 bg-dnd-obsidian">
+        <LoadingOracle label="Carregando herói do cofre…" />
+      </div>
+    );
+  }
+
+  if (hook.loadingStates.isBlocking) {
+    return (
+      <div className="relative h-full min-h-0 bg-dnd-obsidian">
+        <LoadingOracle label={hook.loadingStates.message || 'Preparando equipamentos…'} />
+      </div>
+    );
+  }
+
+  if (phase === 'archetype') {
+    return (
+      <ArchetypePicker
+        hook={hook}
+        onStartBlank={() => setPhase('sheet')}
+        onApplied={() => setPhase('sheet')}
+      />
+    );
+  }
 
   return (
-    <WizardShell>
-      <header className="mb-4 flex shrink-0 items-center justify-between gap-2">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-dnd-obsidian">
+      <AmbientBackground variant="parchment" />
+
+      <header className="relative z-10 flex shrink-0 items-center justify-between gap-2 border-b border-dnd-gold/10 px-3 py-3 sm:px-5">
         {onCancel ? (
           <button
             type="button"
             onClick={onCancel}
-            className="inline-flex items-center gap-1 font-ui text-sm text-dnd-parchment-muted hover:text-dnd-gold"
+            className="inline-flex min-h-[44px] items-center gap-1.5 font-ui text-sm text-dnd-parchment-muted hover:text-dnd-gold"
           >
             <ArrowLeft className="h-4 w-4" />
             Sair
           </button>
         ) : (
-          <span />
+          <span className="w-14" />
         )}
-        <p className="font-display text-sm text-dnd-gold">{isEditMode ? 'Editar herói' : 'Forja de herói'}</p>
+        <p className="font-display text-sm text-dnd-gold sm:text-base">
+          {isEditMode ? 'Editar ficha' : 'Ficha viva'}
+        </p>
+        <DndButton
+          variant="ember"
+          size="sm"
+          disabled={!hook.isComplete}
+          onClick={() => setShowConfirmationModal(true)}
+          className="min-w-[5.5rem]"
+        >
+          Selar
+        </DndButton>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:gap-8">
-        {isLgUp ? (
-          <aside className="hidden w-56 shrink-0 lg:block xl:w-64">
-            <CreationStepper
-              currentStep={currentStep}
-              highestStep={highestStep}
-              onGoToStep={goToStep}
-            />
-          </aside>
-        ) : (
-          <CreationStepper
-            currentStep={currentStep}
-            highestStep={highestStep}
-            onGoToStep={goToStep}
-          />
-        )}
+      <div ref={scrollRef} className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-4 sm:px-5 sm:py-6">
+        <LivingCharacterSheet hook={hook} onOpenBlock={setOpenBlock} />
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row lg:gap-6">
-          <div
-            className={cn(
-              'flex min-h-0 min-w-0 flex-1 flex-col',
-              !isLgUp && 'pb-[calc(13rem+var(--dnd-safe-bottom))]'
-            )}
-          >
-            <WizardStepLayout
-              step={currentStep}
-              onBack={currentStep > 1 ? goPrev : undefined}
-              onNext={currentStep < 8 ? goNext : undefined}
-              nextDisabled={!canProceed}
-              showNext={currentStep < 8}
-              isLastStep={currentStep === 8}
-              onFinalize={() => setShowConfirmationModal(true)}
-              finalizeDisabled={!hook.isComplete}
-              hideFooter={!isLgUp}
-              nextLabel={
-                currentStep === 7 ? 'Ver revelação' : currentStep === 6 && !canProceed ? 'Continuar' : 'Continuar'
-              }
-            >
-              {stepContent}
-            </WizardStepLayout>
+        {!hook.isComplete ? (
+          <div className="mx-auto mt-4 max-w-3xl">
+            <DndButton variant="goldOutline" className="w-full" onClick={openNextIncomplete}>
+              Ir para o próximo bloco pendente
+            </DndButton>
           </div>
-
-          {isLgUp ? (
-            <div className="hidden shrink-0 lg:block lg:w-72">
-              <CharacterSummaryCollapsible
-                hook={hook}
-                currentStep={currentStep}
-                defaultOpen
-              />
-            </div>
-          ) : null}
-        </div>
+        ) : null}
       </div>
 
-      {!isLgUp ? (
-        <CharacterSummaryCollapsible
-          hook={hook}
-          currentStep={currentStep}
-          mobileNav={{
-            onBack: currentStep > 1 ? goPrev : undefined,
-            onNext: currentStep < 8 ? goNext : undefined,
-            nextDisabled: !canProceed,
-            showNext: currentStep < 8,
-            isLastStep: currentStep === 8,
-            onFinalize: () => setShowConfirmationModal(true),
-            finalizeDisabled: !hook.isComplete,
-            nextLabel:
-              currentStep === 7
-                ? 'Ver revelação'
-                : currentStep === 6 && !canProceed
-                  ? 'Continuar'
-                  : 'Continuar',
-          }}
-        />
-      ) : null}
+      <SheetBlockEditor block={openBlock} hook={hook} open={Boolean(openBlock)} onClose={() => setOpenBlock(null)}>
+        {stepContent}
+      </SheetBlockEditor>
 
       {showConfirmationModal ? (
         <ActionModal
@@ -331,7 +280,7 @@ export function CharacterCreationWizard({
           </p>
         </ActionModal>
       ) : null}
-    </WizardShell>
+    </div>
   );
 }
 

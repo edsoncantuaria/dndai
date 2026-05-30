@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Loader2, ScrollText, Volume2 } from 'lucide-react';
 import { DndCard } from '@/components/primitives';
 import type { PenaiStoryEntry } from '@/hooks/usePenaiTurnPipeline';
@@ -10,6 +11,24 @@ import {
     splitStoryParagraphs,
     storyEntryLabel,
 } from './penaiStoryFormat';
+
+const entryMotion = {
+    hidden: { opacity: 0, y: 10 },
+    visible: {
+        opacity: 1,
+        y: 0,
+        transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] },
+    },
+};
+
+const paragraphMotion = {
+    hidden: { opacity: 0, y: 6 },
+    visible: (i: number) => ({
+        opacity: 1,
+        y: 0,
+        transition: { delay: 0.08 + i * 0.12, duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+    }),
+};
 
 function StoryEntryBlock({ entry }: { entry: PenaiStoryEntry }) {
     const paragraphs = splitStoryParagraphs(entry.content);
@@ -31,9 +50,14 @@ function StoryEntryBlock({ entry }: { entry: PenaiStoryEntry }) {
     }, [paragraphs, speaking]);
 
     return (
-        <article className="group relative border-l-2 border-dnd-gold/35 pl-4 pr-1 py-1">
+        <motion.article
+            className="group relative border-l-2 border-dnd-gold/35 pl-4 pr-1 py-1"
+            initial="hidden"
+            animate="visible"
+            variants={entryMotion}
+        >
             <header className="mb-2 flex flex-wrap items-center gap-2">
-                <time className="font-ui text-[11px] tabular-nums tracking-wide text-dnd-parchment-muted">
+                <time className="font-ui text-[10px] tabular-nums tracking-wide text-dnd-parchment-muted">
                     {timeMark}
                 </time>
                 <span className="rounded border border-dnd-gold/20 bg-dnd-obsidian-raised/80 px-1.5 py-0.5 font-ui text-[9px] uppercase tracking-widest text-dnd-gold/90">
@@ -56,7 +80,15 @@ function StoryEntryBlock({ entry }: { entry: PenaiStoryEntry }) {
             </header>
             <div className="space-y-3 font-narrative text-[16px] leading-[1.75] text-dnd-parchment md:text-[17px]">
                 {paragraphs.map((para, i) => (
-                    <p key={`${entry.id ?? entry.timestamp}-p-${i}`}>{para}</p>
+                    <motion.p
+                        key={`${entry.id ?? entry.timestamp}-p-${i}`}
+                        custom={i}
+                        initial="hidden"
+                        animate="visible"
+                        variants={paragraphMotion}
+                    >
+                        {para}
+                    </motion.p>
                 ))}
             </div>
             {entry.consequences && entry.consequences.length > 0 ? (
@@ -71,7 +103,7 @@ function StoryEntryBlock({ entry }: { entry: PenaiStoryEntry }) {
                     ))}
                 </ul>
             ) : null}
-        </article>
+        </motion.article>
     );
 }
 

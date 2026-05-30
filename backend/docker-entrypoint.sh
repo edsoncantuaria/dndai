@@ -13,6 +13,9 @@ if [ "$WORKER_MODE" = "true" ]; then
   exec "$@"
 fi
 
+echo "[entrypoint] Migrações PENAI (Postgres)…"
+npx tsx src/GameMaster/database/run-penai-migrations.ts
+
 if [ "${PENAI_SEED_ON_BOOT}" = "true" ]; then
   echo "[entrypoint] PENAI_SEED_ON_BOOT=true — seed mundo + bundle srd-ptbr-core via initPenaiDatabase."
 fi

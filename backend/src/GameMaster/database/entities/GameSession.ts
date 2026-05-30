@@ -44,6 +44,10 @@ export class GameSession {
     @Column({ type: 'varchar', length: 64, nullable: true })
     currentRegionSlug!: string | null;
 
+    /** Shard compartilhado (região canônica) — P12. */
+    @Column({ type: 'uuid', nullable: true })
+    shardId!: string | null;
+
     @Column({ type: 'jsonb', nullable: true })
     pendingLootOffer!: Record<string, unknown> | null;
 
@@ -57,8 +61,17 @@ export class GameSession {
     @Column({ type: 'jsonb', nullable: true })
     gameClock!: Record<string, unknown> | null;
 
-    @Column({ type: 'bigint', nullable: true })
+    @Column({ type: 'uuid', nullable: true })
     lastProjectedEventId!: string | null;
+
+    @Column({ type: 'jsonb', nullable: true })
+    lastActionOptions!: Record<string, unknown>[] | null;
+
+    @Column({ type: 'jsonb', nullable: true })
+    worldPulseSnapshot!: Record<string, unknown> | null;
+
+    @Column({ type: 'jsonb', nullable: true })
+    worldBootstrap!: Record<string, unknown> | null;
 
     @CreateDateColumn()
     createdAt!: Date;

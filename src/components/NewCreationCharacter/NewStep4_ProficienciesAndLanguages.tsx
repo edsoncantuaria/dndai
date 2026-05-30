@@ -3,7 +3,7 @@ import React, { useCallback } from 'react';
 import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
 import type { ApiListItem } from '@/types';
 import { ArrowLeft, ArrowRight, Dice5, Languages, Shield, BookOpenCheck } from 'lucide-react';
-import { normalizeProficiencyName } from '@/utils/translator';
+import { formatProficiencyChoiceLabel, normalizeProficiencyName } from '@/utils/translator';
 
 interface Props {
     hook: ReturnType<typeof useCharacterCreator>;
@@ -156,7 +156,13 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                                     <div className="flex flex-wrap items-center justify-between gap-3">
                                         <div>
                                             <p className="text-xs uppercase tracking-[0.4em] text-stone-500">{choice.source}</p>
-                                            <h4 className="text-lg font-semibold text-stone-100">{normalizeProficiencyName(choice.desc)}</h4>
+                                            <h4 className="text-lg font-semibold text-stone-100">
+                                                {formatProficiencyChoiceLabel({
+                                                    choose: choice.choose,
+                                                    desc: choice.desc,
+                                                    options: availableOptions,
+                                                })}
+                                            </h4>
                                         </div>
                                         <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-100">
                                             {selectedCountInGroup}/{choice.choose}

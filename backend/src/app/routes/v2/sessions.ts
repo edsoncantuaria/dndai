@@ -12,6 +12,7 @@ const createSessionSchema = z.object({
     nome: z.string().min(1).max(100),
     heroName: z.string().min(1).max(80).optional(),
     heroWorldEntityId: z.string().uuid().optional(),
+    spawnRegionSlug: z.string().min(3).max(120).optional(),
 });
 
 const renameSessionSchema = z.object({
@@ -35,11 +36,15 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
                 details: parsed.error.flatten(),
             });
         }
+        const { penaiPipelineLog } = await import('../../../GameMaster/infra/pipelineLog.js');
+        penaiPipelineLog('HTTP', 'POST /api/v2/sessions', { nome: parsed.data.nome }, { userId: request.userId });
+
         const session = await createGameSession({
             userId: request.userId,
             nome: parsed.data.nome,
             heroName: parsed.data.heroName,
             heroWorldEntityId: parsed.data.heroWorldEntityId,
+            spawnRegionSlug: parsed.data.spawnRegionSlug,
         });
         return reply.status(201).send(session);
     });
@@ -54,6 +59,150 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
         );
         const pack = await formatMechanicalPack(id);
         return pack;
+    });
+
+    app.get('/api/v2/sessions/:id/ui-state', auth, async (request, reply) => {
+        const id = Number((request.params as { id: string }).id);
+        if (!Number.isFinite(id)) {
+            return reply.status(400).send({ error: 'ID de sessão inválido' });
+        }
+        const { assertSessionOwner } = await import(
+            '../../../GameMaster/sessions/sessionExtras.js'
+        );
+        const { loadSessionUiState, WORLD_BOOTSTRAP_STEP_LABELS, ensureLegacyWorldBootstrapReady } =
+            await import('../../../GameMaster/sessions/sessionUiState.js');
+        try {
+            await assertSessionOwner(id, request.userId);
+            await ensureLegacyWorldBootstrapReady(id);
+            const ui = await loadSessionUiState(id);
+            let memoryValidation: Record<string, unknown> | null = null;
+            if (ui.worldBootstrap.status === 'ready') {
+                const { validateBootstrapMemory } = await import(
+                    '../../../GameMaster/memory/bootstrapMemory.js'
+                );
+                memoryValidation = await validateBootstrapMemory(id);
+            }
+            return {
+                sessionId: id,
+                actionOptions: ui.actionOptions,
+                worldPulse: ui.worldPulse,
+                worldBootstrap: ui.worldBootstrap,
+                stepLabels: WORLD_BOOTSTRAP_STEP_LABELS,
+                memoryValidation,
+            };
+        } catch (err: unknown) {
+            if (createError.isHttpError(err)) {
+                return reply.status(err.statusCode).send({ message: err.message });
+            }
+            throw err;
+        }
+    });
+
+    app.post('/api/v2/sessions/:id/world-bootstrap', auth, async (request, reply) => {
+        const id = Number((request.params as { id: string }).id);
+        if (!Number.isFinite(id)) {
+            return reply.status(400).send({ error: 'ID de sessão inválido' });
+        }
+        const body = (request.body ?? {}) as { offline?: boolean };
+        const offline = body.offline === true;
+        const { assertSessionOwner } = await import(
+            '../../../GameMaster/sessions/sessionExtras.js'
+        );
+        const { loadSessionUiState, resetFailedWorldBootstrap } = await import(
+            '../../../GameMaster/sessions/sessionUiState.js'
+        );
+        const { startWorldBootstrapWorkflow } = await import('../../../temporal/client.js');
+        try {
+            await assertSessionOwner(id, request.userId);
+            const before = await loadSessionUiState(id);
+            if (before.worldBootstrap.status === 'ready') {
+                return {
+                    sessionId: id,
+                    async: false,
+                    worldBootstrap: before.worldBootstrap,
+                    worldPulse: before.worldPulse,
+                    actionOptions: before.actionOptions,
+                };
+            }
+
+            if (offline || before.worldBootstrap.status === 'failed') {
+                await resetFailedWorldBootstrap(id);
+                const { runSessionWorldBootstrap } = await import(
+                    '../../../GameMaster/world/buildSessionWorld.js'
+                );
+                await runSessionWorldBootstrap(id, { offline: true });
+                const after = await loadSessionUiState(id);
+                return {
+                    sessionId: id,
+                    async: false,
+                    offline: true,
+                    sync: true,
+                    worldBootstrap: after.worldBootstrap,
+                    worldPulse: after.worldPulse,
+                    actionOptions: after.actionOptions,
+                };
+            }
+
+            if (before.worldBootstrap.status === 'running') {
+                return reply.status(202).send({
+                    sessionId: id,
+                    async: true,
+                    worldBootstrap: before.worldBootstrap,
+                });
+            }
+
+            const wf = await startWorldBootstrapWorkflow(id);
+            if (wf.started) {
+                const { updateWorldBootstrap, DEFAULT_WORLD_BOOTSTRAP } = await import(
+                    '../../../GameMaster/sessions/sessionUiState.js'
+                );
+                await updateWorldBootstrap(id, {
+                    status: 'running',
+                    step: 'region',
+                    steps: { ...DEFAULT_WORLD_BOOTSTRAP.steps },
+                    startedAt: new Date().toISOString(),
+                });
+                return reply.status(202).send({
+                    sessionId: id,
+                    async: true,
+                    workflowId: wf.workflowId,
+                    worldBootstrap: { status: 'running', step: 'region' },
+                });
+            }
+
+            const after = await loadSessionUiState(id);
+            return {
+                sessionId: id,
+                async: false,
+                sync: wf.sync ?? true,
+                worldBootstrap: after.worldBootstrap,
+                worldPulse: after.worldPulse,
+                actionOptions: after.actionOptions,
+            };
+        } catch (err: unknown) {
+            if (createError.isHttpError(err)) {
+                return reply.status(err.statusCode).send({ message: err.message });
+            }
+            throw err;
+        }
+    });
+
+    app.get('/api/v2/sessions/:id/story-feed', auth, async (request, reply) => {
+        const id = Number((request.params as { id: string }).id);
+        if (!Number.isFinite(id)) {
+            return reply.status(400).send({ error: 'ID de sessão inválido' });
+        }
+        const { listSessionStoryFeed } = await import(
+            '../../../GameMaster/sessions/sessionStoryFeed.js'
+        );
+        try {
+            return await listSessionStoryFeed(id, request.userId);
+        } catch (err: unknown) {
+            if (createError.isHttpError(err)) {
+                return reply.status(err.statusCode).send({ message: err.message });
+            }
+            throw err;
+        }
     });
 
     app.get('/api/v2/sessions/:id/summary', auth, async (request, reply) => {

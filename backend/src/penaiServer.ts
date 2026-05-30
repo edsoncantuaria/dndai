@@ -11,9 +11,15 @@ import { initPenaiDatabase } from './GameMaster/database/data-source.js';
 import { initRedis } from './GameMaster/infra/redis.js';
 import { startWsPubSubSubscriber } from './GameMaster/transport/wsPubSub.js';
 import { ensureDefaultLocale } from './GameMaster/locale/defaultLocale.js';
+import { isPenaiPipelineLogEnabled } from './GameMaster/infra/pipelineLog.js';
 
 async function main() {
     ensureDefaultLocale();
+    if (isPenaiPipelineLogEnabled()) {
+        console.log(
+            '[PENAI] Pipeline log ATIVO — grep "[PENAI][pipeline]" nos logs (desligar: PENAI_PIPELINE_LOG=0)',
+        );
+    }
 
     await initPenaiDatabase();
     if (penaiEnv.QDRANT_ENABLED) {

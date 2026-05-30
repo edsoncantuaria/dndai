@@ -1,5 +1,6 @@
 import { PenaiDataSource } from '../database/data-source.js';
 import { HeroInventoryItem } from '../database/entities/HeroInventoryItem.js';
+import { enrichItemDataWithWeight } from './inventoryWeight.js';
 
 export async function listHeroInventory(
     sessionId: number,
@@ -20,6 +21,7 @@ export async function addHeroInventoryItem(opts: {
     itemData?: Record<string, unknown>;
     equipped?: boolean;
 }): Promise<HeroInventoryItem> {
+    const itemData = await enrichItemDataWithWeight(opts.itemKey, opts.itemData ?? {});
     const repo = PenaiDataSource.getRepository(HeroInventoryItem);
     const existing = await repo.findOne({
         where: {
@@ -30,7 +32,7 @@ export async function addHeroInventoryItem(opts: {
     });
     if (existing) {
         existing.quantity += opts.quantity;
-        if (opts.itemData) existing.itemData = { ...existing.itemData, ...opts.itemData };
+        existing.itemData = { ...existing.itemData, ...itemData };
         return repo.save(existing);
     }
     return repo.save(
@@ -41,7 +43,7 @@ export async function addHeroInventoryItem(opts: {
             name: opts.name,
             quantity: opts.quantity,
             equipped: opts.equipped ?? false,
-            itemData: opts.itemData ?? {},
+            itemData,
         }),
     );
 }
@@ -98,6 +100,14 @@ export async function seedStarterInventory(sessionId: number, heroEntityId: stri
         quantity: 1,
         equipped: true,
         itemData: { type: 'weapon', damage: '1d6', damageType: 'slashing' },
+    });
+    await addHeroInventoryItem({
+        sessionId,
+        heroEntityId,
+        itemKey: 'dagger',
+        name: 'Adaga',
+        quantity: 1,
+        itemData: { type: 'weapon' },
     });
     await addHeroInventoryItem({
         sessionId,

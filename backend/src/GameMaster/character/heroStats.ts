@@ -57,8 +57,20 @@ export async function ensureHeroSessionState(
         });
         await repo.save(row);
     } else if (!row.sessionStatsSnapshot || Object.keys(row.sessionStatsSnapshot).length === 0) {
-        row.sessionStatsSnapshot = defaultHeroSessionStats();
+        row.sessionStatsSnapshot = {
+            ...defaultHeroSessionStats(),
+            xp: 0,
+            level: 1,
+        };
         await repo.save(row);
+    } else {
+        const snap = row.sessionStatsSnapshot as Record<string, unknown>;
+        if (typeof snap.xp !== 'number') {
+            snap.xp = 0;
+            snap.level = typeof snap.level === 'number' ? snap.level : 1;
+            row.sessionStatsSnapshot = snap;
+            await repo.save(row);
+        }
     }
 
     const hero = await PenaiDataSource.getRepository(WorldEntity).findOne({

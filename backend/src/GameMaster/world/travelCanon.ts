@@ -215,6 +215,12 @@ export async function applyTravelToSession(opts: {
         },
     });
 
+    const { assignSessionShard } = await import('./shardResolver.js');
+    await assignSessionShard(opts.sessionId, targetSlug);
+
+    const { advanceQuestsOnTravelCompleted } = await import('./sessionQuests.js');
+    await advanceQuestsOnTravelCompleted(opts.sessionId, targetSlug).catch(() => undefined);
+
     const { maybeScheduleWorldPulse } = await import('./simulation/pulseSchedule.js');
     void maybeScheduleWorldPulse(opts.sessionId, 'travel').catch(() => undefined);
 

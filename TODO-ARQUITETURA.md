@@ -218,12 +218,65 @@ Testes: `penaiRollExploit.spec.ts` · `penaiActionSense.spec.ts` · `penaiSeedSr
 
 ---
 
+## P9 — Verdade consultável (mundo supremo — fase 1) ✅
+
+| ID | Entrega | Onde |
+|----|---------|------|
+| P9.1 | NarrativeContextDTO no turno | `memory/narrativeContextDto.ts`, `narrativePack.ts`, `promptComposer.ts` |
+| P9.2 | Micro-pulso pós-mecânico | `simulation/microPulse.ts`, `wsHandlers.ts` |
+| P9.3 | Macro-pulso expandido | `pulseSchedule.ts`, `combat/engine.ts`, `gameClock.ts`, `sessionQuests.ts` |
+| P9.4 | `FACT_RECORDED` + proveniência | `provenanceMemory.ts`, `sessionQuests.ts` |
+| P9.5 | FACTION_TICK só via projector | `factionTick.ts` |
+| P9.6 | Testes | `narrativeContextDto.spec.ts`, `factionTickProjector.spec.ts`, `pulseMemory.integration.spec.ts` |
+
+Env: `MICRO_PULSE_ON_TURN` (default on). Macro-pulso **sem** LLM por turno.
+
+---
+
+## P10 — Event sourcing (fase 2) ✅
+
+| ID | Entrega | Onde |
+|----|---------|------|
+| P10.1 | Command bus | `commands/commandBus.ts` |
+| P10.2 | Projectors (region, economy, rumor fade, supply) | `events/projector.ts` |
+| P10.3 | `TIME_ADVANCED` | `gameClock.ts` |
+| P10.4 | Replay CLI | `replay/replayFromEvents.ts`, `npm run penai:replay-projectors` |
+| P10.5 | Ticks event-only | `regionStateTick`, `economyTick`, `rumorTick`, `microPulse` |
+
+---
+
+## P11 — KG + Timeline + Agentes ✅
+
+| ID | Entrega | Onde |
+|----|---------|------|
+| P11.1 | `kg_nodes`, `kg_edges` | migration `1748900000000`, entities |
+| P11.2 | KG via projectors | `world/kgProjector.ts`, hook em `applyEventProjection` |
+| P11.3 | `timeline_entries` | `memory/timelineIndex.ts`, hook em `events/store.ts` |
+| P11.4 | Agent engine | `agents/agentEngine.ts` |
+| P11.5 | Cadeia economia → rumor | `world/economyChain.ts`, `SUPPLY_SHORTAGE` |
+
+---
+
+## P12 — World shard ✅ (read models dedicados = P12.7 futuro)
+
+| ID | Entrega | Onde |
+|----|---------|------|
+| P12.1 | `world_shards` + `game_sessions.shardId` | migration, `WorldShard.ts` |
+| P12.2 | Resolver shard por região | `shardResolver.ts`, `sessionService`, `travelCanon` |
+| P12.3 | Background tick Temporal | `shardBackgroundWorkflow`, `startShardBackgroundWorkflow` |
+| P12.4 | `bumpShardVersion` + `payload.shardId` | `shardResolver.ts`, `events/store.ts` |
+| P12.5 | API campanha + UI shard | `sessionCampaignView.ts`, `CampanhaPanel` / `SharedWorldShardCard` |
+| P12.6 | Política emergente mínima | `politicsState.ts`, `POLITICS_STATE_CHANGED` |
+| P12.7 | `shard_region_state` / `shard_market_prices` read models | **futuro** |
+
+---
+
 ## P8 — Multiplayer (futuro)
 
 | Item | Motivo |
 |------|--------|
 | `session_members` | Party 4–5 jogadores no WS |
-| Shard / Session Actor | Só se escala além de campanhas longas isoladas |
+| Shard / Session Actor | P12 ✅ shard por região; read models shard_* = P12.7 |
 
 ---
 
@@ -245,6 +298,8 @@ npm run test --prefix backend
 npm run penai:seed:srd-ptbr --prefix backend
 npm run session:smoke --prefix backend
 npm run chaos:smoke --prefix backend
+npm run penai:replay-projectors --prefix backend -- <sessionId>
+npm run penai:seed:canon-npcs --prefix backend -- --region <slug> --count 20
 DB_SYNC=false npm run migration:run --prefix backend
 
 # Dev local (API + worker no mesmo processo)

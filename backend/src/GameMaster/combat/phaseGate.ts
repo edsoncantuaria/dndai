@@ -152,7 +152,7 @@ export async function advancePenaiCombatTurn(sessionId: number): Promise<{
 
     const currentKey = order[nextTurn] ?? null;
     const currentCombatant = (enc.combatants ?? []).find(c => c.entityKey === currentKey);
-    const isNpcTurn = currentCombatant != null && currentCombatant.side !== 'hero';
+    const isNpcTurn = currentCombatant != null && currentCombatant.side === 'enemy';
 
     if (isNpcTurn) {
         await appendWorldEvent({

@@ -297,11 +297,20 @@ export const useDataManager = (
     void (async () => {
       setFetching('Carregando classe…');
       try {
-        const [details, levelsData] = await Promise.all([
+        const [rawDetails, levelsData] = await Promise.all([
           DndApiService.getClassDetails(characterClass),
           DndApiService.getClassLevels(characterClass),
         ]);
         if (cancelled) return;
+
+        // Resposta legada/cache corrompido podia devolver só levels[] em vez da ficha da classe.
+        const details =
+          rawDetails &&
+          typeof rawDetails === 'object' &&
+          !Array.isArray(rawDetails) &&
+          typeof (rawDetails as ApiClass).hit_die === 'number'
+            ? (rawDetails as ApiClass)
+            : null;
 
         const levels = Array.isArray(levelsData) ? levelsData : levelsData ? Object.values(levelsData) : [];
 

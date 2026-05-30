@@ -12,6 +12,7 @@ import { BookOpen, Map, Menu, Package } from 'lucide-react';
 import { GameplayCombatTracker } from './combat/GameplayCombatTracker';
 import { cn } from '@/lib/utils';
 import Vignette from '@/components/Vignette';
+import { useHeroDamageFlash } from '@/hooks/useHeroDamageFlash';
 import { isDebugWsEnabled } from '@/lib/debugFlags';
 import type { Character, CombatState } from '@/types';
 
@@ -59,6 +60,7 @@ export function GameplayShell({
 }: GameplayShellProps) {
   const { isLgUp, isMdUp } = useBreakpoint();
   const keyboardInset = useKeyboardViewportInset();
+  const damageFlash = useHeroDamageFlash(character, combatState);
   const [sideTab, setSideTab] = useState('map');
   const [mobileTab, setMobileTab] = useState('narrative');
 
@@ -100,6 +102,12 @@ export function GameplayShell({
     >
       <AmbientBackground variant="cinematic" />
       <Vignette mode="hp" />
+      {damageFlash ? (
+        <div
+          className="pointer-events-none fixed inset-0 z-[95] animate-pulse border-4 border-dnd-ember/70 bg-dnd-ember/20 shadow-[inset_0_0_120px_rgba(228,7,18,0.35)]"
+          aria-hidden
+        />
+      ) : null}
       <GameplayTopBar
         region={region}
         timeLabel={timeBadge}

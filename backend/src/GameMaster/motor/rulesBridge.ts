@@ -6,6 +6,7 @@ import { validateSkillCheck } from '../../rules/skills.js';
 import { validateSpellAttack } from '../../rules/spellAttack.js';
 import { loadPenaiCharacterSnapshot } from './characterSnapshot.js';
 import { getPenaiCombatState } from '../combat/engine.js';
+import { getCurrentAllyCombatant, buildCompanionAttackRollRequest } from '../combat/summonService.js';
 
 export function ruleCheckToPlayerRollRequest(
     check: RuleCheckResult,
@@ -181,6 +182,45 @@ export async function validatePenaiCombatIntent(opts: {
     const context = opts.playerAction.slice(0, 120);
     const targetName = opts.payload.targetName ? String(opts.payload.targetName) : undefined;
     const targets = await buildCombatTargets(opts.sessionId, targetName);
+
+    const allyTurn = await getCurrentAllyCombatant(opts.sessionId);
+    if (allyTurn?.companion.canAttack && targets[0]) {
+        const target = targets[0];
+        const defaultCheck: RuleCheckResult = {
+            status: 'needs_roll',
+            reason: `${allyTurn.companion.name} ataca ${target.name ?? 'o alvo'}.`,
+            rollRequest: {
+                formula: `1d20+${allyTurn.companion.attackBonus}`,
+                modifierBreakdown: [`bônus de ataque +${allyTurn.companion.attackBonus}`],
+                context,
+                targetDc: target.armorClass,
+                metadata: {
+                    effect: 'attack',
+                    damageFormula: allyTurn.companion.damageDice,
+                    source: {
+                        name: allyTurn.companion.name,
+                        kind: 'feature',
+                        index: allyTurn.companion.templateKey,
+                    },
+                    targets: [target],
+                    attackerEntityId: allyTurn.companion.id,
+                },
+            },
+        };
+        return {
+            ruleCheck: defaultCheck,
+            playerRollRequest: buildCompanionAttackRollRequest(
+                allyTurn.companion,
+                {
+                    id: target.id!,
+                    name: target.name ?? 'Alvo',
+                    armorClass: target.armorClass ?? 13,
+                    encounterId: target.encounterId!,
+                },
+                context,
+            ),
+        };
+    }
 
     const structuredType = opts.payload.structuredIntent as string | undefined;
 

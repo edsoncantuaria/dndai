@@ -21,13 +21,18 @@ type ResourceName =
     | 'rule-sections'
     | 'skills';
 
-const repoRoot = path.resolve(process.cwd(), '..');
-const normalizedDir = resolveSnapshotDir() ?? path.join(repoRoot, 'data', 'dnd5eapi', 'normalized');
 const fileCache = new Map<ResourceName, any[]>();
+
+function resolveNormalizedDir(): string {
+    return (
+        resolveSnapshotDir() ??
+        path.join(process.cwd(), 'srd-data', 'srd', '2014', 'normalized')
+    );
+}
 
 function loadFromFile(resource: ResourceName) {
     if (fileCache.has(resource)) return fileCache.get(resource)!;
-    const filePath = path.join(normalizedDir, `${resource}.json`);
+    const filePath = path.join(resolveNormalizedDir(), `${resource}.json`);
     if (!fs.existsSync(filePath)) {
         console.warn(`[srd-catalog] Local snapshot missing for ${resource}`);
         fileCache.set(resource, []);

@@ -1,5 +1,6 @@
 import type { WebSocket } from 'ws';
 import { getRedis, WS_PUBSUB_CHANNEL } from '../infra/redis.js';
+import { penaiPipelineWsOut } from '../infra/pipelineLog.js';
 
 type WsEnvelope = { userId: number; payload: unknown };
 
@@ -28,6 +29,16 @@ function deliverLocal(userId: number, payload: unknown): void {
 }
 
 export async function publishWsToUser(userId: number, payload: unknown): Promise<void> {
+    const msg = payload as { type?: string; sessionId?: number; actionId?: string; actionSequence?: number };
+    if (msg?.type) {
+        penaiPipelineWsOut(msg.type, {
+            userId,
+            sessionId: msg.sessionId,
+            actionId: msg.actionId,
+            actionSequence: msg.actionSequence,
+        });
+    }
+
     const redis = getRedis();
     if (redis?.isOpen) {
         const envelope: WsEnvelope = { userId, payload };

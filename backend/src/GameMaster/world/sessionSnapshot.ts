@@ -1,76 +1,71 @@
 import { PenaiDataSource } from '../database/data-source.js';
 import { GameSession } from '../database/entities/GameSession.js';
 import { CanonicalRegion } from '../database/entities/CanonicalRegion.js';
-import { CanonicalRegionLink } from '../database/entities/CanonicalRegionLink.js';
-import { CanonicalPoi } from '../database/entities/CanonicalPoi.js';
 import { listSessionWorldEvents } from '../events/store.js';
+import { humanizeWorldEvents } from '../events/eventHumanizer.js';
 import {
     buildWorldStateView,
     loadSessionGameClock,
     parseGameClock,
+    type PenaiWorldStateView,
 } from './gameClock.js';
+import { resolveAmbientLocationContext } from './ambientLocationContext.js';
+import { loadPenaiWorldMapData } from './worldMapCatalog.js';
 
 export async function buildPenaiWorldMapSnapshot(sessionId: number) {
-    const session = await PenaiDataSource.getRepository(GameSession).findOne({
-        where: { id: sessionId },
-    });
-    if (!session) return null;
+    const data = await loadPenaiWorldMapData(sessionId);
+    if (!data) return null;
 
-    const regions = await PenaiDataSource.getRepository(CanonicalRegion).find();
-    const links = await PenaiDataSource.getRepository(CanonicalRegionLink).find();
-    const pois = await PenaiDataSource.getRepository(CanonicalPoi).find();
-
-    const events = await listSessionWorldEvents(sessionId, 200);
-    const visitedRegions = new Set<string>();
-    for (const ev of events) {
-        const p = ev.payload as Record<string, unknown> | undefined;
-        if (ev.type === 'TRAVEL_COMPLETED' && typeof p?.regionSlug === 'string') {
-            visitedRegions.add(p.regionSlug);
-        }
-        if (typeof p?.toRegionSlug === 'string') visitedRegions.add(p.toRegionSlug);
-        if (typeof p?.fromRegionSlug === 'string') visitedRegions.add(p.fromRegionSlug);
-    }
-    if (session.currentRegionSlug) visitedRegions.add(session.currentRegionSlug);
-
+    const { session, visitedRegions, regions, links } = data;
     const currentRegionSlug = session.currentRegionSlug;
-    const regionRows = regions.map(r => ({
-        slug: r.slug,
-        name: r.displayName,
-        description: r.description ?? '',
-        isDiscovered: visitedRegions.has(r.slug),
-        isCurrent: r.slug === currentRegionSlug,
-        pointsOfInterest: pois
-            .filter(p => p.regionId === r.id)
-            .map(p => ({
-                slug: p.slug,
-                name: p.displayName,
-                isDiscovered: visitedRegions.has(r.slug),
-            })),
-    }));
-
-    const linkRows = links.map(l => {
-        const from = regions.find(r => r.id === l.fromRegionId);
-        const to = regions.find(r => r.id === l.toRegionId);
-        if (!from || !to) return null;
-        return {
-            fromSlug: from.slug,
-            toSlug: to.slug,
-            travelMode: 'walk',
-            travelTimeMinutes: Math.round((l.baseDurationHours ?? 1) * 60),
-            difficulty: 'normal',
-            isLocked: Boolean(l.isLocked),
-            discovered: visitedRegions.has(from.slug) && visitedRegions.has(to.slug),
-        };
-    }).filter(Boolean);
+    const currentRegion = currentRegionSlug
+        ? regions.find(r => r.slug === currentRegionSlug)
+        : undefined;
+    const currentPoiSlug =
+        (currentRegion?.metadata?.defaultSpawnPoi as string | undefined)?.trim() || null;
 
     return {
         currentRegionSlug,
-        currentPoiSlug: null,
+        currentPoiSlug,
         visitedRegions: Array.from(visitedRegions),
         visitedPois: [],
-        regions: regionRows,
-        links: linkRows,
-        markers: [],
+        regions: regions.map(r => ({
+            id: 0,
+            slug: r.slug,
+            name: r.name,
+            summary: r.summary,
+            description: r.summary ?? '',
+            type: r.type,
+            parentSlug: r.parentSlug,
+            metadata: r.metadata,
+            isDiscovered: r.isDiscovered,
+            isCurrent: r.isCurrent,
+            pointsOfInterest: r.pointsOfInterest,
+        })),
+        links: links.map(l => ({
+            fromSlug: l.fromSlug,
+            toSlug: l.toSlug,
+            travelMode: l.travelMode,
+            travelTimeMinutes: l.travelTimeMinutes,
+            difficulty: l.difficulty,
+            isLocked: l.isLocked,
+            metadata: l.notes ? { notes: l.notes } : undefined,
+            discovered: l.discovered,
+            reachable: l.reachable,
+            fromCurrent: l.fromCurrent,
+        })),
+        markers: currentRegionSlug
+            ? [
+                  {
+                      id: `player:${sessionId}`,
+                      type: 'player' as const,
+                      label: 'Você',
+                      regionSlug: currentRegionSlug,
+                      poiSlug: currentPoiSlug,
+                      isDiscovered: true,
+                  },
+              ]
+            : [],
         updatedAt: session.updatedAt.toISOString(),
     };
 }
@@ -82,7 +77,13 @@ export type PenaiSessionSummary = {
     currentRegionName: string | null;
     worldState: ReturnType<typeof buildWorldStateView>;
     gameClock: ReturnType<typeof parseGameClock>;
-    recentFacts: Array<{ type: string; summary: string; at: string }>;
+    recentFacts: Array<{
+        type: string;
+        category: string;
+        subject?: string;
+        summary: string;
+        at: string;
+    }>;
     actionSequence: number;
 };
 
@@ -101,24 +102,34 @@ export async function buildPenaiSessionSummary(sessionId: number): Promise<Penai
         regionName = region?.displayName ?? session.currentRegionSlug;
     }
 
-    const events = await listSessionWorldEvents(sessionId, 30);
-    const recentFacts = events
-        .map(ev => {
-            const p = ev.payload as Record<string, unknown> | undefined;
-            let summary = ev.type.replace(/_/g, ' ').toLowerCase();
-            if (ev.type === 'TRAVEL_COMPLETED' && typeof p?.regionSlug === 'string') {
-                summary = `Chegou em ${p.regionSlug}`;
-            }
-            if (ev.type === 'NARRATION_COMPLETED') summary = 'Narração concluída';
-            if (ev.type === 'COMBAT_STARTED') summary = 'Combate iniciado';
-            if (ev.type === 'REST_COMPLETED') summary = `Descanso ${String(p?.restType ?? '')}`.trim();
-            return {
-                type: ev.type,
-                summary,
-                at: ev.createdAt?.toISOString?.() ?? new Date().toISOString(),
-            };
-        })
-        .slice(0, 12);
+    const regionNames: Record<string, string> = {};
+    if (session.currentRegionSlug && regionName) {
+        regionNames[session.currentRegionSlug] = regionName;
+    }
+    const allRegions = await PenaiDataSource.getRepository(CanonicalRegion).find();
+    for (const r of allRegions) {
+        regionNames[r.slug] = r.displayName;
+    }
+
+    const events = await listSessionWorldEvents(sessionId, 60);
+    const recentFacts = humanizeWorldEvents(
+        events.map(ev => ({
+            id: ev.id,
+            type: ev.type,
+            payload: ev.payload,
+            createdAt: ev.createdAt,
+        })),
+        { regionNames },
+    )
+        .sort((a, b) => b.at.localeCompare(a.at))
+        .slice(0, 15)
+        .map(h => ({
+            type: h.type,
+            category: h.category,
+            subject: h.subject,
+            summary: h.summary,
+            at: h.at,
+        }));
 
     return {
         sessionId,
@@ -132,7 +143,7 @@ export async function buildPenaiSessionSummary(sessionId: number): Promise<Penai
     };
 }
 
-export async function loadSessionWorldStateView(sessionId: number) {
+export async function loadSessionWorldStateView(sessionId: number): Promise<PenaiWorldStateView> {
     const session = await PenaiDataSource.getRepository(GameSession).findOne({
         where: { id: sessionId },
     });
@@ -146,5 +157,17 @@ export async function loadSessionWorldStateView(sessionId: number) {
         regionName = region?.displayName ?? session.currentRegionSlug;
     }
     const clock = parseGameClock(session.gameClock as Record<string, unknown> | null);
-    return buildWorldStateView(clock, session.currentRegionSlug, regionName);
+    const base = buildWorldStateView(clock, session.currentRegionSlug, regionName);
+    const location = await resolveAmbientLocationContext(sessionId, session.currentRegionSlug);
+
+    const poiLabel = location.poiName ?? location.poiSlug;
+    return {
+        ...base,
+        regionSlug: location.regionSlug,
+        regionType: location.regionType,
+        poiSlug: location.poiSlug,
+        poiName: location.poiName,
+        environmentTags: location.environmentTags,
+        location: poiLabel ? `${base.currentRegion} — ${poiLabel}` : base.location,
+    };
 }

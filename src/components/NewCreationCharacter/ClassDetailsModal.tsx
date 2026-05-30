@@ -8,11 +8,14 @@ interface Props {
     isOpen: boolean;
     onClose: () => void;
     classDetails: ApiClass;
-    classLevels: ApiClassLevel[];
+    classLevels?: ApiClassLevel[] | null;
 }
 
-const ClassDetailsModal: React.FC<Props> = ({ isOpen, onClose, classDetails, classLevels }) => {
-    
+const ClassDetailsModal: React.FC<Props> = ({ isOpen, onClose, classDetails, classLevels = [] }) => {
+    const savingThrows = classDetails.saving_throws ?? [];
+    const proficiencies = classDetails.proficiencies ?? [];
+    const levels = classLevels ?? [];
+
     return (
         <ActionModal
             isOpen={isOpen}
@@ -28,12 +31,18 @@ const ClassDetailsModal: React.FC<Props> = ({ isOpen, onClose, classDetails, cla
                     </div>
                     <div className="bg-stone-800/60 p-2 rounded col-span-2 md:col-span-1">
                         <p className="text-xs text-stone-400">Resistências</p>
-                        <p className="font-bold text-md text-stone-200">{classDetails.saving_throws.map(st => st.name.substring(0,3)).join(', ')}</p>
+                        <p className="font-bold text-md text-stone-200">
+                            {savingThrows.length > 0
+                                ? savingThrows.map(st => st.name.substring(0, 3)).join(', ')
+                                : '—'}
+                        </p>
                     </div>
                     {classDetails.spellcasting && (
                         <div className="bg-stone-800/60 p-2 rounded">
                             <p className="text-xs text-stone-400">Atributo de Magia</p>
-                            <p className="font-bold text-lg text-stone-200">{classDetails.spellcasting.spellcasting_ability.name}</p>
+                            <p className="font-bold text-lg text-stone-200">
+                                {classDetails.spellcasting?.spellcasting_ability?.name ?? '—'}
+                            </p>
                         </div>
                     )}
                 </div>
@@ -41,16 +50,20 @@ const ClassDetailsModal: React.FC<Props> = ({ isOpen, onClose, classDetails, cla
                 <div>
                     <p className="font-semibold text-stone-400 text-sm mb-2">Proficiências</p>
                     <div className="flex flex-wrap gap-2">
-                        {classDetails.proficiencies.map(p => (
-                            <span key={p.index} className="px-2 py-1 text-xs bg-stone-700 text-stone-300 rounded-full">{p.name}</span>
-                        ))}
+                        {proficiencies.length > 0 ? (
+                            proficiencies.map(p => (
+                                <span key={p.index} className="px-2 py-1 text-xs bg-stone-700 text-stone-300 rounded-full">{p.name}</span>
+                            ))
+                        ) : (
+                            <span className="text-sm italic text-stone-500">Nenhuma proficiência listada</span>
+                        )}
                     </div>
                 </div>
 
-                {classLevels && classLevels.length > 0 ? (
+                {levels.length > 0 ? (
                     <div className="space-y-2 pt-4 border-t border-stone-700/50">
                         <h5 className="font-semibold text-stone-300">Progressão de Nível</h5>
-                        {classLevels.map((level, index) => (
+                        {levels.map((level, index) => (
                             <LevelCard
                                 key={`${level?.level}-${index}`}
                                 level={level.level}

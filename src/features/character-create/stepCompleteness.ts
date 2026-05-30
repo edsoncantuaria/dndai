@@ -1,4 +1,33 @@
 import type { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
+import type { Attributes } from '@/types';
+
+type AttributesCompletionInput = {
+  attributeMethod: 'point-buy' | 'roll' | null;
+  points: number;
+  baseAttributes: Attributes;
+  isVariantHuman: boolean;
+  variantHumanBonusSelections: (keyof Attributes)[];
+};
+
+export function areAttributesCompleteFromState(input: AttributesCompletionInput): boolean {
+  if (!input.attributeMethod) return false;
+  if (input.isVariantHuman && input.variantHumanBonusSelections.length !== 2) return false;
+  if (input.attributeMethod === 'point-buy') return input.points === 0;
+  if (input.attributeMethod === 'roll') {
+    return Object.values(input.baseAttributes).some((value) => value !== 8);
+  }
+  return false;
+}
+
+export function areAttributesComplete(hook: ReturnType<typeof useCharacterCreator>): boolean {
+  return areAttributesCompleteFromState({
+    attributeMethod: hook.attributeMethod,
+    points: hook.points,
+    baseAttributes: hook.baseAttributes,
+    isVariantHuman: hook.isVariantHuman,
+    variantHumanBonusSelections: hook.variantHumanBonusSelections,
+  });
+}
 
 export function getStepCompleteness(
   step: number,
@@ -10,10 +39,7 @@ export function getStepCompleteness(
       return !!hook.race && !!hook.characterClass && (!needsSubrace || !!hook.subrace);
     }
     case 2:
-      return (
-        hook.attributeMethod !== null &&
-        (!hook.isVariantHuman || hook.variantHumanBonusSelections.length === 2)
-      );
+      return areAttributesComplete(hook);
     case 3:
       return (
         !!hook.background &&
@@ -48,5 +74,6 @@ export function canProceedFromStep(
     if (!hasClassSpells && !hasRacial) return true;
   }
   if (step === 7 && !hook.isVariantHuman) return true;
+  if (step === 2) return areAttributesComplete(hook);
   return getStepCompleteness(step, hook);
 }

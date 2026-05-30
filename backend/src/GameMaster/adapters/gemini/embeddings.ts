@@ -5,6 +5,15 @@ import { resolveGeminiApiKey } from './apiKey.js';
 
 const MODEL = 'gemini-embedding-001';
 
+/** Ajusta vetor Gemini à dimensão configurada no Qdrant (truncate ou pad). */
+export function fitVectorToQdrantSize(vector: number[]): number[] {
+    const size = penaiEnv.QDRANT_VECTOR_SIZE;
+    if (!vector.length || size < 1) return [];
+    if (vector.length === size) return vector;
+    if (vector.length > size) return vector.slice(0, size);
+    return [...vector, ...new Array(size - vector.length).fill(0)];
+}
+
 export function isGeminiEmbeddingEnabled(): boolean {
     return geminiEmbeddingProvider.isEnabled();
 }
@@ -33,10 +42,12 @@ export const geminiEmbeddingProvider: EmbeddingProvider = {
     async embed(text: string, userApiKey?: string): Promise<number[]> {
         if (!text.trim()) return [];
         const { vector } = await embedTextGemini(text, userApiKey);
-        const expected = penaiEnv.QDRANT_VECTOR_SIZE;
-        if (vector.length && vector.length !== expected) {
-            console.warn(`[embed] dimensão ${vector.length} ≠ QDRANT_VECTOR_SIZE=${expected}`);
+        const fitted = fitVectorToQdrantSize(vector);
+        if (vector.length && fitted.length && vector.length !== fitted.length) {
+            console.warn(
+                `[embed] dimensão ${vector.length} ajustada para QDRANT_VECTOR_SIZE=${penaiEnv.QDRANT_VECTOR_SIZE}`,
+            );
         }
-        return vector;
+        return fitted;
     },
 };

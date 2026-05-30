@@ -1,12 +1,10 @@
 import { PenaiDataSource } from '../../../database/data-source.js';
-import { Faction } from '../../../database/entities/Faction.js';
 import { SessionFactionState } from '../../../database/entities/SessionFactionState.js';
 import { GameSession } from '../../../database/entities/GameSession.js';
 import { appendWorldEvent } from '../../../events/store.js';
 import { adjustFactionInfluence } from '../../campaignState.js';
-import { randomUUID } from 'crypto';
-
-const FACTION_SLUGS = ['guilda-mercadores', 'ordem-crepuscular', 'circulo-druidas', 'coroa-ferro'];
+import { listCatalogFactionSlugs } from '../../factionCatalog.js';
+import { ensureFactionCatalogInDatabase } from '../../factionSeed.js';
 
 type FactionGoal = 'expand' | 'defend' | 'trade';
 
@@ -16,24 +14,6 @@ const GOAL_DELTAS: Record<FactionGoal, number> = {
     trade: 1,
 };
 
-async function ensureFactionCatalog(): Promise<void> {
-    const repo = PenaiDataSource.getRepository(Faction);
-    for (const slug of FACTION_SLUGS) {
-        const exists = await repo.findOne({ where: { slug } });
-        if (!exists) {
-            await repo.save(
-                repo.create({
-                    id: randomUUID(),
-                    slug,
-                    displayName: slug.replace(/-/g, ' '),
-                    alignment: 'neutral',
-                    locale: 'pt-BR',
-                }),
-            );
-        }
-    }
-}
-
 function pickFactionGoal(reputation: number, influence: number): FactionGoal {
     if (reputation < -2 || influence < 20) return 'defend';
     if (reputation > 3 || influence > 60) return 'expand';
@@ -41,14 +21,15 @@ function pickFactionGoal(reputation: number, influence: number): FactionGoal {
 }
 
 export async function runFactionTick(sessionId: number): Promise<string[]> {
-    await ensureFactionCatalog();
+    await ensureFactionCatalogInDatabase();
     const pulses: string[] = [];
     const stateRepo = PenaiDataSource.getRepository(SessionFactionState);
     const session = await PenaiDataSource.getRepository(GameSession).findOne({
         where: { id: sessionId },
     });
     const regionSlug = session?.currentRegionSlug ?? 'unknown';
-    const factionSlug = FACTION_SLUGS[Math.floor(Math.random() * FACTION_SLUGS.length)];
+    const slugs = listCatalogFactionSlugs();
+    const factionSlug = slugs[Math.floor(Math.random() * slugs.length)];
 
     let row = await stateRepo.findOne({ where: { sessionId, factionSlug } });
     if (!row) {
@@ -60,10 +41,7 @@ export async function runFactionTick(sessionId: number): Promise<string[]> {
     const repDelta = GOAL_DELTAS[goal];
     const infDelta = goal === 'expand' ? 3 : goal === 'defend' ? 1 : 2;
 
-    row.reputationScore += repDelta;
-    await stateRepo.save(row);
-    await adjustFactionInfluence(sessionId, factionSlug, regionSlug, infDelta);
-
+    /** Estado aplicado só via projector (FACTION_TICK) — evita double-apply. */
     await appendWorldEvent({
         type: 'FACTION_TICK',
         sessionId,

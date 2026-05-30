@@ -10,7 +10,11 @@ export type {
 
 export { geminiNarrationProvider, renderNarrationPtBr } from './gemini/narration.js';
 export { geminiEmbeddingProvider, embedText, embedTextGemini, isGeminiEmbeddingEnabled } from './gemini/embeddings.js';
-export { geminiActionSenseProvider, checkActionPlausibilityGemini } from './gemini/actionSense.js';
+export { suggestActionOptionsGemini, parseActionOptionsGeminiText } from './gemini/actionOptions.js';
+export {
+    summarizeSessionMemories,
+    parseSummarizerGeminiText,
+} from './gemini/summarizer.js';
 export { resolveGeminiApiKey, hasResolvableGeminiKey, isGoogleApiKey } from './gemini/apiKey.js';
 export {
     qdrantVectorStore,

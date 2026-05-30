@@ -113,6 +113,7 @@ export function usePenaiTurnPipeline(
     const socketRef = useRef<WebSocket | null>(null);
     const phaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const bootstrapPendingRef = useRef(false);
+    const rollPriorityRef = useRef(false);
     const latestActionSequenceRef = useRef(0);
     const [connected, setConnected] = useState(false);
     const [contractOk, setContractOk] = useState(false);
@@ -137,6 +138,9 @@ export function usePenaiTurnPipeline(
 
     const setPhaseBoth = useCallback(
         (next: TurnPipelinePhase) => {
+            if (rollPriorityRef.current && next === 'narrating') {
+                return;
+            }
             setPhase(next);
             setTurnPipelinePhase(next);
             mapGateFromPhase(next, bootstrapPendingRef.current);
@@ -144,6 +148,7 @@ export function usePenaiTurnPipeline(
             if (next === 'narrating' || next === 'mechanical') {
                 phaseTimerRef.current = setTimeout(() => {
                     bootstrapPendingRef.current = false;
+                    rollPriorityRef.current = false;
                     setNarrationPending(false);
                     setPhase('idle');
                     setTurnPipelinePhase('idle');
@@ -155,6 +160,18 @@ export function usePenaiTurnPipeline(
             }
         },
         [clearPhaseTimer],
+    );
+
+    const prioritizePlayerRollRequest = useCallback(
+        (roll: PlayerRollRequest) => {
+            rollPriorityRef.current = true;
+            bootstrapPendingRef.current = false;
+            setPlayerRollRequest(roll);
+            setNarrationPending(false);
+            setNarrationWorkflowId(null);
+            setPhaseBoth('rolling');
+        },
+        [setPhaseBoth],
     );
 
     const applyPersistedUiState = useCallback(
@@ -301,13 +318,17 @@ export function usePenaiTurnPipeline(
                     }
                 }
                 if (msg.type === 'pendingRollState' && msg.playerRollRequest) {
-                    bootstrapPendingRef.current = false;
-                    setPlayerRollRequest(msg.playerRollRequest as PlayerRollRequest);
-                    setPhaseBoth('rolling');
+                    prioritizePlayerRollRequest(msg.playerRollRequest as PlayerRollRequest);
                 }
                 if (msg.type === 'gameStateUpdate') {
                     if (msg.mechanical) {
                         setLastMechanical(mergePenaiMechanicalMessage(msg));
+                        const roll =
+                            (msg.playerRollRequest as PlayerRollRequest | undefined) ??
+                            (msg.mechanical as { playerRollRequest?: PlayerRollRequest }).playerRollRequest;
+                        if (roll) {
+                            prioritizePlayerRollRequest(roll);
+                        }
                     } else {
                         const payload = msg.payload as Record<string, unknown> | undefined;
                         const payloadOptions = payload?.actionOptions;
@@ -321,19 +342,19 @@ export function usePenaiTurnPipeline(
                         }
                     }
                 }
-                if (msg.type === 'playerRollRequest' || msg.type === 'mechanicalStateUpdate') {
+                if (msg.type === 'playerRollRequest' && msg.playerRollRequest) {
+                    prioritizePlayerRollRequest(msg.playerRollRequest as PlayerRollRequest);
+                }
+                if (msg.type === 'mechanicalStateUpdate') {
                     const roll =
                         (msg.playerRollRequest as PlayerRollRequest | undefined) ??
                         (msg.mechanical as { playerRollRequest?: PlayerRollRequest } | undefined)
                             ?.playerRollRequest;
                     if (roll) {
-                        bootstrapPendingRef.current = false;
-                        setPlayerRollRequest(roll);
-                        setPhaseBoth('rolling');
-                    }
-                    if (msg.type === 'mechanicalStateUpdate') {
+                        prioritizePlayerRollRequest(roll);
+                    } else {
                         setLastMechanical(mergePenaiMechanicalMessage(msg));
-                        if (!roll && !bootstrapPendingRef.current) {
+                        if (!bootstrapPendingRef.current && !rollPriorityRef.current) {
                             setPhaseBoth('mechanical');
                         }
                     }
@@ -342,12 +363,16 @@ export function usePenaiTurnPipeline(
                     if (typeof msg.workflowId === 'string') {
                         setNarrationWorkflowId(msg.workflowId);
                     }
+                    if (rollPriorityRef.current) {
+                        return;
+                    }
                     if (!msg.sync && !bootstrapPendingRef.current) {
                         setNarrationPending(true);
                         setPhaseBoth('narrating');
                     }
                 }
                 if (msg.type === 'narrationComplete') {
+                    rollPriorityRef.current = false;
                     setPlayerRollRequest(null);
                     setNarrationPending(false);
                     setNarrationWorkflowId(null);
@@ -355,6 +380,22 @@ export function usePenaiTurnPipeline(
                     if (typeof msg.actionSequence === 'number') {
                         setActionCursor(msg.actionSequence);
                     }
+                    setPhaseBoth('idle');
+                    window.dispatchEvent(new Event('penai-turn-settled'));
+                }
+                if (msg.type === 'narrationFailed') {
+                    rollPriorityRef.current = false;
+                    setPlayerRollRequest(null);
+                    setNarrationPending(false);
+                    setNarrationWorkflowId(null);
+                    bootstrapPendingRef.current = false;
+                    if (typeof msg.actionCursor === 'number') {
+                        setActionCursor(msg.actionCursor);
+                    } else if (typeof msg.actionSequence === 'number') {
+                        setActionCursor(Math.max(0, msg.actionSequence - 1));
+                    }
+                    const failText = String(msg.message ?? 'Narração indisponível.');
+                    setLastError(failText);
                     setPhaseBoth('idle');
                     window.dispatchEvent(new Event('penai-turn-settled'));
                 }
@@ -404,7 +445,7 @@ export function usePenaiTurnPipeline(
             setNarrationWorkflowId(null);
             setPhaseBoth('idle');
         };
-    }, [sessionId, userId, enabled, setPhaseBoth, clearPhaseTimer]);
+    }, [sessionId, userId, enabled, setPhaseBoth, clearPhaseTimer, prioritizePlayerRollRequest]);
 
     const sendProcessAction = useCallback(
         (playerAction: string, payload?: Record<string, unknown>) => {
@@ -444,7 +485,7 @@ export function usePenaiTurnPipeline(
             }
             setPlayerRollRequest(null);
             bootstrapPendingRef.current = false;
-            setPhaseBoth('mechanical');
+            setPhaseBoth(rollPriorityRef.current ? 'idle' : 'mechanical');
             ws.send(
                 JSON.stringify({
                     type: 'submitRollResult',

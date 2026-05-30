@@ -182,10 +182,13 @@ export async function checkSrdApiHealth(): Promise<{
     };
 }
 
+const preferLocalSnapshot = (): boolean =>
+    srdApiConfig.offlineOnly || Boolean(resolveSnapshotDir());
+
 export async function list(resource: string): Promise<{ count: number; results: any[] } | null> {
     const normalizedResource = norm(resource);
 
-    if (!srdApiConfig.offlineOnly) {
+    if (!preferLocalSnapshot()) {
         const online = await fetchFromApi<{ count?: number; results?: any[] }>(
             buildApiPath(normalizedResource),
         );
@@ -213,21 +216,17 @@ export async function get(resource: string, index: string): Promise<any | null> 
     const normalizedResource = resource.replace(/^\/+|\/+$/g, '');
     const normalizedIndex = index.replace(/^\/+|\/+$/g, '');
 
-    if (!srdApiConfig.offlineOnly) {
-        const online = await fetchFromApi<any>(
-            buildApiPath(normalizedResource, normalizedIndex),
-        );
-        if (online != null) {
-            if (Array.isArray(online)) return online;
-            if (typeof online === 'object' && online !== null && 'levels' in online && Array.isArray((online as any).levels)) {
-                return (online as any).levels;
-            }
-            return online;
-        }
+    const offline = findSnapshotEntry(normalizedResource, normalizedIndex);
+
+    if (preferLocalSnapshot()) {
+        return offline;
     }
 
-    const offline = findSnapshotEntry(normalizedResource, normalizedIndex);
-    if (offline == null) return null;
+    const online = await fetchFromApi<any>(buildApiPath(normalizedResource, normalizedIndex));
+    if (online != null) {
+        return online;
+    }
+
     return offline;
 }
 

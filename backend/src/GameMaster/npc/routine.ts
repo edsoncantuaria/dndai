@@ -63,6 +63,11 @@ export async function advanceNpcRoutine(
         },
     });
 
-    const verb = nextStatus === 'active' ? 'inicia' : 'conclui';
-    return `${entity.displayName} ${verb}: ${goal.description}`;
+    const verb = nextStatus === 'active' ? 'está' : 'acabou de';
+    const tone = personality.voiceTone ? `, tom ${personality.voiceTone}` : '';
+    const trait =
+        personality.traits[0] && nextStatus === 'active'
+            ? ` — ${personality.traits[0]}`
+            : '';
+    return `Ao fundo, ${entity.displayName}${tone} ${verb} ${goal.description.toLowerCase()}${trait}.`;
 }

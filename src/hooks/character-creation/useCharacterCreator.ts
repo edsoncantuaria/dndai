@@ -7,6 +7,7 @@ import { useSelectionManager } from './useSelectionManager';
 import { useDerivedCharacterData } from './useDerivedCharacterData';
 import * as DndApiService from '../../services/dndApiService';
 import type { NewCharacterInfo, ProficiencyChoice, ApiListItem, InventoryItem } from '../../types';
+import { areAttributesCompleteFromState } from '@/features/character-create/stepCompleteness';
 
 export interface ProficiencyChoiceWithSource extends ProficiencyChoice {
     id: string;
@@ -194,7 +195,13 @@ export const useCharacterCreator = ({ allLanguages, currentStep = 1, initialSnap
 
         const isComplete = (
             !!state.name && !!state.race && !!state.characterClass && !!state.background && !!state.alignment &&
-            state.attributeMethod !== null && (state.attributeMethod === 'roll' || (state.attributeMethod === 'point-buy' && state.points === 0)) &&
+            areAttributesCompleteFromState({
+                attributeMethod: state.attributeMethod,
+                points: state.points,
+                baseAttributes: state.baseAttributes,
+                isVariantHuman: state.isVariantHuman,
+                variantHumanBonusSelections: state.variantHumanBonusSelections,
+            }) &&
             selectionManager.canProceedFromProficiencies &&
             derivedData.areAllEquipmentChoicesMade &&
             selectionManager.areClassSpellsSelected && 

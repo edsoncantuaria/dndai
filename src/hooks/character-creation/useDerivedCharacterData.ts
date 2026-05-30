@@ -272,20 +272,24 @@ export const useDerivedCharacterData = (
   const { ac, hp, speed, hitDie } = useMemo(() => {
     const currentInventory = [...fixedEquipment, ...finalizedEquipment];
     
-    // Fallback para AC caso o cálculo falhe
     const calculatedAc = characterUtils.calculateAC(currentInventory, modifiers) || { value: 10, source: 'Base' };
 
-    const calculatedHp = {
-      current: (classDetails?.hit_die || 0) + (modifiers.constitution || 0),
-      max: (classDetails?.hit_die || 0) + (modifiers.constitution || 0),
-      temp: 0
-    };
+    const die = classDetails?.hit_die;
+    const conMod = modifiers.constitution ?? 0;
+    const calculatedHp =
+      typeof die === 'number' && die > 0
+        ? {
+            current: Math.max(1, die + conMod),
+            max: Math.max(1, die + conMod),
+            temp: 0,
+          }
+        : null;
     
     return {
       ac: calculatedAc,
       hp: calculatedHp,
       speed: raceDetails?.speed || 30,
-      hitDie: classDetails?.hit_die || 8,
+      hitDie: die || 8,
     };
   }, [finalAttributes, fixedEquipment, finalizedEquipment, classDetails, raceDetails, modifiers]);
 

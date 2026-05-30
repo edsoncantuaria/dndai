@@ -251,8 +251,14 @@ const ActionOptions: React.FC<ActionOptionsProps> = ({ variant = 'default' }) =>
         const currentCombatantEntry = combatState.initiativeOrder[combatState.turn % combatState.initiativeOrder.length];
         const currentCombatantId = getCombatantId(currentCombatantEntry);
     
-        const playerCombatant = combatState.combatants.find(c => c.isPlayer);
-        return playerCombatant ? currentCombatantId === getCombatantId(playerCombatant) : false;
+        const currentCombatant = combatState.combatants.find(
+            c => getCombatantId(c) === currentCombatantId,
+        );
+        return Boolean(
+            currentCombatant?.isPlayer ||
+                currentCombatant?.attitude === 'ally' ||
+                (currentCombatant as { side?: string } | undefined)?.side === 'ally',
+        );
     
     }, [combatState, character]);
 

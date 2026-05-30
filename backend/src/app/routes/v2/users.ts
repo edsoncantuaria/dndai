@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
-import { SettingsSchema } from '../../../schemas/validationSchemas.js';
+import { SettingsPatchSchema } from '../../../schemas/validationSchemas.js';
 import {
     completePenaiUserOnboarding,
     getPenaiUserMe,
@@ -35,7 +35,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
 
     app.put('/api/v2/users/me/settings', auth, async (request, reply) => {
         try {
-            const newSettings = SettingsSchema.parse(request.body);
+            const newSettings = SettingsPatchSchema.parse(request.body);
             const settings = await updatePenaiUserSettings(request.userId, newSettings);
             return { message: 'Configurações atualizadas com sucesso!', settings };
         } catch (err: unknown) {

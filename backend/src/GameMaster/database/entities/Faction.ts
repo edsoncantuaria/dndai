@@ -17,6 +17,9 @@ export class Faction {
     @Column({ type: 'varchar', length: 32, default: 'neutral' })
     alignment!: string;
 
+    @Column({ type: 'varchar', length: 48, nullable: true })
+    archetype!: string | null;
+
     @Column({ type: 'varchar', length: 16, default: 'pt-BR' })
     locale!: string;
 

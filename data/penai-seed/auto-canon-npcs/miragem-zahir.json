@@ -1,0 +1,471 @@
+{
+  "regionSlug": "miragem-zahir",
+  "regionName": "Miragem de Zahir",
+  "source": "cursor-auto",
+  "generatedAt": "2026-05-30T20:45:42.156Z",
+  "npcs": [
+    {
+      "roleTitle": "Guarda do Portão",
+      "role": "guarda",
+      "tier": "INCIDENTAL",
+      "characterClass": "fighter",
+      "isSpellcaster": false,
+      "mainWeaponSlug": "longsword",
+      "atributos": {
+        "forca": 14,
+        "destreza": 12,
+        "constituicao": 13,
+        "inteligencia": 10,
+        "sabedoria": 11,
+        "carisma": 10
+      },
+      "maxHp": 12,
+      "level": 2,
+      "givenName": "Fenor",
+      "description": "Guarda do Portão em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 11
+    },
+    {
+      "roleTitle": "Mestre da Forja",
+      "role": "artesão",
+      "tier": "SECONDARY",
+      "characterClass": "fighter",
+      "isSpellcaster": false,
+      "mainWeaponSlug": "mace",
+      "atributos": {
+        "forca": 15,
+        "destreza": 10,
+        "constituicao": 14,
+        "inteligencia": 12,
+        "sabedoria": 11,
+        "carisma": 10
+      },
+      "maxHp": 20,
+      "level": 3,
+      "givenName": "Fenos",
+      "description": "Mestre da Forja em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 10
+    },
+    {
+      "roleTitle": "Mercador de Especiarias",
+      "role": "comércio",
+      "tier": "SECONDARY",
+      "characterClass": "commoner",
+      "isSpellcaster": false,
+      "mainWeaponSlug": "shortsword",
+      "atributos": {
+        "forca": 10,
+        "destreza": 12,
+        "constituicao": 11,
+        "inteligencia": 13,
+        "sabedoria": 12,
+        "carisma": 14
+      },
+      "maxHp": 14,
+      "level": 2,
+      "givenName": "Fenus",
+      "description": "Mercador de Especiarias em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 11
+    },
+    {
+      "roleTitle": "Escriba da Guilda",
+      "role": "informante",
+      "tier": "INCIDENTAL",
+      "characterClass": "bard",
+      "isSpellcaster": true,
+      "spells": [
+        "vicious-mockery"
+      ],
+      "mainWeaponSlug": "dagger",
+      "atributos": {
+        "forca": 8,
+        "destreza": 14,
+        "constituicao": 10,
+        "inteligencia": 14,
+        "sabedoria": 12,
+        "carisma": 15
+      },
+      "maxHp": 10,
+      "level": 1,
+      "givenName": "Fenyn",
+      "description": "Escriba da Guilda em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 12
+    },
+    {
+      "roleTitle": "Dona da Taverna",
+      "role": "taverneiro",
+      "tier": "SECONDARY",
+      "characterClass": "commoner",
+      "isSpellcaster": false,
+      "mainWeaponSlug": "dagger",
+      "atributos": {
+        "forca": 10,
+        "destreza": 11,
+        "constituicao": 12,
+        "inteligencia": 12,
+        "sabedoria": 13,
+        "carisma": 16
+      },
+      "maxHp": 14,
+      "level": 2,
+      "givenName": "Feneth",
+      "description": "Dona da Taverna em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 10
+    },
+    {
+      "roleTitle": "Caçador da Região",
+      "role": "caçador",
+      "tier": "INCIDENTAL",
+      "characterClass": "rogue",
+      "isSpellcaster": false,
+      "mainWeaponSlug": "shortbow",
+      "atributos": {
+        "forca": 11,
+        "destreza": 16,
+        "constituicao": 12,
+        "inteligencia": 12,
+        "sabedoria": 14,
+        "carisma": 9
+      },
+      "maxHp": 11,
+      "level": 2,
+      "givenName": "Fenric",
+      "description": "Caçador da Região em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 13
+    },
+    {
+      "roleTitle": "Curandeira do Bairro",
+      "role": "curandeiro",
+      "tier": "SECONDARY",
+      "characterClass": "cleric",
+      "isSpellcaster": true,
+      "spells": [
+        "cure-wounds",
+        "spare-the-dying"
+      ],
+      "mainWeaponSlug": "quarterstaff",
+      "atributos": {
+        "forca": 9,
+        "destreza": 12,
+        "constituicao": 13,
+        "inteligencia": 11,
+        "sabedoria": 16,
+        "carisma": 13
+      },
+      "maxHp": 16,
+      "level": 2,
+      "givenName": "Fenven",
+      "description": "Curandeira do Bairro em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 11
+    },
+    {
+      "roleTitle": "Capitão da Milícia",
+      "role": "capitão",
+      "tier": "MAJOR",
+      "characterClass": "fighter",
+      "isSpellcaster": false,
+      "mainWeaponSlug": "longsword",
+      "atributos": {
+        "forca": 16,
+        "destreza": 13,
+        "constituicao": 15,
+        "inteligencia": 11,
+        "sabedoria": 12,
+        "carisma": 13
+      },
+      "maxHp": 32,
+      "level": 5,
+      "givenName": "Fendor",
+      "description": "Capitão da Milícia em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 11
+    },
+    {
+      "roleTitle": "Sacerdotisa do Templo",
+      "role": "sacerdote",
+      "tier": "SECONDARY",
+      "characterClass": "cleric",
+      "isSpellcaster": true,
+      "spells": [
+        "sacred-flame",
+        "bless"
+      ],
+      "mainWeaponSlug": "mace",
+      "atributos": {
+        "forca": 10,
+        "destreza": 10,
+        "constituicao": 12,
+        "inteligencia": 11,
+        "sabedoria": 17,
+        "carisma": 14
+      },
+      "maxHp": 18,
+      "level": 3,
+      "givenName": "Fenmir",
+      "description": "Sacerdotisa do Templo em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 10
+    },
+    {
+      "roleTitle": "Olheiro da Guilda",
+      "role": "ladino",
+      "tier": "INCIDENTAL",
+      "characterClass": "rogue",
+      "isSpellcaster": false,
+      "mainWeaponSlug": "shortbow",
+      "atributos": {
+        "forca": 9,
+        "destreza": 15,
+        "constituicao": 10,
+        "inteligencia": 12,
+        "sabedoria": 13,
+        "carisma": 11
+      },
+      "maxHp": 9,
+      "level": 1,
+      "givenName": "Garran",
+      "description": "Olheiro da Guilda em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 12
+    },
+    {
+      "roleTitle": "Erudito Arcano",
+      "role": "mago",
+      "tier": "SECONDARY",
+      "characterClass": "wizard",
+      "isSpellcaster": true,
+      "spells": [
+        "fire-bolt",
+        "mage-hand",
+        "magic-missile"
+      ],
+      "mainWeaponSlug": "quarterstaff",
+      "atributos": {
+        "forca": 8,
+        "destreza": 13,
+        "constituicao": 11,
+        "inteligencia": 17,
+        "sabedoria": 13,
+        "carisma": 10
+      },
+      "maxHp": 14,
+      "level": 3,
+      "givenName": "Garrar",
+      "description": "Erudito Arcano em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 11
+    },
+    {
+      "roleTitle": "Menestrel Viajante",
+      "role": "bardo",
+      "tier": "INCIDENTAL",
+      "characterClass": "bard",
+      "isSpellcaster": true,
+      "spells": [
+        "vicious-mockery",
+        "healing-word"
+      ],
+      "mainWeaponSlug": "shortsword",
+      "atributos": {
+        "forca": 9,
+        "destreza": 14,
+        "constituicao": 10,
+        "inteligencia": 12,
+        "sabedoria": 11,
+        "carisma": 16
+      },
+      "maxHp": 9,
+      "level": 1,
+      "givenName": "Garrel",
+      "description": "Menestrel Viajante em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 12
+    },
+    {
+      "roleTitle": "Ferreiro do Bairro",
+      "role": "ferreiro",
+      "tier": "SECONDARY",
+      "characterClass": "fighter",
+      "isSpellcaster": false,
+      "mainWeaponSlug": "shortsword",
+      "atributos": {
+        "forca": 14,
+        "destreza": 12,
+        "constituicao": 13,
+        "inteligencia": 11,
+        "sabedoria": 10,
+        "carisma": 11
+      },
+      "maxHp": 18,
+      "level": 3,
+      "givenName": "Garren",
+      "description": "Ferreiro do Bairro em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 11
+    },
+    {
+      "roleTitle": "Pescador do Cais",
+      "role": "pescador",
+      "tier": "INCIDENTAL",
+      "characterClass": "commoner",
+      "isSpellcaster": false,
+      "mainWeaponSlug": "spear",
+      "atributos": {
+        "forca": 11,
+        "destreza": 13,
+        "constituicao": 12,
+        "inteligencia": 10,
+        "sabedoria": 13,
+        "carisma": 11
+      },
+      "maxHp": 10,
+      "level": 1,
+      "givenName": "Garria",
+      "description": "Pescador do Cais em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 11
+    },
+    {
+      "roleTitle": "Cartógrafo da Cidade",
+      "role": "cartógrafo",
+      "tier": "INCIDENTAL",
+      "characterClass": "commoner",
+      "isSpellcaster": false,
+      "mainWeaponSlug": "dagger",
+      "atributos": {
+        "forca": 8,
+        "destreza": 12,
+        "constituicao": 10,
+        "inteligencia": 15,
+        "sabedoria": 13,
+        "carisma": 11
+      },
+      "maxHp": 8,
+      "level": 1,
+      "givenName": "Garric",
+      "description": "Cartógrafo da Cidade em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 11
+    },
+    {
+      "roleTitle": "Sentinela da Muralha",
+      "role": "guarda",
+      "tier": "INCIDENTAL",
+      "characterClass": "fighter",
+      "isSpellcaster": false,
+      "mainWeaponSlug": "spear",
+      "atributos": {
+        "forca": 13,
+        "destreza": 12,
+        "constituicao": 13,
+        "inteligencia": 10,
+        "sabedoria": 12,
+        "carisma": 9
+      },
+      "maxHp": 12,
+      "level": 2,
+      "givenName": "Garril",
+      "description": "Sentinela da Muralha em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 11
+    },
+    {
+      "roleTitle": "Tecelã de Seda",
+      "role": "comércio",
+      "tier": "SECONDARY",
+      "characterClass": "commoner",
+      "isSpellcaster": false,
+      "mainWeaponSlug": "dagger",
+      "atributos": {
+        "forca": 9,
+        "destreza": 14,
+        "constituicao": 11,
+        "inteligencia": 13,
+        "sabedoria": 12,
+        "carisma": 13
+      },
+      "maxHp": 12,
+      "level": 2,
+      "givenName": "Garrin",
+      "description": "Tecelã de Seda em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 12
+    },
+    {
+      "roleTitle": "Veterano de Guerra",
+      "role": "veterano",
+      "tier": "MAJOR",
+      "characterClass": "fighter",
+      "isSpellcaster": false,
+      "mainWeaponSlug": "longsword",
+      "atributos": {
+        "forca": 17,
+        "destreza": 11,
+        "constituicao": 16,
+        "inteligencia": 10,
+        "sabedoria": 13,
+        "carisma": 12
+      },
+      "maxHp": 36,
+      "level": 6,
+      "givenName": "Garrir",
+      "description": "Veterano de Guerra em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 10
+    },
+    {
+      "roleTitle": "Acólito do Santuário",
+      "role": "acólito",
+      "tier": "INCIDENTAL",
+      "characterClass": "cleric",
+      "isSpellcaster": true,
+      "spells": [
+        "sacred-flame"
+      ],
+      "mainWeaponSlug": "mace",
+      "atributos": {
+        "forca": 10,
+        "destreza": 10,
+        "constituicao": 12,
+        "inteligencia": 11,
+        "sabedoria": 15,
+        "carisma": 12
+      },
+      "maxHp": 11,
+      "level": 1,
+      "givenName": "Garris",
+      "description": "Acólito do Santuário em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 10
+    },
+    {
+      "roleTitle": "Batedor dos Trilhos",
+      "role": "batedor",
+      "tier": "SECONDARY",
+      "characterClass": "rogue",
+      "isSpellcaster": false,
+      "mainWeaponSlug": "spear",
+      "atributos": {
+        "forca": 12,
+        "destreza": 15,
+        "constituicao": 13,
+        "inteligencia": 12,
+        "sabedoria": 14,
+        "carisma": 9
+      },
+      "maxHp": 17,
+      "level": 3,
+      "givenName": "Garron",
+      "description": "Batedor dos Trilhos em Miragem de Zahir: Calor tremeluzente no horizonte; rotina ligada a oásis ilusórios do deserto.",
+      "goal": "Prosperar em Miragem de Zahir sem perder oásis ilusórios do deserto para invasores ou burocratas.",
+      "armorClass": 12
+    }
+  ]
+}

@@ -4,8 +4,16 @@ export type NarrationResult = {
     beat?: string;
 };
 
+import type { PenaiSceneMode } from '../ai/promptComposer.js';
+
+export type NarrationRenderOpts = {
+    userApiKey?: string;
+    model?: string;
+    sceneMode?: PenaiSceneMode;
+};
+
 export interface NarrationProvider {
-    render(contextPack: Record<string, unknown>, opts?: { userApiKey?: string; model?: string }): Promise<NarrationResult>;
+    render(contextPack: Record<string, unknown>, opts?: NarrationRenderOpts): Promise<NarrationResult>;
 }
 
 export interface EmbeddingProvider {

@@ -4,12 +4,24 @@ import { Rumor } from '../database/entities/Rumor.js';
 import { WorldEntityRelation } from '../database/entities/WorldEntityRelation.js';
 import { GameSession } from '../database/entities/GameSession.js';
 import { SessionFactionState } from '../database/entities/SessionFactionState.js';
+import { SessionRegionState } from '../database/entities/SessionRegionState.js';
 import type { ProjectorFn } from './types.js';
 import {
     adjustRegionResource,
     applyScarcityToPrice,
     adjustFactionInfluence,
+    adjustEntityReputation,
+    getOrCreateRegionState,
 } from '../world/campaignState.js';
+import { projectEventToKnowledgeGraph } from '../world/kgProjector.js';
+import { runSupplyShortageChain } from '../world/economyChain.js';
+import { isCatalogFaction } from '../world/factionCatalog.js';
+import {
+    discoverFaction,
+    discoverFactionsByPoi,
+    discoverFactionsByRegion,
+} from '../world/factionDiscovery.js';
+import { factionReputationKey } from '../world/reputationView.js';
 
 const projectCreatureSlain: ProjectorFn = async event => {
     const p = event.payload;
@@ -88,8 +100,24 @@ const projectRumorSpread: ProjectorFn = async event => {
 const projectFactionDelta: ProjectorFn = async event => {
     const p = event.payload;
     const factionSlug = String(p.factionSlug ?? '');
-    if (!factionSlug) return;
+    if (!factionSlug || !isCatalogFaction(factionSlug)) return;
     const delta = Number(p.delta ?? 0);
+
+    await discoverFaction(event.sessionId, factionSlug, 'reputation_event');
+
+    const session = await PenaiDataSource.getRepository(GameSession).findOne({
+        where: { id: event.sessionId },
+    });
+    const heroId = session?.heroWorldEntityId;
+    if (heroId && delta !== 0) {
+        await adjustEntityReputation(
+            event.sessionId,
+            heroId,
+            factionReputationKey(factionSlug),
+            delta,
+        );
+    }
+
     const repo = PenaiDataSource.getRepository(SessionFactionState);
     let row = await repo.findOne({ where: { sessionId: event.sessionId, factionSlug } });
     if (!row) {
@@ -99,39 +127,120 @@ const projectFactionDelta: ProjectorFn = async event => {
     await repo.save(row);
 };
 
+const projectTravelCompleted: ProjectorFn = async event => {
+    const regionSlug = event.payload.regionSlug;
+    if (regionSlug && typeof regionSlug === 'string') {
+        await discoverFactionsByRegion(event.sessionId, regionSlug);
+    }
+    const poiSlug = event.payload.targetPoiSlug;
+    if (poiSlug && typeof poiSlug === 'string') {
+        await discoverFactionsByPoi(event.sessionId, poiSlug);
+    }
+};
+
 const projectFactionTickCombined: ProjectorFn = async event => {
     await projectFactionDelta(event);
     await projectFactionInfluence(event);
+    const { resolveSessionShardId } = await import('../world/shardResolver.js');
+    const { maybeTransitionPoliticsAfterFactionTick } = await import('../world/politicsState.js');
+    const shardId = await resolveSessionShardId(event.sessionId);
+    await maybeTransitionPoliticsAfterFactionTick({
+        sessionId: event.sessionId,
+        shardId,
+        regionSlug: String(event.payload.regionSlug ?? ''),
+        goal: String(event.payload.goal ?? ''),
+    });
+};
+
+const projectRegionMood: ProjectorFn = async event => {
+    const p = event.payload;
+    const regionSlug = String(p.regionSlug ?? '');
+    if (!regionSlug) return;
+    const row = await getOrCreateRegionState(event.sessionId, regionSlug);
+    if (typeof p.fear === 'number') row.fear = p.fear;
+    if (typeof p.prosperity === 'number') row.prosperity = p.prosperity;
+    if (typeof p.crime === 'number') row.crime = p.crime;
+    await PenaiDataSource.getRepository(SessionRegionState).save(row);
+};
+
+const projectPriceChanged: ProjectorFn = async event => {
+    const p = event.payload;
+    const regionSlug = String(p.regionSlug ?? '');
+    const itemSlug = String(p.itemSlug ?? '');
+    const scarcityDelta = Number(p.scarcityDelta ?? 0);
+    if (!regionSlug || !itemSlug) return;
+    if (scarcityDelta !== 0) {
+        await applyScarcityToPrice(event.sessionId, regionSlug, itemSlug, scarcityDelta);
+        return;
+    }
+    const currentPrice = Number(p.currentPrice ?? 0);
+    if (currentPrice > 0) {
+        const { getOrCreateEconomyRow } = await import('../world/campaignState.js');
+        const { SessionRegionEconomy } = await import('../database/entities/SessionRegionEconomy.js');
+        const row = await getOrCreateEconomyRow(event.sessionId, regionSlug, itemSlug);
+        row.currentPrice = currentPrice;
+        await PenaiDataSource.getRepository(SessionRegionEconomy).save(row);
+    }
+};
+
+const projectRumorFaded: ProjectorFn = async event => {
+    const rumorId = Number(event.payload.rumorId ?? 0);
+    if (!rumorId) return;
+    const rumorRepo = PenaiDataSource.getRepository(Rumor);
+    const row = await rumorRepo.findOne({ where: { id: rumorId, sessionId: event.sessionId } });
+    if (row) {
+        row.status = 'faded';
+        await rumorRepo.save(row);
+    }
+};
+
+const projectSupplyShortage: ProjectorFn = async event => {
+    await runSupplyShortageChain(event);
 };
 
 export const EVENT_PROJECTORS: Record<string, ProjectorFn> = {
     RELATION_CHANGED: projectRelationChanged,
     RUMOR_SPREAD: projectRumorSpread,
+    RUMOR_FADED: projectRumorFaded,
     FACTION_TICK: projectFactionTickCombined,
     FACTION_REPUTATION: projectFactionDelta,
+    TRAVEL_COMPLETED: projectTravelCompleted,
     CREATURE_SLAIN: projectCreatureSlain,
+    REGION_MOOD_CHANGED: projectRegionMood,
+    PRICE_CHANGED: projectPriceChanged,
+    SUPPLY_SHORTAGE: projectSupplyShortage,
 };
+
+const UUID_RE =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function parseLastProjectedEventId(value: string | null | undefined): string | null {
+    if (!value || !UUID_RE.test(value)) return null;
+    return value;
+}
 
 export async function projectSessionWorldState(sessionId: number): Promise<ProjectedWorldState> {
     const sessionRepo = PenaiDataSource.getRepository(GameSession);
     const session = await sessionRepo.findOne({ where: { id: sessionId } });
 
     const eventRepo = PenaiDataSource.getRepository(WorldEvent);
-    const lastId = session?.lastProjectedEventId ? Number(session.lastProjectedEventId) : 0;
-    const events = await eventRepo
+    const lastId = parseLastProjectedEventId(session?.lastProjectedEventId);
+    const qb = eventRepo
         .createQueryBuilder('e')
         .where('e.sessionId = :sessionId', { sessionId })
-        .andWhere('e.id > :lastId', { lastId })
         .orderBy('e.id', 'ASC')
-        .take(50)
-        .getMany();
+        .take(50);
+    if (lastId) {
+        qb.andWhere('e.id > :lastId', { lastId });
+    }
+    const events = await qb.getMany();
 
     for (const ev of events) {
         await applyEventProjection(ev);
     }
 
     if (events.length && session) {
-        session.lastProjectedEventId = String(events[events.length - 1].id);
+        session.lastProjectedEventId = events[events.length - 1].id;
         await sessionRepo.save(session);
     }
 
@@ -161,13 +270,15 @@ export async function projectSessionWorldState(sessionId: number): Promise<Proje
 }
 
 export async function applyEventProjection(event: WorldEvent): Promise<void> {
+    const ctx = {
+        type: event.type,
+        sessionId: event.sessionId,
+        payload: event.payload,
+        actorEntityId: event.actorEntityId,
+    };
     const projector = EVENT_PROJECTORS[event.type];
     if (projector) {
-        await projector({
-            type: event.type,
-            sessionId: event.sessionId,
-            payload: event.payload,
-            actorEntityId: event.actorEntityId,
-        });
+        await projector(ctx);
     }
+    await projectEventToKnowledgeGraph(ctx);
 }

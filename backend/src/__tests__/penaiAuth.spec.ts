@@ -93,6 +93,30 @@ dbDescribe('penai auth v2 (integration)', () => {
         const resolved = await resolvePenaiInferenceApiKey(user.id);
         assert.equal(resolved, fakeKey);
     });
+
+    it('getPenaiUserMe expõe licenseKey.isActivated após ativar licença', async () => {
+        const { getPenaiUserMe } = await import('../GameMaster/auth/penaiUserService.js');
+        const { activatePenaiLicense } = await import('../GameMaster/auth/penaiLicenseService.js');
+        const { PenaiLicenseKey } = await import('../GameMaster/database/entities/PenaiLicenseKey.js');
+
+        const suffix = Date.now();
+        const user = await registerPenaiUser({
+            username: `lic${suffix}`,
+            email: `lic${suffix}@example.com`,
+            password: 'secret123',
+        });
+
+        const licenseRepo = PenaiDataSource.getRepository(PenaiLicenseKey);
+        const key = `TEST-${suffix}`;
+        await licenseRepo.save(licenseRepo.create({ key, isActivated: false }));
+
+        let me = await getPenaiUserMe(user.id);
+        assert.equal(me.licenseKey?.isActivated, false);
+
+        await activatePenaiLicense(key, user.id);
+        me = await getPenaiUserMe(user.id);
+        assert.equal(me.licenseKey?.isActivated, true);
+    });
 });
 
 describe('penai auth v2 (unit)', () => {

@@ -34,3 +34,42 @@ export async function completePenaiTurnNarration(
         await repo.save(session);
     }
 }
+
+/**
+ * Reverte contadores do turno quando a narração falha após o mecânico já ter corrido.
+ * Não recompõe inventário/combate — apenas desfaz sequence/cursor mismatch e stateVersion extra.
+ */
+export async function rollbackPenaiTurnOnNarrationFailure(
+    sessionId: number,
+    actionSequence: number,
+): Promise<{
+    actionCursor: number;
+    actionSequence: number;
+    stateVersion: number;
+} | null> {
+    const repo = PenaiDataSource.getRepository(GameSession);
+    const session = await repo.findOne({ where: { id: sessionId } });
+    if (!session) return null;
+
+    if (actionSequence <= session.actionCursor) {
+        return {
+            actionCursor: session.actionCursor,
+            actionSequence: session.actionSequence,
+            stateVersion: session.stateVersion,
+        };
+    }
+
+    if (session.actionSequence === actionSequence && actionSequence > 0) {
+        session.actionSequence = actionSequence - 1;
+    }
+    if (session.stateVersion > 0) {
+        session.stateVersion -= 1;
+    }
+    await repo.save(session);
+
+    return {
+        actionCursor: session.actionCursor,
+        actionSequence: session.actionSequence,
+        stateVersion: session.stateVersion,
+    };
+}

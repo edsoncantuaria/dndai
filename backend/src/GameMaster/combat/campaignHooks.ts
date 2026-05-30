@@ -3,6 +3,7 @@ import { PenaiDataSource } from '../database/data-source.js';
 import { GameSession } from '../database/entities/GameSession.js';
 import { SessionCombatant } from '../database/entities/SessionCombatant.js';
 import { adjustEntityReputation } from '../world/campaignState.js';
+import { regionReputationKey } from '../world/reputationView.js';
 import { recordWitnessedFact, listPresentEntityIds } from '../world/knowledgeGraph.js';
 import { projectSessionWorldState } from '../events/projector.js';
 
@@ -27,7 +28,7 @@ export async function emitCampaignCombatVictory(sessionId: number, encounterId: 
 
     const heroId = session?.heroWorldEntityId;
     if (heroId) {
-        await adjustEntityReputation(sessionId, heroId, regionSlug, 5);
+        await adjustEntityReputation(sessionId, heroId, regionReputationKey(regionSlug), 5);
     }
 
     const witnesses = await listPresentEntityIds(sessionId);

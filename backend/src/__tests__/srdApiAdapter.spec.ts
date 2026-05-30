@@ -50,6 +50,29 @@ test('srdApiAdapter obtém detalhe de raça offline', async () => {
     assert.equal(detail.index, sampleIndex);
 });
 
+test('srdApiAdapter detalhe de classe mantém hit_die (não substitui por levels)', async () => {
+    process.env.SRD_OFFLINE_ONLY = 'true';
+
+    const repoRoot = path.resolve(process.cwd(), '..');
+    const classesFile = [
+        path.join(repoRoot, 'data', 'srd', '2014', 'normalized', 'classes.json'),
+        path.join(repoRoot, 'data', 'dnd5eapi', 'normalized', 'classes.json'),
+    ].find((filePath) => fs.existsSync(filePath));
+    if (!classesFile) return;
+
+    const { clearSnapshotCache, get } = await import('../services/srdApiAdapter.js');
+    clearSnapshotCache();
+    const fighter = await get('classes', 'fighter');
+    assert.ok(fighter);
+    assert.equal(typeof fighter.hit_die, 'number');
+    assert.ok(Array.isArray(fighter.saving_throws));
+    assert.ok(fighter.saving_throws.length > 0);
+
+    const levels = await get('classes/fighter', 'levels');
+    assert.ok(Array.isArray(levels));
+    assert.ok(levels.length > 0);
+});
+
 test('resolveSnapshotDir encontra diretório legado ou novo', async () => {
     const { resolveSnapshotDir } = await import('../utils/srdSnapshotPaths.js');
     const dir = resolveSnapshotDir();

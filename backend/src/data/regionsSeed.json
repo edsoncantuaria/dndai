@@ -4,39 +4,937 @@
       "slug": "aurathis",
       "name": "Aurathis",
       "type": "world",
-      "summary": "Continente forjado após a Queda dos Titãs, coberto por veios arcanos expostos.",
+      "summary": "Único continente conhecido dos cronistas: sete coroas disputam veios arcanos deixados pela Queda dos Titãs.",
+      "description": "De oeste a leste, o Sol Nascente e o Domínio Élfico disputam o centro; ao norte, as Marches de Ferro; ao sul, a Confederação Ashari; no leste árido, o Sultanato das Areias; na costa oeste, a República das Nove Âncoras; na fronteira leste, o Véu Titânico — terras sem rei, só tratados quebrados.",
       "metadata": {
         "climate": "variado",
-        "pantheon": ["Ixolar", "Seraphenne", "Odrun"],
-        "levelRange": "1-20"
+        "pantheon": [
+          "Ixolar",
+          "Seraphenne",
+          "Odrun"
+        ],
+        "levelRange": "1-20",
+        "politicalRealms": [
+          "reino-sol-nascente",
+          "dominio-valdar-elfico",
+          "confederacao-ashari",
+          "marches-ferro-norte",
+          "sultanato-areias-douradas",
+          "republica-nove-ancoras",
+          "fronteira-veu-titanico"
+        ],
+        "mapArt": {
+          "url": "/assets/AI/aurathis-continente-v4.png",
+          "width": 1100,
+          "height": 780,
+          "version": 4
+        },
+        "mapLayout": {
+          "coordinateSpace": "pixel",
+          "canvas": {
+            "width": 1100,
+            "height": 780
+          },
+          "nodes": {
+            "reino-sol-nascente": {
+              "x": 280,
+              "y": 400
+            },
+            "dominio-valdar-elfico": {
+              "x": 520,
+              "y": 280
+            },
+            "confederacao-ashari": {
+              "x": 500,
+              "y": 540
+            },
+            "marches-ferro-norte": {
+              "x": 360,
+              "y": 100
+            },
+            "sultanato-areias-douradas": {
+              "x": 800,
+              "y": 460
+            },
+            "republica-nove-ancoras": {
+              "x": 90,
+              "y": 300
+            },
+            "fronteira-veu-titanico": {
+              "x": 900,
+              "y": 160
+            },
+            "cidadela-do-aco-luz": {
+              "x": 310,
+              "y": 450
+            },
+            "vila-prata-lua": {
+              "x": 220,
+              "y": 370
+            },
+            "valdarin-violeta": {
+              "x": 560,
+              "y": 310
+            },
+            "clareira-conclave-verde": {
+              "x": 480,
+              "y": 520
+            },
+            "fortaleza-vorngard": {
+              "x": 390,
+              "y": 150
+            },
+            "miragem-zahir": {
+              "x": 840,
+              "y": 500
+            },
+            "porto-corsario": {
+              "x": 130,
+              "y": 350
+            },
+            "bastiao-vigia-titanica": {
+              "x": 860,
+              "y": 200
+            },
+            "selva-de-ashari": {
+              "x": 530,
+              "y": 580
+            },
+            "selvas-de-myr": {
+              "x": 400,
+              "y": 500
+            },
+            "bosque-lilas-perpetuo": {
+              "x": 600,
+              "y": 250
+            },
+            "planicie-corvos-geada": {
+              "x": 420,
+              "y": 80
+            },
+            "deserto-coroa-dourada": {
+              "x": 880,
+              "y": 420
+            },
+            "arquipelago-nove-ilhas": {
+              "x": 60,
+              "y": 420
+            },
+            "passagem-veu-partido": {
+              "x": 940,
+              "y": 120
+            },
+            "covil-obsidiano": {
+              "x": 340,
+              "y": 520
+            },
+            "torre-de-aetheryn": {
+              "x": 620,
+              "y": 270
+            },
+            "mina-umbra-profunda": {
+              "x": 450,
+              "y": 130
+            },
+            "tumulos-reis-areia": {
+              "x": 920,
+              "y": 380
+            },
+            "abismo-veio-arcano": {
+              "x": 980,
+              "y": 90
+            }
+          },
+          "pois": {
+            "academia-prismatica": {
+              "x": 358,
+              "y": 398,
+              "regionSlug": "cidadela-do-aco-luz"
+            },
+            "acampamento-corvo-branco": {
+              "x": 402,
+              "y": 58,
+              "regionSlug": "planicie-corvos-geada"
+            },
+            "acampamento-escaladores": {
+              "x": 948,
+              "y": 142,
+              "regionSlug": "passagem-veu-partido"
+            },
+            "acampamento-escolta": {
+              "x": 478,
+              "y": 562,
+              "regionSlug": "selva-de-ashari"
+            },
+            "acampamento-myr": {
+              "x": 432,
+              "y": 498,
+              "regionSlug": "selvas-de-myr"
+            },
+            "altar-de-lichen": {
+              "x": 542,
+              "y": 558,
+              "regionSlug": "selva-de-ashari"
+            },
+            "altar-umbra": {
+              "x": 478,
+              "y": 142,
+              "regionSlug": "mina-umbra-profunda"
+            },
+            "antecamara-farao": {
+              "x": 932,
+              "y": 382,
+              "regionSlug": "tumulos-reis-areia"
+            },
+            "arborismo-sagrado": {
+              "x": 442,
+              "y": 522,
+              "regionSlug": "clareira-conclave-verde"
+            },
+            "arsenal-veu": {
+              "x": 878,
+              "y": 172,
+              "regionSlug": "bastiao-vigia-titanica"
+            },
+            "bazar-especiarias": {
+              "x": 858,
+              "y": 512,
+              "regionSlug": "miragem-zahir"
+            },
+            "bazar-nevoa-violeta": {
+              "x": 552,
+              "y": 348,
+              "regionSlug": "valdarin-violeta"
+            },
+            "biblioteca-vazia": {
+              "x": 518,
+              "y": 318,
+              "regionSlug": "valdarin-violeta"
+            },
+            "cachoeira-espiritos": {
+              "x": 548,
+              "y": 602,
+              "regionSlug": "selva-de-ashari"
+            },
+            "cafe-oraculo": {
+              "x": 532,
+              "y": 288,
+              "regionSlug": "valdarin-violeta"
+            },
+            "camaras-do-nucleo": {
+              "x": 318,
+              "y": 528,
+              "regionSlug": "covil-obsidiano"
+            },
+            "capela-prata-lua": {
+              "x": 232,
+              "y": 368,
+              "regionSlug": "vila-prata-lua"
+            },
+            "caravana-perdida": {
+              "x": 858,
+              "y": 438,
+              "regionSlug": "deserto-coroa-dourada"
+            },
+            "caravansarai-leste": {
+              "x": 812,
+              "y": 502,
+              "regionSlug": "miragem-zahir"
+            },
+            "cartorio-contratos": {
+              "x": 158,
+              "y": 342,
+              "regionSlug": "porto-corsario"
+            },
+            "celas-estudo": {
+              "x": 628,
+              "y": 298,
+              "regionSlug": "torre-de-aetheryn"
+            },
+            "celeiro-coletivo": {
+              "x": 238,
+              "y": 392,
+              "regionSlug": "vila-prata-lua"
+            },
+            "cemiterio-herois-sol": {
+              "x": 268,
+              "y": 448,
+              "regionSlug": "cidadela-do-aco-luz"
+            },
+            "cidadela-do-aco-luz-gate": {
+              "x": 372,
+              "y": 468,
+              "regionSlug": "cidadela-do-aco-luz"
+            },
+            "circulo-raizes-mae": {
+              "x": 492,
+              "y": 512,
+              "regionSlug": "clareira-conclave-verde"
+            },
+            "clareira-acordos-fey": {
+              "x": 612,
+              "y": 232,
+              "regionSlug": "bosque-lilas-perpetuo"
+            },
+            "clareira-driadas": {
+              "x": 418,
+              "y": 512,
+              "regionSlug": "selvas-de-myr"
+            },
+            "doca-pescadores": {
+              "x": 98,
+              "y": 378,
+              "regionSlug": "porto-corsario"
+            },
+            "enclave-fey-lilas": {
+              "x": 522,
+              "y": 338,
+              "regionSlug": "valdarin-violeta"
+            },
+            "enfermaria-campo": {
+              "x": 882,
+              "y": 208,
+              "regionSlug": "bastiao-vigia-titanica"
+            },
+            "enseada-pirata": {
+              "x": 28,
+              "y": 428,
+              "regionSlug": "arquipelago-nove-ilhas"
+            },
+            "entrada-selada-dragao": {
+              "x": 348,
+              "y": 518,
+              "regionSlug": "covil-obsidiano"
+            },
+            "estalagem-vigilia-serena": {
+              "x": 258,
+              "y": 472,
+              "regionSlug": "cidadela-do-aco-luz"
+            },
+            "estaleiro-ancora-mestra": {
+              "x": 88,
+              "y": 358,
+              "regionSlug": "porto-corsario"
+            },
+            "estela-thane": {
+              "x": 348,
+              "y": 88,
+              "regionSlug": "marches-ferro-norte"
+            },
+            "farol-mestre-ancoras": {
+              "x": 72,
+              "y": 288,
+              "regionSlug": "republica-nove-ancoras"
+            },
+            "farol-tempestade": {
+              "x": 42,
+              "y": 398,
+              "regionSlug": "arquipelago-nove-ilhas"
+            },
+            "forja-corvo-geada": {
+              "x": 408,
+              "y": 148,
+              "regionSlug": "fortaleza-vorngard"
+            },
+            "forja-obsidiana": {
+              "x": 332,
+              "y": 542,
+              "regionSlug": "covil-obsidiano"
+            },
+            "forja-profunda": {
+              "x": 462,
+              "y": 118,
+              "regionSlug": "mina-umbra-profunda"
+            },
+            "foro-prismatico": {
+              "x": 342,
+              "y": 422,
+              "regionSlug": "cidadela-do-aco-luz"
+            },
+            "galeria-aberrante": {
+              "x": 432,
+              "y": 108,
+              "regionSlug": "mina-umbra-profunda"
+            },
+            "guilda-dos-auroras": {
+              "x": 352,
+              "y": 488,
+              "regionSlug": "cidadela-do-aco-luz"
+            },
+            "hammam-dourado": {
+              "x": 848,
+              "y": 528,
+              "regionSlug": "miragem-zahir"
+            },
+            "jardim-das-constelacoes": {
+              "x": 588,
+              "y": 298,
+              "regionSlug": "valdarin-violeta"
+            },
+            "jardim-sultao": {
+              "x": 792,
+              "y": 468,
+              "regionSlug": "miragem-zahir"
+            },
+            "laboratorio-planar": {
+              "x": 642,
+              "y": 278,
+              "regionSlug": "torre-de-aetheryn"
+            },
+            "lago-lilas": {
+              "x": 588,
+              "y": 258,
+              "regionSlug": "bosque-lilas-perpetuo"
+            },
+            "marco-fronteira-sol": {
+              "x": 268,
+              "y": 388,
+              "regionSlug": "reino-sol-nascente"
+            },
+            "memorial-expedicoes": {
+              "x": 848,
+              "y": 228,
+              "regionSlug": "bastiao-vigia-titanica"
+            },
+            "mercado-anel-solar": {
+              "x": 362,
+              "y": 452,
+              "regionSlug": "cidadela-do-aco-luz"
+            },
+            "mercado-peixe-ilhas": {
+              "x": 68,
+              "y": 438,
+              "regionSlug": "arquipelago-nove-ilhas"
+            },
+            "mercado-peixe-sal": {
+              "x": 118,
+              "y": 388,
+              "regionSlug": "porto-corsario"
+            },
+            "miragem-falsa": {
+              "x": 892,
+              "y": 442,
+              "regionSlug": "deserto-coroa-dourada"
+            },
+            "moinho-prata-lua": {
+              "x": 208,
+              "y": 352,
+              "regionSlug": "vila-prata-lua"
+            },
+            "monolito-ixolar": {
+              "x": 928,
+              "y": 98,
+              "regionSlug": "passagem-veu-partido"
+            },
+            "ninho-harpias-sul": {
+              "x": 512,
+              "y": 592,
+              "regionSlug": "selva-de-ashari"
+            },
+            "oasis-serpente": {
+              "x": 868,
+              "y": 398,
+              "regionSlug": "deserto-coroa-dourada"
+            },
+            "obelisco-lua": {
+              "x": 502,
+              "y": 262,
+              "regionSlug": "dominio-valdar-elfico"
+            },
+            "observatorio-primordial": {
+              "x": 612,
+              "y": 252,
+              "regionSlug": "torre-de-aetheryn"
+            },
+            "observatorio-ruina": {
+              "x": 958,
+              "y": 118,
+              "regionSlug": "passagem-veu-partido"
+            },
+            "oficina-sol-forjado": {
+              "x": 322,
+              "y": 402,
+              "regionSlug": "cidadela-do-aco-luz"
+            },
+            "palacio-mil-cupulas": {
+              "x": 828,
+              "y": 478,
+              "regionSlug": "miragem-zahir"
+            },
+            "palacio-prismatico": {
+              "x": 292,
+              "y": 402,
+              "regionSlug": "cidadela-do-aco-luz"
+            },
+            "palacio-velas": {
+              "x": 112,
+              "y": 318,
+              "regionSlug": "porto-corsario"
+            },
+            "plataforma-veio-zero": {
+              "x": 968,
+              "y": 72,
+              "regionSlug": "abismo-veio-arcano"
+            },
+            "pocao-cura-viva": {
+              "x": 468,
+              "y": 538,
+              "regionSlug": "clareira-conclave-verde"
+            },
+            "poco-oraculo-areia": {
+              "x": 772,
+              "y": 458,
+              "regionSlug": "sultanato-areias-douradas"
+            },
+            "poco-tesouro-amaldicoado": {
+              "x": 918,
+              "y": 402,
+              "regionSlug": "tumulos-reis-areia"
+            },
+            "ponte-gravidade": {
+              "x": 998,
+              "y": 98,
+              "regionSlug": "abismo-veio-arcano"
+            },
+            "ponte-sussurro": {
+              "x": 518,
+              "y": 578,
+              "regionSlug": "selva-de-ashari"
+            },
+            "portal-fey-rachado": {
+              "x": 622,
+              "y": 268,
+              "regionSlug": "bosque-lilas-perpetuo"
+            },
+            "posto-escolta-mina": {
+              "x": 418,
+              "y": 118,
+              "regionSlug": "fortaleza-vorngard"
+            },
+            "posto-milicia-vale": {
+              "x": 248,
+              "y": 348,
+              "regionSlug": "vila-prata-lua"
+            },
+            "quartel-conselho-veu": {
+              "x": 842,
+              "y": 188,
+              "regionSlug": "bastiao-vigia-titanica"
+            },
+            "refugio-mineradores": {
+              "x": 438,
+              "y": 78,
+              "regionSlug": "planicie-corvos-geada"
+            },
+            "ruinas-elvenas-myr": {
+              "x": 398,
+              "y": 528,
+              "regionSlug": "selvas-de-myr"
+            },
+            "ruinas-poco-oleo": {
+              "x": 898,
+              "y": 418,
+              "regionSlug": "deserto-coroa-dourada"
+            },
+            "salao-thane": {
+              "x": 378,
+              "y": 132,
+              "regionSlug": "fortaleza-vorngard"
+            },
+            "salas-do-conclave-lunar": {
+              "x": 578,
+              "y": 318,
+              "regionSlug": "valdarin-violeta"
+            },
+            "santuario-harmonia": {
+              "x": 378,
+              "y": 488,
+              "regionSlug": "selvas-de-myr"
+            },
+            "sarcofago-rashid-ancestral": {
+              "x": 908,
+              "y": 362,
+              "regionSlug": "tumulos-reis-areia"
+            },
+            "taverna-dragao-azul": {
+              "x": 278,
+              "y": 492,
+              "regionSlug": "cidadela-do-aco-luz"
+            },
+            "taverna-gelo-partido": {
+              "x": 392,
+              "y": 178,
+              "regionSlug": "fortaleza-vorngard"
+            },
+            "taverna-tres-colinas": {
+              "x": 218,
+              "y": 388,
+              "regionSlug": "vila-prata-lua"
+            },
+            "taverna-vela-negra": {
+              "x": 142,
+              "y": 372,
+              "regionSlug": "porto-corsario"
+            },
+            "templo-anoes-odrun": {
+              "x": 352,
+              "y": 158,
+              "regionSlug": "fortaleza-vorngard"
+            },
+            "templo-menor-ixolar": {
+              "x": 255,
+              "y": 428,
+              "regionSlug": "cidadela-do-aco-luz"
+            },
+            "torre-conclave-lunar": {
+              "x": 548,
+              "y": 272,
+              "regionSlug": "valdarin-violeta"
+            },
+            "totem-cla-unido": {
+              "x": 488,
+              "y": 558,
+              "regionSlug": "confederacao-ashari"
+            },
+            "trono-musgo": {
+              "x": 462,
+              "y": 498,
+              "regionSlug": "clareira-conclave-verde"
+            },
+            "tumulo-ancestral-geada": {
+              "x": 418,
+              "y": 98,
+              "regionSlug": "planicie-corvos-geada"
+            },
+            "viveiro-sementes-ancestrais": {
+              "x": 508,
+              "y": 528,
+              "regionSlug": "clareira-conclave-verde"
+            }
+          }
+        }
+      }
+    },
+    {
+      "slug": "reino-sol-nascente",
+      "name": "Reino do Sol Nascente",
+      "type": "wild",
+      "parentSlug": "aurathis",
+      "summary": "Monarquia humana do Prismático; Rainha Heliana IV governa da Cidadela do Aço-Luz.",
+      "metadata": {
+        "role": "kingdom",
+        "government": "monarquia",
+        "ruler": {
+          "name": "Heliana IV de Helios",
+          "title": "Rainha do Sol Nascente",
+          "alignment": "LG",
+          "notes": "Viúva do Rei Prismático Aldric; prioriza comércio e contém a Liga Mercante."
+        },
+        "capitalSlug": "cidadela-do-aco-luz",
+        "banners": [
+          "Sol Prismático",
+          "Escudo de Aço-Luz"
+        ],
+        "rivals": [
+          "marches-ferro-norte"
+        ],
+        "allies": [
+          "republica-nove-ancoras"
+        ],
+        "levelRange": "1-14"
+      }
+    },
+    {
+      "slug": "dominio-valdar-elfico",
+      "name": "Domínio Élfico de Valdar",
+      "type": "wild",
+      "parentSlug": "aurathis",
+      "summary": "Teocracia arcana élfica; a Arquimaga Lireth Moondusk preside o Conclave Lunar em Valdarin.",
+      "metadata": {
+        "role": "kingdom",
+        "government": "magocracia",
+        "ruler": {
+          "name": "Lireth Moondusk",
+          "title": "Arquimaga do Domínio",
+          "alignment": "NG",
+          "notes": "Mantém neutralidade formal, mas espiona as Marches e o Véu Titânico."
+        },
+        "capitalSlug": "valdarin-violeta",
+        "banners": [
+          "Lua Violeta",
+          "Espiral de Aetheryn"
+        ],
+        "rivals": [
+          "marches-ferro-norte"
+        ],
+        "levelRange": "5-18"
+      }
+    },
+    {
+      "slug": "confederacao-ashari",
+      "name": "Confederação Ashari",
+      "type": "wild",
+      "parentSlug": "aurathis",
+      "summary": "União de círculos druidas; o Grande Druida Kaelith fala por dezenas de clãs na Selva.",
+      "metadata": {
+        "role": "kingdom",
+        "government": "confederação",
+        "ruler": {
+          "name": "Kaelith Sussurro-Verde",
+          "title": "Grande Druida",
+          "alignment": "N",
+          "notes": "Não é rei de fato — veta rotas que cortam raízes-mãe e exige tributos de passagem."
+        },
+        "capitalSlug": "clareira-conclave-verde",
+        "banners": [
+          "Folha Luminescente"
+        ],
+        "rivals": [
+          "sultanato-areias-douradas"
+        ],
+        "levelRange": "3-16"
+      }
+    },
+    {
+      "slug": "marches-ferro-norte",
+      "name": "Marches de Ferro do Norte",
+      "type": "wild",
+      "parentSlug": "aurathis",
+      "summary": "Clãs anões e humanos do gelo; o Thane Gorvald Martelo-de-Gelo governa da Fortaleza Vorngard.",
+      "metadata": {
+        "role": "kingdom",
+        "government": "thaneado",
+        "ruler": {
+          "name": "Gorvald Martelo-de-Gelo",
+          "title": "Thane das Marches",
+          "alignment": "LN",
+          "notes": "Desconfia de magia élfica; negocia minério de umbra com corsários e mercadores do sul."
+        },
+        "capitalSlug": "fortaleza-vorngard",
+        "banners": [
+          "Corvo de Gelo",
+          "Bigorna Partida"
+        ],
+        "rivals": [
+          "reino-sol-nascente",
+          "dominio-valdar-elfico"
+        ],
+        "levelRange": "4-16"
+      }
+    },
+    {
+      "slug": "sultanato-areias-douradas",
+      "name": "Sultanato das Areias Douradas",
+      "type": "wild",
+      "parentSlug": "aurathis",
+      "summary": "Califado do leste árido; o Sultão Rashid al-Zahiri reina da Miragem de Zahir.",
+      "metadata": {
+        "role": "kingdom",
+        "government": "sultanato",
+        "ruler": {
+          "name": "Rashid al-Zahiri",
+          "title": "Sultão das Areias Douradas",
+          "alignment": "NE",
+          "notes": "Patrono de caravanas e espiões; rival comercial da República e dos Ashari."
+        },
+        "capitalSlug": "miragem-zahir",
+        "banners": [
+          "Serpente Dourada"
+        ],
+        "rivals": [
+          "confederacao-ashari",
+          "republica-nove-ancoras"
+        ],
+        "levelRange": "3-15"
+      }
+    },
+    {
+      "slug": "republica-nove-ancoras",
+      "name": "República das Nove Âncoras",
+      "type": "wild",
+      "parentSlug": "aurathis",
+      "summary": "Liga marítima de nove portos; a Dogaressa Isolde Maré-Viva comanda o Grande Senado em Corsário.",
+      "metadata": {
+        "role": "kingdom",
+        "government": "república",
+        "ruler": {
+          "name": "Isolde Maré-Viva",
+          "title": "Dogaressa das Nove Âncoras",
+          "alignment": "CN",
+          "notes": "Eleita por capitães; controla rotas de airship e caravela para o continente inteiro."
+        },
+        "capitalSlug": "porto-corsario",
+        "banners": [
+          "Âncora Partida",
+          "Vela Negra"
+        ],
+        "allies": [
+          "reino-sol-nascente"
+        ],
+        "rivals": [
+          "sultanato-areias-douradas"
+        ],
+        "levelRange": "1-12"
+      }
+    },
+    {
+      "slug": "fronteira-veu-titanico",
+      "name": "Fronteira do Véu Titânico",
+      "type": "wild",
+      "parentSlug": "aurathis",
+      "summary": "Terras devastadas sem coroa estável; o Conselho do Bastão vigia ruínas onde titãs ainda sussurram.",
+      "metadata": {
+        "role": "frontier",
+        "government": "conselho militar",
+        "ruler": {
+          "name": "Comandante Thessaly Véu-Quebrado",
+          "title": "Regente do Bastão",
+          "alignment": "LG",
+          "notes": "Mandato renovado pelas sete coroas; ninguém reivindica trono aqui."
+        },
+        "capitalSlug": "bastiao-vigia-titanica",
+        "banners": [
+          "Véu Cinza"
+        ],
+        "levelRange": "10-20",
+        "danger": "extrema"
       }
     },
     {
       "slug": "cidadela-do-aco-luz",
       "name": "Cidadela do Aço-Luz",
       "type": "city",
-      "parentSlug": "aurathis",
-      "summary": "Capital humana erguida sobre placas que canalizam feitiços solares.",
+      "parentSlug": "reino-sol-nascente",
+      "summary": "Capital humana sobre placas solares; sede dos Guardiões Prismáticos e da Liga Mercante Heliana.",
       "isSpawnPool": true,
       "metadata": {
         "climate": "temperado",
-        "factions": ["Guardiões Prismáticos", "Liga Mercante Heliana"],
-        "role": "hub",
+        "factions": [
+          "Guardiões Prismáticos",
+          "Liga Mercante Heliana",
+          "Corte da Rainha"
+        ],
+        "role": "capital",
         "levelRange": "1-8",
-        "allowAiPois": true
+        "spawnTier": "intro",
+        "defaultSpawnPoi": "taverna-dragao-azul",
+        "allowAiPois": true,
+        "court": "Palácio Prismático — Rainha Heliana IV"
+      }
+    },
+    {
+      "slug": "vila-prata-lua",
+      "name": "Vila Prata-Lua",
+      "type": "city",
+      "parentSlug": "reino-sol-nascente",
+      "summary": "Entreposto agrícola no Vale Prateado; feudos leais à coroa, alvo de saqueadores das Marches.",
+      "isSpawnPool": true,
+      "metadata": {
+        "climate": "temperado",
+        "role": "town",
+        "levelRange": "1-5",
+        "spawnTier": "intro",
+        "defaultSpawnPoi": "taverna-tres-colinas",
+        "allowAiPois": true,
+        "lord": "Barão Eméric Prata-Lua"
       }
     },
     {
       "slug": "valdarin-violeta",
       "name": "Valdarin Violeta",
       "type": "city",
-      "parentSlug": "aurathis",
-      "summary": "Metrópole elfa envolta por névoa lilás e arranha-estrelas vivos.",
+      "parentSlug": "dominio-valdar-elfico",
+      "summary": "Metrópole élfica na névoa lilás; arranha-estrelas vivos abrigam o Conclave Lunar.",
       "isSpawnPool": true,
       "metadata": {
         "climate": "nebuloso",
         "specialty": "magia antiga",
+        "role": "capital",
         "levelRange": "7-14",
+        "spawnTier": "capital",
+        "defaultSpawnPoi": "bazar-nevoa-violeta",
+        "allowAiPois": true,
+        "court": "Torre do Conclave — Arquimaga Lireth Moondusk"
+      }
+    },
+    {
+      "slug": "clareira-conclave-verde",
+      "name": "Clareira do Conclave Verde",
+      "type": "city",
+      "parentSlug": "confederacao-ashari",
+      "summary": "Anfiteatro natural de raízes entrelaceadas; assembleia dos círculos Ashari.",
+      "isSpawnPool": true,
+      "metadata": {
+        "climate": "subtropical",
+        "role": "capital",
+        "levelRange": "3-10",
+        "spawnTier": "capital",
+        "defaultSpawnPoi": "circulo-raizes-mae",
+        "allowAiPois": true,
+        "court": "Trono de Musgo — Grande Druida Kaelith"
+      }
+    },
+    {
+      "slug": "fortaleza-vorngard",
+      "name": "Fortaleza Vorngard",
+      "type": "city",
+      "parentSlug": "marches-ferro-norte",
+      "summary": "Cidadela de basalto e gelo; forjas runicas abastecidas pela Mina Umbra.",
+      "isSpawnPool": true,
+      "metadata": {
+        "climate": "ártico",
+        "role": "capital",
+        "levelRange": "4-12",
+        "spawnTier": "capital",
+        "defaultSpawnPoi": "forja-corvo-geada",
+        "allowAiPois": true,
+        "court": "Salão do Thane — Gorvald Martelo-de-Gelo"
+      }
+    },
+    {
+      "slug": "miragem-zahir",
+      "name": "Miragem de Zahir",
+      "type": "city",
+      "parentSlug": "sultanato-areias-douradas",
+      "summary": "Cidade-oásis de cúpulas douradas; mercado de especiarias e relíquias do deserto.",
+      "isSpawnPool": true,
+      "metadata": {
+        "climate": "árido",
+        "role": "capital",
+        "levelRange": "3-11",
+        "spawnTier": "capital",
+        "defaultSpawnPoi": "bazar-especiarias",
+        "allowAiPois": true,
+        "court": "Palácio das Mil Cúpulas — Sultão Rashid al-Zahiri"
+      }
+    },
+    {
+      "slug": "porto-corsario",
+      "name": "Porto Corsário",
+      "type": "city",
+      "parentSlug": "republica-nove-ancoras",
+      "summary": "Maior âncora da República; estaleiros, cartórios de contrato e o Grande Senado.",
+      "isSpawnPool": true,
+      "metadata": {
+        "climate": "marítimo",
+        "role": "capital",
+        "levelRange": "1-10",
+        "spawnTier": "intro",
+        "defaultSpawnPoi": "taverna-vela-negra",
+        "allowAiPois": true,
+        "court": "Palácio das Velas — Dogaressa Isolde Maré-Viva"
+      }
+    },
+    {
+      "slug": "bastiao-vigia-titanica",
+      "name": "Bastião Vigia Titânica",
+      "type": "city",
+      "parentSlug": "fronteira-veu-titanico",
+      "summary": "Última fortificação civilizada antes do Véu; guarnição multinação sob a Regente Thessaly.",
+      "metadata": {
+        "climate": "montanhoso",
+        "role": "fortress-town",
+        "levelRange": "8-16",
         "allowAiPois": true
       }
     },
@@ -44,8 +942,8 @@
       "slug": "selva-de-ashari",
       "name": "Selva de Ashari",
       "type": "wild",
-      "parentSlug": "aurathis",
-      "summary": "Tapete de copas luminescentes onde druidas tecem rotas secretas.",
+      "parentSlug": "confederacao-ashari",
+      "summary": "Copas luminescentes e rotas secretas; coração espiritual da Confederação.",
       "metadata": {
         "climate": "subtropical",
         "levelRange": "5-12",
@@ -53,27 +951,92 @@
       }
     },
     {
+      "slug": "selvas-de-myr",
+      "name": "Selvas de Myr",
+      "type": "wild",
+      "parentSlug": "reino-sol-nascente",
+      "summary": "Floresta de fronteira entre o Reino do Sol e a Confederação; driadas errantes.",
+      "metadata": {
+        "climate": "úmido",
+        "levelRange": "4-10",
+        "effects": [
+          "magia selvagem leve"
+        ],
+        "allowAiPois": true
+      }
+    },
+    {
+      "slug": "bosque-lilas-perpetuo",
+      "name": "Bosque Lilás Perpétuo",
+      "type": "wild",
+      "parentSlug": "dominio-valdar-elfico",
+      "summary": "Borda élfica onde fey negociam passagem com astrólogos de Valdarin.",
+      "metadata": {
+        "climate": "nebuloso",
+        "levelRange": "6-13",
+        "allowAiPois": true
+      }
+    },
+    {
+      "slug": "planicie-corvos-geada",
+      "name": "Planície dos Corvos de Gelo",
+      "type": "wild",
+      "parentSlug": "marches-ferro-norte",
+      "summary": "Tundra vigiada por batedores; bandos de orcs e gigantes disputam cavernas.",
+      "metadata": {
+        "climate": "ártico",
+        "levelRange": "5-14",
+        "danger": "alta"
+      }
+    },
+    {
+      "slug": "deserto-coroa-dourada",
+      "name": "Deserto da Coroa Dourada",
+      "type": "wild",
+      "parentSlug": "sultanato-areias-douradas",
+      "summary": "Dunas e miragens; caravanas do Sultão cruzam em guarda armada.",
+      "metadata": {
+        "climate": "árido",
+        "levelRange": "4-12",
+        "allowAiPois": true
+      }
+    },
+    {
+      "slug": "arquipelago-nove-ilhas",
+      "name": "Arquipélago das Nove Ilhas",
+      "type": "wild",
+      "parentSlug": "republica-nove-ancoras",
+      "summary": "Cadeia costeira de portos menores; cada ilha elege um capitão para o Senado.",
+      "metadata": {
+        "climate": "marítimo",
+        "levelRange": "2-10",
+        "allowAiPois": true
+      }
+    },
+    {
+      "slug": "passagem-veu-partido",
+      "name": "Passagem do Véu Partido",
+      "type": "wild",
+      "parentSlug": "fronteira-veu-titanico",
+      "summary": "Fenda cristalina onde a realidade falha; expedições patrocinadas pelas coroas.",
+      "metadata": {
+        "levelRange": "12-20",
+        "danger": "extrema",
+        "planeAnchors": true
+      }
+    },
+    {
       "slug": "covil-obsidiano",
       "name": "Covil Obsidiano",
       "type": "dungeon",
       "parentSlug": "cidadela-do-aco-luz",
-      "summary": "Complexo subterrâneo onde um dragão petrificado serve de coração místico.",
+      "summary": "Complexo subterrâneo; dragão petrificado como núcleo místico do Prismático.",
       "metadata": {
         "levelRange": "12-18",
         "danger": "alta",
-        "notableLoot": ["Escamas Infusas"]
-      }
-    },
-    {
-      "slug": "selvas-de-myr",
-      "name": "Selvas de Myr",
-      "type": "wild",
-      "parentSlug": "cidadela-do-aco-luz",
-      "summary": "Floresta suspensa por raízes translúcidas, guardada por driadas errantes.",
-      "metadata": {
-        "climate": "úmido",
-        "levelRange": "4-10",
-        "effects": ["magia selvagem leve"]
+        "notableLoot": [
+          "Escamas Infusas"
+        ]
       }
     },
     {
@@ -81,53 +1044,262 @@
       "name": "Torre de Aetheryn",
       "type": "dungeon",
       "parentSlug": "valdarin-violeta",
-      "summary": "Pináculo espiral onde conjuradores estudam fragmentos do firmamento.",
+      "summary": "Pináculo espiral de estudo planar; vigias espectrais da Arquimaga.",
       "metadata": {
         "levelRange": "12-18",
         "danger": "alta",
         "planeAnchors": true
       }
+    },
+    {
+      "slug": "mina-umbra-profunda",
+      "name": "Mina Umbra Profunda",
+      "type": "dungeon",
+      "parentSlug": "fortaleza-vorngard",
+      "summary": "Veios de metal sombrio; colapso recente libertou aberrations nas galerias.",
+      "metadata": {
+        "levelRange": "8-15",
+        "danger": "alta"
+      }
+    },
+    {
+      "slug": "tumulos-reis-areia",
+      "name": "Túmulos dos Reis de Areia",
+      "type": "dungeon",
+      "parentSlug": "deserto-coroa-dourada",
+      "summary": "Necrópole selada; faraós mortos-vivos guardam pactos com entidades do deserto.",
+      "metadata": {
+        "levelRange": "9-16",
+        "danger": "alta"
+      }
+    },
+    {
+      "slug": "abismo-veio-arcano",
+      "name": "Abismo do Veio Arcano",
+      "type": "dungeon",
+      "parentSlug": "passagem-veu-partido",
+      "summary": "Poço até o núcleo titânico; distorções de tempo e gravidade.",
+      "metadata": {
+        "levelRange": "15-20",
+        "danger": "extrema"
+      }
     }
   ],
   "links": [
     {
-      "fromSlug": "aurathis",
+      "fromSlug": "reino-sol-nascente",
       "toSlug": "cidadela-do-aco-luz",
+      "travelMode": "mount",
+      "travelTimeMinutes": 12,
+      "difficulty": "baixa",
+      "notes": "Estrada coroa"
+    },
+    {
+      "fromSlug": "reino-sol-nascente",
+      "toSlug": "vila-prata-lua",
+      "travelMode": "walk",
+      "travelTimeMinutes": 25,
+      "difficulty": "baixa"
+    },
+    {
+      "fromSlug": "dominio-valdar-elfico",
+      "toSlug": "valdarin-violeta",
+      "travelMode": "walk",
+      "travelTimeMinutes": 15,
+      "difficulty": "baixa"
+    },
+    {
+      "fromSlug": "confederacao-ashari",
+      "toSlug": "clareira-conclave-verde",
+      "travelMode": "walk",
+      "travelTimeMinutes": 10,
+      "difficulty": "baixa"
+    },
+    {
+      "fromSlug": "marches-ferro-norte",
+      "toSlug": "fortaleza-vorngard",
+      "travelMode": "walk",
+      "travelTimeMinutes": 8,
+      "difficulty": "baixa"
+    },
+    {
+      "fromSlug": "sultanato-areias-douradas",
+      "toSlug": "miragem-zahir",
+      "travelMode": "mount",
+      "travelTimeMinutes": 10,
+      "difficulty": "baixa"
+    },
+    {
+      "fromSlug": "republica-nove-ancoras",
+      "toSlug": "porto-corsario",
+      "travelMode": "walk",
+      "travelTimeMinutes": 5,
+      "difficulty": "baixa"
+    },
+    {
+      "fromSlug": "fronteira-veu-titanico",
+      "toSlug": "bastiao-vigia-titanica",
+      "travelMode": "walk",
+      "travelTimeMinutes": 12,
+      "difficulty": "média"
+    },
+    {
+      "fromSlug": "cidadela-do-aco-luz",
+      "toSlug": "porto-corsario",
+      "travelMode": "ship",
+      "travelTimeMinutes": 55,
+      "difficulty": "média",
+      "notes": "Linha comercial oeste"
+    },
+    {
+      "fromSlug": "cidadela-do-aco-luz",
+      "toSlug": "valdarin-violeta",
       "travelMode": "airship",
-      "travelTimeMinutes": 35,
-      "notes": "Linha solar Heliana"
+      "travelTimeMinutes": 45,
+      "difficulty": "média",
+      "notes": "Pacto Sol–Valdar"
+    },
+    {
+      "fromSlug": "vila-prata-lua",
+      "toSlug": "clareira-conclave-verde",
+      "travelMode": "walk",
+      "travelTimeMinutes": 40,
+      "difficulty": "média",
+      "notes": "Trilha de fronteira sul"
+    },
+    {
+      "fromSlug": "porto-corsario",
+      "toSlug": "miragem-zahir",
+      "travelMode": "ship",
+      "travelTimeMinutes": 90,
+      "difficulty": "média",
+      "notes": "Rota de especiarias costeira"
     },
     {
       "fromSlug": "aurathis",
-      "toSlug": "valdarin-violeta",
+      "toSlug": "reino-sol-nascente",
       "travelMode": "airship",
-      "travelTimeMinutes": 50,
+      "travelTimeMinutes": 40,
+      "notes": "Rota solar Heliana"
+    },
+    {
+      "fromSlug": "aurathis",
+      "toSlug": "dominio-valdar-elfico",
+      "travelMode": "airship",
+      "travelTimeMinutes": 55,
       "difficulty": "média",
       "notes": "Passagem pela Névoa Violeta"
     },
     {
       "fromSlug": "aurathis",
-      "toSlug": "selva-de-ashari",
+      "toSlug": "confederacao-ashari",
       "travelMode": "mount",
-      "travelTimeMinutes": 25,
+      "travelTimeMinutes": 30,
       "difficulty": "média",
       "notes": "Trilha das constelações terrestres"
     },
     {
-      "fromSlug": "selva-de-ashari",
-      "toSlug": "selvas-de-myr",
-      "travelMode": "walk",
-      "travelTimeMinutes": 30,
+      "fromSlug": "aurathis",
+      "toSlug": "marches-ferro-norte",
+      "travelMode": "mount",
+      "travelTimeMinutes": 70,
       "difficulty": "alta",
-      "notes": "Passagem sussurrante entre raízes vivas"
+      "notes": "Estrada do Corvo de Gelo"
     },
     {
-      "fromSlug": "selva-de-ashari",
-      "toSlug": "covil-obsidiano",
-      "travelMode": "portal",
-      "travelTimeMinutes": 8,
+      "fromSlug": "aurathis",
+      "toSlug": "sultanato-areias-douradas",
+      "travelMode": "mount",
+      "travelTimeMinutes": 90,
       "difficulty": "alta",
-      "notes": "Fenda guardada por shamans Ashari"
+      "notes": "Caravana leste"
+    },
+    {
+      "fromSlug": "aurathis",
+      "toSlug": "republica-nove-ancoras",
+      "travelMode": "ship",
+      "travelTimeMinutes": 45,
+      "notes": "Linha costeira ocidental"
+    },
+    {
+      "fromSlug": "aurathis",
+      "toSlug": "fronteira-veu-titanico",
+      "travelMode": "airship",
+      "travelTimeMinutes": 120,
+      "difficulty": "alta",
+      "isLocked": true,
+      "notes": "Requer patente do Conselho do Bastão"
+    },
+    {
+      "fromSlug": "reino-sol-nascente",
+      "toSlug": "dominio-valdar-elfico",
+      "travelMode": "airship",
+      "travelTimeMinutes": 50,
+      "difficulty": "média",
+      "notes": "Trégua comercial Sol–Valdar"
+    },
+    {
+      "fromSlug": "reino-sol-nascente",
+      "toSlug": "marches-ferro-norte",
+      "travelMode": "mount",
+      "travelTimeMinutes": 65,
+      "difficulty": "alta",
+      "notes": "Disputada — patrulhas Heliana"
+    },
+    {
+      "fromSlug": "reino-sol-nascente",
+      "toSlug": "confederacao-ashari",
+      "travelMode": "walk",
+      "travelTimeMinutes": 35,
+      "difficulty": "média",
+      "notes": "Fronteira do Vale Prateado"
+    },
+    {
+      "fromSlug": "dominio-valdar-elfico",
+      "toSlug": "marches-ferro-norte",
+      "travelMode": "walk",
+      "travelTimeMinutes": 80,
+      "difficulty": "alta",
+      "notes": "Passagem montanhosa gelada"
+    },
+    {
+      "fromSlug": "confederacao-ashari",
+      "toSlug": "sultanato-areias-douradas",
+      "travelMode": "mount",
+      "travelTimeMinutes": 75,
+      "difficulty": "alta",
+      "notes": "Tributo Ashari na fronteira sul"
+    },
+    {
+      "fromSlug": "sultanato-areias-douradas",
+      "toSlug": "republica-nove-ancoras",
+      "travelMode": "ship",
+      "travelTimeMinutes": 100,
+      "difficulty": "média",
+      "notes": "Rota de especiarias"
+    },
+    {
+      "fromSlug": "republica-nove-ancoras",
+      "toSlug": "reino-sol-nascente",
+      "travelMode": "ship",
+      "travelTimeMinutes": 50,
+      "notes": "Suprimentos para a Cidadela"
+    },
+    {
+      "fromSlug": "fronteira-veu-titanico",
+      "toSlug": "dominio-valdar-elfico",
+      "travelMode": "portal",
+      "travelTimeMinutes": 15,
+      "difficulty": "alta",
+      "notes": "Portal do Conclave — uso restrito"
+    },
+    {
+      "fromSlug": "cidadela-do-aco-luz",
+      "toSlug": "vila-prata-lua",
+      "travelMode": "mount",
+      "travelTimeMinutes": 20,
+      "difficulty": "baixa",
+      "notes": "Estrada real pavimentada"
     },
     {
       "fromSlug": "cidadela-do-aco-luz",
@@ -136,17 +1308,6 @@
       "travelTimeMinutes": 15,
       "difficulty": "baixa",
       "notes": "Rampas reforçadas com runas"
-    },
-    {
-      "regionSlug": "selva-de-ashari",
-      "slug": "altar-de-lichen",
-      "name": "Altar de Líquen",
-      "type": "story",
-      "summary": "Ruína circular onde os Ashari negociam com espíritos de fauna.",
-      "metadata": {
-        "danger": "média",
-        "allowAiPois": true
-      }
     },
     {
       "fromSlug": "cidadela-do-aco-luz",
@@ -165,15 +1326,332 @@
       "notes": "Escadaria espiral protegida por vigias espectrais"
     },
     {
+      "fromSlug": "valdarin-violeta",
+      "toSlug": "bosque-lilas-perpetuo",
+      "travelMode": "walk",
+      "travelTimeMinutes": 25,
+      "difficulty": "média"
+    },
+    {
+      "fromSlug": "clareira-conclave-verde",
+      "toSlug": "selva-de-ashari",
+      "travelMode": "walk",
+      "travelTimeMinutes": 12,
+      "difficulty": "baixa"
+    },
+    {
+      "fromSlug": "selva-de-ashari",
+      "toSlug": "selvas-de-myr",
+      "travelMode": "walk",
+      "travelTimeMinutes": 30,
+      "difficulty": "alta",
+      "notes": "Passagem sussurrante entre raízes vivas"
+    },
+    {
+      "fromSlug": "selva-de-ashari",
+      "toSlug": "covil-obsidiano",
+      "travelMode": "portal",
+      "travelTimeMinutes": 8,
+      "difficulty": "alta",
+      "notes": "Fenda guardada por shamans Ashari"
+    },
+    {
+      "fromSlug": "fortaleza-vorngard",
+      "toSlug": "planicie-corvos-geada",
+      "travelMode": "mount",
+      "travelTimeMinutes": 22,
+      "difficulty": "média"
+    },
+    {
+      "fromSlug": "fortaleza-vorngard",
+      "toSlug": "mina-umbra-profunda",
+      "travelMode": "walk",
+      "travelTimeMinutes": 40,
+      "difficulty": "alta"
+    },
+    {
+      "fromSlug": "miragem-zahir",
+      "toSlug": "deserto-coroa-dourada",
+      "travelMode": "mount",
+      "travelTimeMinutes": 35,
+      "difficulty": "média"
+    },
+    {
+      "fromSlug": "porto-corsario",
+      "toSlug": "arquipelago-nove-ilhas",
+      "travelMode": "ship",
+      "travelTimeMinutes": 30,
+      "difficulty": "baixa"
+    },
+    {
+      "fromSlug": "bastiao-vigia-titanica",
+      "toSlug": "passagem-veu-partido",
+      "travelMode": "walk",
+      "travelTimeMinutes": 45,
+      "difficulty": "alta"
+    },
+    {
       "fromSlug": "covil-obsidiano",
       "toSlug": "torre-de-aetheryn",
       "travelMode": "portal",
       "travelTimeMinutes": 5,
       "difficulty": "alta",
       "notes": "Portal instável vinculado ao Núcleo do Dragão"
+    },
+    {
+      "fromSlug": "deserto-coroa-dourada",
+      "toSlug": "tumulos-reis-areia",
+      "travelMode": "walk",
+      "travelTimeMinutes": 50,
+      "difficulty": "alta"
+    },
+    {
+      "fromSlug": "passagem-veu-partido",
+      "toSlug": "abismo-veio-arcano",
+      "travelMode": "walk",
+      "travelTimeMinutes": 60,
+      "difficulty": "alta",
+      "isLocked": true
+    },
+    {
+      "fromSlug": "reino-sol-nascente",
+      "toSlug": "selvas-de-myr",
+      "travelMode": "walk",
+      "travelTimeMinutes": 28,
+      "difficulty": "média"
+    },
+    {
+      "fromSlug": "dominio-valdar-elfico",
+      "toSlug": "bosque-lilas-perpetuo",
+      "travelMode": "walk",
+      "travelTimeMinutes": 18,
+      "difficulty": "baixa"
+    },
+    {
+      "fromSlug": "marches-ferro-norte",
+      "toSlug": "planicie-corvos-geada",
+      "travelMode": "mount",
+      "travelTimeMinutes": 15,
+      "difficulty": "média"
+    },
+    {
+      "fromSlug": "sultanato-areias-douradas",
+      "toSlug": "deserto-coroa-dourada",
+      "travelMode": "mount",
+      "travelTimeMinutes": 20,
+      "difficulty": "média"
+    },
+    {
+      "fromSlug": "republica-nove-ancoras",
+      "toSlug": "arquipelago-nove-ilhas",
+      "travelMode": "ship",
+      "travelTimeMinutes": 25,
+      "difficulty": "baixa"
+    },
+    {
+      "fromSlug": "fortaleza-vorngard",
+      "toSlug": "cidadela-do-aco-luz",
+      "travelMode": "mount",
+      "travelTimeMinutes": 58,
+      "difficulty": "alta",
+      "notes": "Estrada militar norte"
+    },
+    {
+      "fromSlug": "fortaleza-vorngard",
+      "toSlug": "valdarin-violeta",
+      "travelMode": "walk",
+      "travelTimeMinutes": 70,
+      "difficulty": "alta",
+      "notes": "Passo do Corvo"
+    },
+    {
+      "fromSlug": "miragem-zahir",
+      "toSlug": "valdarin-violeta",
+      "travelMode": "airship",
+      "travelTimeMinutes": 65,
+      "difficulty": "média"
+    },
+    {
+      "fromSlug": "miragem-zahir",
+      "toSlug": "clareira-conclave-verde",
+      "travelMode": "mount",
+      "travelTimeMinutes": 55,
+      "difficulty": "média",
+      "notes": "Caravana de sal e especiarias"
+    },
+    {
+      "fromSlug": "porto-corsario",
+      "toSlug": "vila-prata-lua",
+      "travelMode": "ship",
+      "travelTimeMinutes": 35,
+      "difficulty": "baixa"
+    },
+    {
+      "fromSlug": "porto-corsario",
+      "toSlug": "fortaleza-vorngard",
+      "travelMode": "ship",
+      "travelTimeMinutes": 95,
+      "difficulty": "alta",
+      "notes": "Rota costeira gelada"
+    },
+    {
+      "fromSlug": "vila-prata-lua",
+      "toSlug": "reino-sol-nascente",
+      "travelMode": "walk",
+      "travelTimeMinutes": 18,
+      "difficulty": "baixa"
+    },
+    {
+      "fromSlug": "valdarin-violeta",
+      "toSlug": "clareira-conclave-verde",
+      "travelMode": "walk",
+      "travelTimeMinutes": 42,
+      "difficulty": "média",
+      "notes": "Trilha diplomática élfico–Ashari"
+    },
+    {
+      "fromSlug": "dominio-valdar-elfico",
+      "toSlug": "confederacao-ashari",
+      "travelMode": "walk",
+      "travelTimeMinutes": 48,
+      "difficulty": "média"
+    },
+    {
+      "fromSlug": "marches-ferro-norte",
+      "toSlug": "confederacao-ashari",
+      "travelMode": "walk",
+      "travelTimeMinutes": 90,
+      "difficulty": "alta",
+      "notes": "Passagem rara — sazonal"
+    },
+    {
+      "fromSlug": "sultanato-areias-douradas",
+      "toSlug": "fronteira-veu-titanico",
+      "travelMode": "mount",
+      "travelTimeMinutes": 85,
+      "difficulty": "alta"
+    },
+    {
+      "fromSlug": "bastiao-vigia-titanica",
+      "toSlug": "miragem-zahir",
+      "travelMode": "mount",
+      "travelTimeMinutes": 60,
+      "difficulty": "alta"
+    },
+    {
+      "fromSlug": "bastiao-vigia-titanica",
+      "toSlug": "sultanato-areias-douradas",
+      "travelMode": "walk",
+      "travelTimeMinutes": 50,
+      "difficulty": "média"
+    },
+    {
+      "fromSlug": "deserto-coroa-dourada",
+      "toSlug": "confederacao-ashari",
+      "travelMode": "mount",
+      "travelTimeMinutes": 45,
+      "difficulty": "alta"
+    },
+    {
+      "fromSlug": "planicie-corvos-geada",
+      "toSlug": "reino-sol-nascente",
+      "travelMode": "mount",
+      "travelTimeMinutes": 55,
+      "difficulty": "alta"
+    },
+    {
+      "fromSlug": "bosque-lilas-perpetuo",
+      "toSlug": "torre-de-aetheryn",
+      "travelMode": "walk",
+      "travelTimeMinutes": 22,
+      "difficulty": "média"
+    },
+    {
+      "fromSlug": "selvas-de-myr",
+      "toSlug": "clareira-conclave-verde",
+      "travelMode": "walk",
+      "travelTimeMinutes": 25,
+      "difficulty": "média"
+    },
+    {
+      "fromSlug": "covil-obsidiano",
+      "toSlug": "selvas-de-myr",
+      "travelMode": "walk",
+      "travelTimeMinutes": 20,
+      "difficulty": "média"
+    },
+    {
+      "fromSlug": "torre-de-aetheryn",
+      "toSlug": "passagem-veu-partido",
+      "travelMode": "portal",
+      "travelTimeMinutes": 12,
+      "difficulty": "alta",
+      "notes": "Ritual do Conclave"
+    },
+    {
+      "fromSlug": "mina-umbra-profunda",
+      "toSlug": "planicie-corvos-geada",
+      "travelMode": "walk",
+      "travelTimeMinutes": 35,
+      "difficulty": "alta"
+    },
+    {
+      "fromSlug": "tumulos-reis-areia",
+      "toSlug": "miragem-zahir",
+      "travelMode": "mount",
+      "travelTimeMinutes": 40,
+      "difficulty": "média"
+    },
+    {
+      "fromSlug": "arquipelago-nove-ilhas",
+      "toSlug": "cidadela-do-aco-luz",
+      "travelMode": "ship",
+      "travelTimeMinutes": 48,
+      "difficulty": "média"
+    },
+    {
+      "fromSlug": "republica-nove-ancoras",
+      "toSlug": "dominio-valdar-elfico",
+      "travelMode": "ship",
+      "travelTimeMinutes": 70,
+      "difficulty": "média",
+      "notes": "Rota marítima élfica"
+    },
+    {
+      "fromSlug": "fronteira-veu-titanico",
+      "toSlug": "sultanato-areias-douradas",
+      "travelMode": "airship",
+      "travelTimeMinutes": 75,
+      "difficulty": "alta"
+    },
+    {
+      "fromSlug": "reino-sol-nascente",
+      "toSlug": "republica-nove-ancoras",
+      "travelMode": "ship",
+      "travelTimeMinutes": 42,
+      "difficulty": "baixa"
+    },
+    {
+      "fromSlug": "marches-ferro-norte",
+      "toSlug": "sultanato-areias-douradas",
+      "travelMode": "mount",
+      "travelTimeMinutes": 100,
+      "difficulty": "alta",
+      "notes": "Rota de mercenários"
     }
   ],
   "pois": [
+    {
+      "regionSlug": "cidadela-do-aco-luz",
+      "slug": "palacio-prismatico",
+      "name": "Palácio Prismático",
+      "type": "story",
+      "summary": "Sede da Rainha Heliana IV; audiências, bailes e intrigas da Corte do Sol.",
+      "metadata": {
+        "ruler": "Heliana IV de Helios",
+        "access": "convite ou missão real"
+      }
+    },
     {
       "regionSlug": "cidadela-do-aco-luz",
       "slug": "foro-prismatico",
@@ -186,39 +1664,84 @@
       "slug": "guilda-dos-auroras",
       "name": "Guilda dos Auroras",
       "type": "shop",
-      "summary": "Quartel-general dos Guardiões Prismáticos, com contratos épicos."
+      "summary": "Quartel-general dos Guardiões Prismáticos; contratos épicos.",
+      "metadata": {
+        "contact": "Comandante Sera Dawnshield"
+      }
     },
     {
       "regionSlug": "cidadela-do-aco-luz",
       "slug": "taverna-dragao-azul",
       "name": "Taverna Dragão Azul",
       "type": "shop",
-      "summary": "Taberna multissala conectada ao mercado inferior, ponto comum de ganchos e rumores.",
-      "metadata": { "category": "inn", "services": ["refeições", "boatos"], "allowRest": true }
+      "summary": "Taberna multissala no mercado inferior; rumores e ganchos de aventureiros.",
+      "metadata": {
+        "category": "inn",
+        "services": [
+          "refeições",
+          "boatos"
+        ],
+        "allowRest": true
+      }
     },
     {
       "regionSlug": "cidadela-do-aco-luz",
       "slug": "estalagem-vigilia-serena",
       "name": "Estalagem Vigília Serena",
       "type": "misc",
-      "summary": "Refúgio seguro mantido pelos Guardiões Prismáticos para missões delicadas.",
-      "metadata": { "requiresPermit": true }
+      "summary": "Refúgio dos Guardiões para missões delicadas.",
+      "metadata": {
+        "requiresPermit": true
+      }
     },
     {
       "regionSlug": "cidadela-do-aco-luz",
       "slug": "oficina-sol-forjado",
       "name": "Armaría Sol-Forjado",
       "type": "shop",
-      "summary": "Ferreira especializada em armaduras canalizadoras de luz.",
-      "metadata": { "tags": ["armas", "armaduras"], "crafter": "Mestre Harn" }
+      "summary": "Armaduras canalizadoras de luz; Mestre Harn atende por encomenda.",
+      "metadata": {
+        "tags": [
+          "armas",
+          "armaduras"
+        ],
+        "crafter": "Mestre Harn"
+      }
     },
     {
-      "regionSlug": "covil-obsidiano",
-      "slug": "camaras-do-nucleo",
-      "name": "Câmaras do Núcleo",
-      "type": "dungeon",
-      "summary": "Sala onde o coração cristalizado do dragão pulsa energia bruta.",
-      "metadata": { "danger": "altíssima" }
+      "regionSlug": "cidadela-do-aco-luz",
+      "slug": "cidadela-do-aco-luz-gate",
+      "name": "Portão do Covil Obsidiano",
+      "type": "landmark",
+      "summary": "Entrada selada para o subsolo do dragão petrificado."
+    },
+    {
+      "regionSlug": "vila-prata-lua",
+      "slug": "moinho-prata-lua",
+      "name": "Moinho Prata-Lua",
+      "type": "landmark",
+      "summary": "Centro da vila; o Barão Eméric cobra impostos e recruta milícia."
+    },
+    {
+      "regionSlug": "vila-prata-lua",
+      "slug": "taverna-tres-colinas",
+      "name": "Taverna Três Colinas",
+      "type": "shop",
+      "summary": "Único lugar de bebida forte; mapas de saqueadores nas mesas.",
+      "metadata": {
+        "category": "inn",
+        "allowRest": true
+      }
+    },
+    {
+      "regionSlug": "valdarin-violeta",
+      "slug": "torre-conclave-lunar",
+      "name": "Torre do Conclave Lunar",
+      "type": "story",
+      "summary": "Residência da Arquimaga Lireth; tratados e biblioteca estelar.",
+      "metadata": {
+        "ruler": "Lireth Moondusk"
+      }
     },
     {
       "regionSlug": "valdarin-violeta",
@@ -232,21 +1755,666 @@
       "slug": "salas-do-conclave-lunar",
       "name": "Salas do Conclave Lunar",
       "type": "story",
-      "summary": "Câmara onde emissários lunares negociam tréguas e missões secretas."
+      "summary": "Emissários lunares negociam tréguas e missões secretas."
+    },
+    {
+      "regionSlug": "valdarin-violeta",
+      "slug": "bazar-nevoa-violeta",
+      "name": "Bazar da Névoa Violeta",
+      "type": "shop",
+      "summary": "Componentes arcanos e relíquias élficas; preços em favores.",
+      "metadata": {
+        "tags": [
+          "componentes",
+          "pergaminhos"
+        ]
+      }
+    },
+    {
+      "regionSlug": "clareira-conclave-verde",
+      "slug": "trono-musgo",
+      "name": "Trono de Musgo",
+      "type": "story",
+      "summary": "Assento vivo do Grande Druida Kaelith; audiências ao amanhecer.",
+      "metadata": {
+        "ruler": "Kaelith Sussurro-Verde"
+      }
+    },
+    {
+      "regionSlug": "clareira-conclave-verde",
+      "slug": "circulo-raizes-mae",
+      "name": "Círculo das Raízes-Mãe",
+      "type": "landmark",
+      "summary": "Rituais que abrem ou fecham passagens pela selva."
+    },
+    {
+      "regionSlug": "fortaleza-vorngard",
+      "slug": "salao-thane",
+      "name": "Salão do Thane",
+      "type": "story",
+      "summary": "Gorvald julga disputas de clãs; banquetes de hidromel de gelo.",
+      "metadata": {
+        "ruler": "Gorvald Martelo-de-Gelo"
+      }
+    },
+    {
+      "regionSlug": "fortaleza-vorngard",
+      "slug": "forja-corvo-geada",
+      "name": "Forja Corvo de Gelo",
+      "type": "shop",
+      "summary": "Armas rúnicas anãs; lista de espera de seis meses.",
+      "metadata": {
+        "crafter": "Ferreira Brunna Escama-Fria"
+      }
+    },
+    {
+      "regionSlug": "miragem-zahir",
+      "slug": "palacio-mil-cupulas",
+      "name": "Palácio das Mil Cúpulas",
+      "type": "story",
+      "summary": "Harem político e tesouro do Sultão Rashid; espiões em cada corredor.",
+      "metadata": {
+        "ruler": "Rashid al-Zahiri"
+      }
+    },
+    {
+      "regionSlug": "miragem-zahir",
+      "slug": "bazar-especiarias",
+      "name": "Bazar das Especiarias",
+      "type": "shop",
+      "summary": "Mercado coberto; contrabando para a República e o Domínio.",
+      "metadata": {
+        "tags": [
+          "mercadorias",
+          "informação"
+        ]
+      }
+    },
+    {
+      "regionSlug": "porto-corsario",
+      "slug": "palacio-velas",
+      "name": "Palácio das Velas",
+      "type": "story",
+      "summary": "Grande Senado e aposentos da Dogaressa Isolde Maré-Viva.",
+      "metadata": {
+        "ruler": "Isolde Maré-Viva"
+      }
+    },
+    {
+      "regionSlug": "porto-corsario",
+      "slug": "estaleiro-ancora-mestra",
+      "name": "Estaleiro Âncora-Mestra",
+      "type": "landmark",
+      "summary": "Construção de caravelas e docas de airship; licenças caras."
+    },
+    {
+      "regionSlug": "porto-corsario",
+      "slug": "taverna-vela-negra",
+      "name": "Taverna Vela Negra",
+      "type": "shop",
+      "summary": "Contrabandistas e cartógrafos; melhor mapa informal de Aurathis.",
+      "metadata": {
+        "category": "inn",
+        "allowRest": true
+      }
+    },
+    {
+      "regionSlug": "bastiao-vigia-titanica",
+      "slug": "quartel-conselho-veu",
+      "name": "Quartel do Conselho do Véu",
+      "type": "story",
+      "summary": "Regente Thessaly coordena expedições multinação.",
+      "metadata": {
+        "ruler": "Thessaly Véu-Quebrado"
+      }
+    },
+    {
+      "regionSlug": "selva-de-ashari",
+      "slug": "altar-de-lichen",
+      "name": "Altar de Líquen",
+      "type": "story",
+      "summary": "Ruína circular onde Ashari negociam com espíritos de fauna.",
+      "metadata": {
+        "danger": "média",
+        "allowAiPois": true
+      }
+    },
+    {
+      "regionSlug": "selva-de-ashari",
+      "slug": "ponte-sussurro",
+      "name": "Ponte do Sussurro",
+      "type": "landmark",
+      "summary": "Passagem viva entre copas; guardada por druidas sem nome."
     },
     {
       "regionSlug": "selvas-de-myr",
       "slug": "santuario-harmonia",
       "name": "Santuário Harmonia",
       "type": "story",
-      "summary": "Templo natural que concede audições com Seraphenne."
+      "summary": "Templo natural que concede audições com Seraphenne.",
+      "metadata": {
+        "deity": "Seraphenne"
+      }
+    },
+    {
+      "regionSlug": "bosque-lilas-perpetuo",
+      "slug": "clareira-acordos-fey",
+      "name": "Clareira dos Acordos Fey",
+      "type": "story",
+      "summary": "Tratados com corte feérica; violar pacto atrai maldições."
+    },
+    {
+      "regionSlug": "planicie-corvos-geada",
+      "slug": "acampamento-corvo-branco",
+      "name": "Acampamento Corvo Branco",
+      "type": "misc",
+      "summary": "Batedores das Marches; contratos contra gigantes e orcs."
+    },
+    {
+      "regionSlug": "deserto-coroa-dourada",
+      "slug": "oasis-serpente",
+      "name": "Oásis Serpente Dourada",
+      "type": "landmark",
+      "summary": "Única água segura por cem léguas; taxa do Sultão obrigatória."
+    },
+    {
+      "regionSlug": "arquipelago-nove-ilhas",
+      "slug": "farol-tempestade",
+      "name": "Farol da Tempestade",
+      "type": "landmark",
+      "summary": "Ilha-sétima; sinal de naufrágios e contratos de resgate."
+    },
+    {
+      "regionSlug": "covil-obsidiano",
+      "slug": "camaras-do-nucleo",
+      "name": "Câmaras do Núcleo",
+      "type": "dungeon",
+      "summary": "Coração cristalizado do dragão; energia bruta instável.",
+      "metadata": {
+        "danger": "altíssima"
+      }
     },
     {
       "regionSlug": "torre-de-aetheryn",
       "slug": "observatorio-primordial",
       "name": "Observatório Primordial",
       "type": "landmark",
-      "summary": "Câmara superior aberta para o vazio estrelado, usada em rituais de viagem planar."
+      "summary": "Rituais de viagem planar sob supervisão do Conclave."
+    },
+    {
+      "regionSlug": "mina-umbra-profunda",
+      "slug": "galeria-aberrante",
+      "name": "Galeria Aberrante",
+      "type": "dungeon",
+      "summary": "Colapso recente; criaturas da umbra e escória anã perdida.",
+      "metadata": {
+        "danger": "alta"
+      }
+    },
+    {
+      "regionSlug": "tumulos-reis-areia",
+      "slug": "sarcofago-rashid-ancestral",
+      "name": "Sarcófago do Rashid Ancestral",
+      "type": "dungeon",
+      "summary": "Antepassado do Sultão; ladrões viram múmias em uma noite.",
+      "metadata": {
+        "danger": "alta"
+      }
+    },
+    {
+      "regionSlug": "passagem-veu-partido",
+      "slug": "monolito-ixolar",
+      "name": "Monólito de Ixolar",
+      "type": "landmark",
+      "summary": "Runas titânicas ainda quentes; visões de cataclismos passados."
+    },
+    {
+      "regionSlug": "abismo-veio-arcano",
+      "slug": "plataforma-veio-zero",
+      "name": "Plataforma Veio Zero",
+      "type": "dungeon",
+      "summary": "Último patamar antes do núcleo; gravidade invertida em marés arcanas.",
+      "metadata": {
+        "danger": "extrema"
+      }
+    },
+    {
+      "regionSlug": "cidadela-do-aco-luz",
+      "slug": "mercado-anel-solar",
+      "name": "Mercado do Anel Solar",
+      "type": "shop",
+      "summary": "Feira de cristais e contratos da Liga Mercante; preços mudam ao pôr do sol.",
+      "metadata": {
+        "tags": [
+          "mercadorias",
+          "informação"
+        ],
+        "category": "market"
+      }
+    },
+    {
+      "regionSlug": "cidadela-do-aco-luz",
+      "slug": "templo-menor-ixolar",
+      "name": "Templo Menor de Ixolar",
+      "type": "landmark",
+      "summary": "Clérigos solares oferecem cura menor e visões sobre o Prismático."
+    },
+    {
+      "regionSlug": "cidadela-do-aco-luz",
+      "slug": "academia-prismatica",
+      "name": "Academia Prismática",
+      "type": "story",
+      "summary": "Magos da coroa estudam feitiços solares; acesso por patente real."
+    },
+    {
+      "regionSlug": "cidadela-do-aco-luz",
+      "slug": "cemiterio-herois-sol",
+      "name": "Cemitério dos Heróis do Sol",
+      "type": "landmark",
+      "summary": "Túmulos de campeões; rumores de mortos-vivos em noites de eclipse."
+    },
+    {
+      "regionSlug": "vila-prata-lua",
+      "slug": "celeiro-coletivo",
+      "name": "Celeiro Coletivo",
+      "type": "misc",
+      "summary": "Depósito de grãos; contratos de escolta para a Cidadela."
+    },
+    {
+      "regionSlug": "vila-prata-lua",
+      "slug": "capela-prata-lua",
+      "name": "Capela Prata-Lua",
+      "type": "landmark",
+      "summary": "Sacerdotisa de Seraphenne abriga refugiados das Marches."
+    },
+    {
+      "regionSlug": "vila-prata-lua",
+      "slug": "posto-milicia-vale",
+      "name": "Posto da Milícia do Vale",
+      "type": "misc",
+      "summary": "Recrutamento e relatórios de bandidos na fronteira sul."
+    },
+    {
+      "regionSlug": "valdarin-violeta",
+      "slug": "biblioteca-vazia",
+      "name": "Biblioteca do Vazio",
+      "type": "story",
+      "summary": "Tomos proibidos sob selo lunar; emissários pagam em segredos.",
+      "metadata": {
+        "danger": "média"
+      }
+    },
+    {
+      "regionSlug": "valdarin-violeta",
+      "slug": "enclave-fey-lilas",
+      "name": "Enclave Fey Lilás",
+      "type": "story",
+      "summary": "Portal discreto para o Bosque; barganhas perigosas."
+    },
+    {
+      "regionSlug": "valdarin-violeta",
+      "slug": "cafe-oraculo",
+      "name": "Café do Oráculo",
+      "type": "shop",
+      "summary": "Adivinhos e mapas estelares; boato central de Valdarin.",
+      "metadata": {
+        "category": "inn",
+        "allowRest": true
+      }
+    },
+    {
+      "regionSlug": "clareira-conclave-verde",
+      "slug": "viveiro-sementes-ancestrais",
+      "name": "Viveiro de Sementes Ancestrais",
+      "type": "landmark",
+      "summary": "Plantas raras trocadas por favores aos círculos Ashari."
+    },
+    {
+      "regionSlug": "clareira-conclave-verde",
+      "slug": "pocao-cura-viva",
+      "name": "Poção da Casca Viva",
+      "type": "shop",
+      "summary": "Druidas vendem unguentos; teste de lealdade à Confederação."
+    },
+    {
+      "regionSlug": "clareira-conclave-verde",
+      "slug": "arborismo-sagrado",
+      "name": "Arborismo Sagrado",
+      "type": "story",
+      "summary": "Árvore colossal onde pactos entre clãs são selados com sangue de líquen."
+    },
+    {
+      "regionSlug": "fortaleza-vorngard",
+      "slug": "taverna-gelo-partido",
+      "name": "Taverna Gelo Partido",
+      "type": "shop",
+      "summary": "Hidromel de gelo e histórias de gigantes; brigas frequentes.",
+      "metadata": {
+        "category": "inn",
+        "allowRest": true
+      }
+    },
+    {
+      "regionSlug": "fortaleza-vorngard",
+      "slug": "posto-escolta-mina",
+      "name": "Posto de Escolta da Mina",
+      "type": "misc",
+      "summary": "Contratos para a Mina Umbra; paga em metal sombrio."
+    },
+    {
+      "regionSlug": "fortaleza-vorngard",
+      "slug": "templo-anoes-odrun",
+      "name": "Templo de Odrun",
+      "type": "landmark",
+      "summary": "Clérigos anões abençoam armas antes de expedições ao gelo."
+    },
+    {
+      "regionSlug": "miragem-zahir",
+      "slug": "hammam-dourado",
+      "name": "Hammam Dourado",
+      "type": "shop",
+      "summary": "Banhos públicos e intrigas do harém; espiões do Sultão.",
+      "metadata": {
+        "allowRest": true
+      }
+    },
+    {
+      "regionSlug": "miragem-zahir",
+      "slug": "caravansarai-leste",
+      "name": "Caravansarai do Leste",
+      "type": "landmark",
+      "summary": "Entrada de caravanas do deserto; taxas e informação."
+    },
+    {
+      "regionSlug": "miragem-zahir",
+      "slug": "jardim-sultao",
+      "name": "Jardim do Sultão",
+      "type": "story",
+      "summary": "Labirinto de cúpulas; assassinatos disfarçados de acidentes."
+    },
+    {
+      "regionSlug": "porto-corsario",
+      "slug": "doca-pescadores",
+      "name": "Doca dos Pescadores",
+      "type": "landmark",
+      "summary": "Peixe fresco e contratos de convés; início de rotas para as ilhas."
+    },
+    {
+      "regionSlug": "porto-corsario",
+      "slug": "cartorio-contratos",
+      "name": "Cartório de Contratos",
+      "type": "story",
+      "summary": "Registro de cartas de marque e seguros de carga; suborno comum."
+    },
+    {
+      "regionSlug": "porto-corsario",
+      "slug": "mercado-peixe-sal",
+      "name": "Mercado do Peixe Salgado",
+      "type": "shop",
+      "summary": "Suprimentos baratos; contrabando escondido no gelo dos barris."
+    },
+    {
+      "regionSlug": "bastiao-vigia-titanica",
+      "slug": "enfermaria-campo",
+      "name": "Enfermaria de Campo",
+      "type": "misc",
+      "summary": "Curandeiros do Conselho tratam expedições feridas pelo Véu."
+    },
+    {
+      "regionSlug": "bastiao-vigia-titanica",
+      "slug": "arsenal-veu",
+      "name": "Arsenal do Véu",
+      "type": "shop",
+      "summary": "Armas anti-aberração; só com patente do Bastão."
+    },
+    {
+      "regionSlug": "bastiao-vigia-titanica",
+      "slug": "memorial-expedicoes",
+      "name": "Memorial das Expedições Perdidas",
+      "type": "landmark",
+      "summary": "Placas com nomes apagados; visões noturnas relatadas."
+    },
+    {
+      "regionSlug": "selva-de-ashari",
+      "slug": "ninho-harpias-sul",
+      "name": "Ninho das Harpias do Sul",
+      "type": "wild",
+      "summary": "Penhasco nas copas; caçadores pagam por penas e ovos.",
+      "metadata": {
+        "danger": "alta"
+      }
+    },
+    {
+      "regionSlug": "selva-de-ashari",
+      "slug": "cachoeira-espiritos",
+      "name": "Cachoeira dos Espíritos",
+      "type": "landmark",
+      "summary": "Águas que sussurram nomes; rituais de purificação Ashari."
+    },
+    {
+      "regionSlug": "selva-de-ashari",
+      "slug": "acampamento-escolta",
+      "name": "Acampamento de Escolta",
+      "type": "misc",
+      "summary": "Guias oferecem passagem segura até a Clareira ou Myr."
+    },
+    {
+      "regionSlug": "selvas-de-myr",
+      "slug": "acampamento-myr",
+      "name": "Acampamento Myr",
+      "type": "misc",
+      "summary": "Aventureiros e druidas negociam passagem com driadas."
+    },
+    {
+      "regionSlug": "selvas-de-myr",
+      "slug": "ruinas-elvenas-myr",
+      "name": "Ruínas Élficas de Myr",
+      "type": "story",
+      "summary": "Arcos cobertos de musgo; símbolos do Domínio antes da Queda.",
+      "metadata": {
+        "danger": "média"
+      }
+    },
+    {
+      "regionSlug": "selvas-de-myr",
+      "slug": "clareira-driadas",
+      "name": "Clareira das Driadas",
+      "type": "story",
+      "summary": "Negociação com entidades fey; quebrar pacto atrai maldição."
+    },
+    {
+      "regionSlug": "bosque-lilas-perpetuo",
+      "slug": "lago-lilas",
+      "name": "Lago Lilás",
+      "type": "landmark",
+      "summary": "Águas que refletem constelações erradas; banho proibido."
+    },
+    {
+      "regionSlug": "bosque-lilas-perpetuo",
+      "slug": "portal-fey-rachado",
+      "name": "Portal Fey Rachado",
+      "type": "dungeon",
+      "summary": "Fenda instável; saída aleatória em Valdarin ou na Selva.",
+      "metadata": {
+        "danger": "alta"
+      }
+    },
+    {
+      "regionSlug": "planicie-corvos-geada",
+      "slug": "tumulo-ancestral-geada",
+      "name": "Túmulo Ancestral de Gelo",
+      "type": "story",
+      "summary": "Barrow dos primeiros thanes; wights em tempestades."
+    },
+    {
+      "regionSlug": "planicie-corvos-geada",
+      "slug": "refugio-mineradores",
+      "name": "Refúgio dos Mineradores",
+      "type": "misc",
+      "summary": "Abrigo antes da descida à Mina Umbra; jogos de dados e rumores."
+    },
+    {
+      "regionSlug": "deserto-coroa-dourada",
+      "slug": "caravana-perdida",
+      "name": "Caravana Perdida",
+      "type": "story",
+      "summary": "Restos de mercadores; mapas rasgados apontam para os Túmulos.",
+      "metadata": {
+        "danger": "média"
+      }
+    },
+    {
+      "regionSlug": "deserto-coroa-dourada",
+      "slug": "ruinas-poco-oleo",
+      "name": "Ruínas do Poço de Óleo",
+      "type": "dungeon",
+      "summary": "Poço seco com vapores alucinógenos; culto serpente."
+    },
+    {
+      "regionSlug": "deserto-coroa-dourada",
+      "slug": "miragem-falsa",
+      "name": "Miragem Falsa",
+      "type": "wild",
+      "summary": "Cidade ilusória; teste de Sabedoria para não vagar em círculos."
+    },
+    {
+      "regionSlug": "arquipelago-nove-ilhas",
+      "slug": "mercado-peixe-ilhas",
+      "name": "Mercado Flutuante das Ilhas",
+      "type": "shop",
+      "summary": "Trocas entre ilhas; mapas náuticos atualizados semanalmente."
+    },
+    {
+      "regionSlug": "arquipelago-nove-ilhas",
+      "slug": "enseada-pirata",
+      "name": "Enseada do Corsário Negro",
+      "type": "story",
+      "summary": "Ancoradouro secreto; Dogaressa finge não saber.",
+      "metadata": {
+        "danger": "média"
+      }
+    },
+    {
+      "regionSlug": "covil-obsidiano",
+      "slug": "entrada-selada-dragao",
+      "name": "Entrada Selada do Dragão",
+      "type": "landmark",
+      "summary": "Runas prismáticas; abrir exige chave da Rainha ou missão da guilda."
+    },
+    {
+      "regionSlug": "covil-obsidiano",
+      "slug": "forja-obsidiana",
+      "name": "Forja Obsidiana",
+      "type": "shop",
+      "summary": "Metal vulcânico residual; apenas com escolta dos Auroras."
+    },
+    {
+      "regionSlug": "torre-de-aetheryn",
+      "slug": "laboratorio-planar",
+      "name": "Laboratório Planar",
+      "type": "story",
+      "summary": "Experimentos perigosos; fendas temporárias para outros planos."
+    },
+    {
+      "regionSlug": "torre-de-aetheryn",
+      "slug": "celas-estudo",
+      "name": "Celas de Estudo",
+      "type": "misc",
+      "summary": "Aprendizes sumidos; quadros negros com equações vivas."
+    },
+    {
+      "regionSlug": "mina-umbra-profunda",
+      "slug": "forja-profunda",
+      "name": "Forja Profunda",
+      "type": "shop",
+      "summary": "Bigornas anãs abandonadas; eco de martelos à noite."
+    },
+    {
+      "regionSlug": "mina-umbra-profunda",
+      "slug": "altar-umbra",
+      "name": "Altar da Umbra",
+      "type": "story",
+      "summary": "Cristais negros pulsantes; aberrations adoram aqui.",
+      "metadata": {
+        "danger": "altíssima"
+      }
+    },
+    {
+      "regionSlug": "tumulos-reis-areia",
+      "slug": "antecamara-farao",
+      "name": "Antecâmara do Faraó",
+      "type": "dungeon",
+      "summary": "Armadilhas de areia movediça; hieróglifos que queimam a vista."
+    },
+    {
+      "regionSlug": "tumulos-reis-areia",
+      "slug": "poco-tesouro-amaldicoado",
+      "name": "Poço do Tesouro Amaldiçoado",
+      "type": "dungeon",
+      "summary": "Ouro real, mas maldição de sede eterna."
+    },
+    {
+      "regionSlug": "passagem-veu-partido",
+      "slug": "acampamento-escaladores",
+      "name": "Acampamento dos Escaladores",
+      "type": "misc",
+      "summary": "Último abrigo antes do Abismo; veteranos vendem cordas encantadas."
+    },
+    {
+      "regionSlug": "passagem-veu-partido",
+      "slug": "observatorio-ruina",
+      "name": "Observatório em Ruínas",
+      "type": "landmark",
+      "summary": "Lentes partidas ainda mostram titãs caminhando."
+    },
+    {
+      "regionSlug": "abismo-veio-arcano",
+      "slug": "ponte-gravidade",
+      "name": "Ponte da Gravidade",
+      "type": "landmark",
+      "summary": "Pedras flutuantes instáveis; queda fatal se falhar Agilidade."
+    },
+    {
+      "regionSlug": "reino-sol-nascente",
+      "slug": "marco-fronteira-sol",
+      "name": "Marco de Fronteira Solar",
+      "type": "landmark",
+      "summary": "Pedra com brasão; patrulhas registram quem entra no reino."
+    },
+    {
+      "regionSlug": "dominio-valdar-elfico",
+      "slug": "obelisco-lua",
+      "name": "Obelisco da Lua",
+      "type": "landmark",
+      "summary": "Marco élfico; visões de futuro em lua cheia."
+    },
+    {
+      "regionSlug": "confederacao-ashari",
+      "slug": "totem-cla-unido",
+      "name": "Totem dos Clãs Unidos",
+      "type": "landmark",
+      "summary": "Onde círculos Ashari votam guerras contra o deserto."
+    },
+    {
+      "regionSlug": "marches-ferro-norte",
+      "slug": "estela-thane",
+      "name": "Estela do Thane",
+      "type": "landmark",
+      "summary": "Monólito de gelo; juramentos de sangue renovados cada inverno."
+    },
+    {
+      "regionSlug": "sultanato-areias-douradas",
+      "slug": "poco-oraculo-areia",
+      "name": "Poço do Oráculo de Areia",
+      "type": "story",
+      "summary": "Sussurros em língua antiga; Sultão envia espiões disfarçados."
+    },
+    {
+      "regionSlug": "republica-nove-ancoras",
+      "slug": "farol-mestre-ancoras",
+      "name": "Farol-Mestre das Âncoras",
+      "type": "landmark",
+      "summary": "Sinalização de tempestades; capitães pagam taxa de passagem."
     }
   ]
 }

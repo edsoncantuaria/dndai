@@ -31,38 +31,65 @@ export const qdrantVectorStore: VectorStore = {
     async ensureCollections(): Promise<void> {
         const qdrant = getClient();
         if (!qdrant) return;
+        const targetSize = penaiEnv.QDRANT_VECTOR_SIZE;
         for (const name of COLLECTIONS) {
             const existing = await qdrant.getCollection(name).catch(() => null);
-            if (!existing) {
+            const currentSize = existing
+                ? Number(
+                      (existing as { config?: { params?: { vectors?: { size?: number } } } })
+                          .config?.params?.vectors?.size ?? 0,
+                  )
+                : 0;
+            if (existing && currentSize && currentSize !== targetSize) {
+                console.warn(
+                    `[Qdrant] Recriando ${name}: dim ${currentSize} → ${targetSize}`,
+                );
+                await qdrant.deleteCollection(name);
+            }
+            if (!existing || (currentSize && currentSize !== targetSize)) {
                 await qdrant.createCollection(name, {
-                    vectors: { size: penaiEnv.QDRANT_VECTOR_SIZE, distance: 'Cosine' },
+                    vectors: { size: targetSize, distance: 'Cosine' },
                 });
-                console.log(`[Qdrant] Coleção criada: ${name}`);
+                console.log(`[Qdrant] Coleção criada: ${name} (${targetSize}d)`);
             }
         }
     },
     async upsert(collection, pointId, vector, payload): Promise<void> {
         const qdrant = getClient();
         if (!qdrant || !vector.length) return;
-        await qdrant.upsert(collection, { wait: true, points: [{ id: pointId, vector, payload }] });
+        if (vector.length !== penaiEnv.QDRANT_VECTOR_SIZE) return;
+        try {
+            await qdrant.upsert(collection, {
+                wait: true,
+                points: [{ id: pointId, vector, payload }],
+            });
+        } catch (err) {
+            console.warn(`[Qdrant] upsert ${collection} falhou:`, err);
+        }
     },
     async search(collection, vector, limit, filter) {
         const qdrant = getClient();
         if (!qdrant || !vector.length) return [];
+        if (vector.length !== penaiEnv.QDRANT_VECTOR_SIZE) return [];
         const must = filter
             ? Object.entries(filter).map(([key, value]) => ({ key, match: { value } }))
             : undefined;
-        const response = await qdrant.search(collection, {
-            vector,
-            limit,
-            with_payload: true,
-            filter: must ? { must } : undefined,
-        });
-        return response.map(hit => ({
-            id: String(hit.id),
-            score: hit.score ?? 0,
-            payload: (hit.payload ?? {}) as Record<string, unknown>,
-        }));
+        try {
+            const response = await qdrant.search(collection, {
+                vector,
+                limit,
+                with_payload: true,
+                filter: must ? { must } : undefined,
+            });
+            return response.map(hit => ({
+                id: String(hit.id),
+                score: hit.score ?? 0,
+                payload: (hit.payload ?? {}) as Record<string, unknown>,
+            }));
+        } catch (err) {
+            console.warn(`[Qdrant] search ${collection} falhou:`, err);
+            return [];
+        }
     },
 };
 

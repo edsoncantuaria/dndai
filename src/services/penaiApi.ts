@@ -110,10 +110,16 @@ export type PenaiWorldBootstrapRunResponse = PenaiSessionUiState & {
     workflowId?: string;
 };
 
-export async function runPenaiWorldBootstrap(sessionId: number) {
+export async function runPenaiWorldBootstrap(sessionId: number, offline = false) {
     return apiClient<PenaiWorldBootstrapRunResponse>(`/v2/sessions/${sessionId}/world-bootstrap`, {
         method: 'POST',
+        body: offline ? JSON.stringify({ offline: true }) : undefined,
     });
+}
+
+/** Completa bootstrap com seed offline quando Gemini falha. */
+export async function runPenaiWorldBootstrapFallback(sessionId: number) {
+    return runPenaiWorldBootstrap(sessionId, true);
 }
 
 export type PenaiStoryFeedEntry = {

@@ -1,6 +1,6 @@
 import cors from '@fastify/cors';
 import type { FastifyInstance } from 'fastify';
-import { parseAllowedOrigins } from '../../config/penaiEnv.js';
+import { isDevLanOrigin, parseAllowedOrigins } from '../../config/penaiEnv.js';
 
 export async function registerCors(app: FastifyInstance): Promise<void> {
     const allowed = parseAllowedOrigins();
@@ -9,6 +9,7 @@ export async function registerCors(app: FastifyInstance): Promise<void> {
             if (!origin) return cb(null, true);
             if (
                 allowed.includes(origin) ||
+                isDevLanOrigin(origin) ||
                 origin.endsWith('.cloudworkstations.dev') ||
                 origin.endsWith('.webcontainer-api.io')
             ) {
@@ -16,5 +17,6 @@ export async function registerCors(app: FastifyInstance): Promise<void> {
             }
             cb(new Error('Origem não permitida pelo CORS'), false);
         },
+        methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     });
 }

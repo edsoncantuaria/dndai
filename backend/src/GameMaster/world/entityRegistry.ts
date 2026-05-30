@@ -34,6 +34,7 @@ export async function markEntityAppeared(
     sessionId: number,
     worldEntityId: string,
     snapshot?: Record<string, unknown>,
+    sessionOverlay?: import('./npcSessionOverlay.js').NpcSessionOverlay,
 ): Promise<void> {
     const repo = PenaiDataSource.getRepository(SessionEntityState);
     let state = await repo.findOne({ where: { sessionId, worldEntityId } });
@@ -45,6 +46,7 @@ export async function markEntityAppeared(
     const clock = await loadSessionGameClock(sessionId);
     state.lastSeenGameDay = clock.day;
     if (snapshot) state.sessionStatsSnapshot = snapshot;
+    if (sessionOverlay) state.sessionOverlay = sessionOverlay;
     await repo.save(state);
 }
 
@@ -90,7 +92,10 @@ export async function findOrReuseNpcEntity(opts: {
     description?: string;
     poiId?: string | null;
     createdByUserId?: number;
-}): Promise<WorldEntity> {
+    entityTier?: import('../database/entities/types/EntityTier.js').EntityTier;
+    stats?: Record<string, unknown>;
+    personality?: Record<string, unknown>;
+}): Promise<{ entity: WorldEntity; reused: boolean }> {
     const similar = await findEntityCandidatesByEmbedding(
         `${opts.displayName} ${opts.description ?? ''}`,
         { limit: 3 },
@@ -103,13 +108,23 @@ export async function findOrReuseNpcEntity(opts: {
         const existing = await PenaiDataSource.getRepository(WorldEntity).findOne({
             where: { id: match.id },
         });
-        if (existing) return existing;
+        if (existing) return { entity: existing, reused: true };
     }
-    return createNpcEntity(opts);
+    const entity = await createNpcEntity({
+        displayName: opts.displayName,
+        description: opts.description,
+        poiId: opts.poiId,
+        createdByUserId: opts.createdByUserId,
+        entityTier: opts.entityTier,
+        stats: opts.stats,
+        personality: opts.personality,
+    });
+    return { entity, reused: false };
 }
 
 export async function createNpcEntity(opts: {
     displayName: string;
+    description?: string;
     poiId?: string | null;
     stats?: Record<string, unknown>;
     personality?: Record<string, unknown>;
@@ -131,18 +146,19 @@ export async function createNpcEntity(opts: {
             canonical: true,
             slug,
             displayName: opts.displayName,
-            description: null,
+            description: opts.description?.slice(0, 500) ?? null,
             stats: opts.stats ?? { level: 1 },
             personality: parseNpcPersonality(opts.personality ?? { goals: [] }),
             visual: {},
             poiId: opts.poiId ?? null,
             createdByUserId: opts.createdByUserId ?? null,
-            source: 'ai_generated',
+            source: process.env.PENAI_SKIP_NPC_EMBED === 'true' ? 'cursor-auto' : 'ai_generated',
             locale: 'pt-BR',
         }),
     );
 
-    if (defaultProviders.vectorStore.isReady()) {
+    const skipEmbed = process.env.PENAI_SKIP_NPC_EMBED === 'true';
+    if (!skipEmbed && defaultProviders.vectorStore.isReady()) {
         const vector = await defaultProviders.embedding.embed(
             `${entity.displayName} ${entity.description ?? ''}`,
         );

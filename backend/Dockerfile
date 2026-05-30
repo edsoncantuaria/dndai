@@ -1,10 +1,11 @@
 # Backend — executa TypeScript via tsx (evita falha de `tsc` no CI até typecheck zerado)
-FROM node:20-alpine
+FROM node:20-bookworm-slim
 
 WORKDIR /app
 ENV NODE_ENV=production
 
-RUN apk add --no-cache wget
+RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json* ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi

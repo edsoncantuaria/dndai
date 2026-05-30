@@ -15,6 +15,10 @@ import {
     getSrdPtBrCoreBundleId,
     SRD_PTBR_CORE_BUNDLE_NAME,
 } from '../database/seed/seedSrdPtBrHomebrew.js';
+import { resolveSessionSpawnSlug } from '../world/penaiSpawnPool.js';
+import { discoverFactionsByRegion } from '../world/factionDiscovery.js';
+import { penaiPipelineLog } from '../infra/pipelineLog.js';
+import { initWorldBootstrapPending } from './sessionUiState.js';
 
 const SRD_PTBR_CORE = SRD_PTBR_CORE_BUNDLE_NAME;
 
@@ -23,16 +27,26 @@ export async function createGameSession(opts: {
     nome: string;
     heroName?: string;
     heroWorldEntityId?: string;
+    /** Slug de cidade do spawn pool; omitido = sorteio entre cidades `spawnTier: intro`. */
+    spawnRegionSlug?: string;
 }): Promise<Record<string, unknown>> {
     const sessionRepo = PenaiDataSource.getRepository(GameSession);
     const moduleRepo = PenaiDataSource.getRepository(SessionInstalledModule);
+
+    penaiPipelineLog('SESSION', 'criando sessão…', {
+        userId: opts.userId,
+        nome: opts.nome,
+        heroName: opts.heroName,
+    });
+
+    const spawn = await resolveSessionSpawnSlug(opts.spawnRegionSlug);
 
     const session = await sessionRepo.save(
         sessionRepo.create({
             userId: opts.userId,
             nome: opts.nome,
             locale: penaiEnv.DEFAULT_LOCALE,
-            currentRegionSlug: 'cidadela-do-acoluz',
+            currentRegionSlug: spawn.slug,
             gameClock: defaultGameClock() as unknown as Record<string, unknown>,
         }),
     );
@@ -67,11 +81,44 @@ export async function createGameSession(opts: {
         await sessionRepo.save(session);
     }
 
+    await discoverFactionsByRegion(session.id, spawn.slug);
+
+    const { assignSessionShard } = await import('../world/shardResolver.js');
+    await assignSessionShard(session.id, spawn.slug);
+
     await appendWorldEvent({
         type: 'SESSION_CREATED',
         sessionId: session.id,
-        payload: { nome: opts.nome, locale: 'pt-BR' },
+        payload: {
+            nome: opts.nome,
+            locale: 'pt-BR',
+            spawnRegionSlug: spawn.slug,
+            spawnRegionName: spawn.displayName,
+            spawnTier: spawn.tier,
+        },
     });
+
+    penaiPipelineLog(
+        'SESSION',
+        'sessão criada — aguardando narração de abertura',
+        {
+            spawnRegionSlug: spawn.slug,
+            spawnRegionName: spawn.displayName,
+            heroWorldEntityId: session.heroWorldEntityId,
+        },
+        { sessionId: session.id, userId: opts.userId },
+    );
+
+    void import('../../temporal/client.js').then(({ startWorldBootstrapWorkflow }) =>
+        startWorldBootstrapWorkflow(session.id).catch(err => {
+            penaiPipelineLog(
+                'WORLD_BOOTSTRAP',
+                'agendamento na criação falhou',
+                { error: err instanceof Error ? err.message : String(err) },
+                { sessionId: session.id, userId: opts.userId },
+            );
+        }),
+    );
 
     return formatSession(session);
 }
@@ -168,6 +215,7 @@ function heroSummaryFromEntity(hero?: WorldEntity): { heroName?: string; heroRac
 
 function formatSession(s: GameSession, hero?: WorldEntity): Record<string, unknown> {
     const heroSummary = heroSummaryFromEntity(hero);
+    const bootstrap = s.worldBootstrap as { status?: string } | null;
     return {
         id: s.id,
         userId: s.userId,
@@ -181,6 +229,7 @@ function formatSession(s: GameSession, hero?: WorldEntity): Record<string, unkno
         heroRace: heroSummary.heroRace,
         heroClass: heroSummary.heroClass,
         currentRegionSlug: s.currentRegionSlug,
+        worldBootstrapStatus: bootstrap?.status ?? 'pending',
         contractVersion: 2,
         engine: 'penai',
         createdAt: s.createdAt.toISOString(),

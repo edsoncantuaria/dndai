@@ -1,13 +1,15 @@
 'use client';
 
+import type { LucideIcon } from 'lucide-react';
 import { ArrowLeft } from 'lucide-react';
-import { AmbientBackground } from '@/components/primitives';
+import { AmbientBackground, DndDivider } from '@/components/primitives';
 import { cn } from '@/lib/utils';
 
 export interface HubLayoutProps {
   title: string;
   subtitle?: string;
   label?: string;
+  variant?: 'home' | 'default';
   onBack?: () => void;
   backLabel?: string;
   headerActions?: React.ReactNode;
@@ -19,17 +21,26 @@ export function HubLayout({
   title,
   subtitle,
   label,
+  variant = 'default',
   onBack,
   backLabel = 'Voltar',
   headerActions,
   children,
   className,
 }: HubLayoutProps) {
+  const isHome = variant === 'home';
+
   return (
     <div className={cn('relative h-full min-h-0 w-full overflow-x-hidden overflow-y-auto bg-dnd-obsidian', className)}>
-      <AmbientBackground variant="cinematic" showVignette={false} />
+      <AmbientBackground variant="cinematic" showVignette={isHome} />
+      <div className="dnd-film-grain pointer-events-none fixed inset-0 z-[1] opacity-[0.035]" aria-hidden />
       <div className="relative z-10 mx-auto max-w-screen-xl px-4 pb-16 pt-[calc(1.25rem+var(--dnd-safe-top))] sm:px-6">
-        <header className="dnd-hero-stage mb-10 border-b border-dnd-gold/10 pb-8">
+        <header
+          className={cn(
+            'dnd-hero-stage border-b border-dnd-gold/10',
+            isHome ? 'mb-8 pb-6' : 'mb-10 pb-8',
+          )}
+        >
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               {onBack ? (
@@ -54,14 +65,21 @@ export function HubLayout({
               )}
               <h1
                 className={cn(
-                  'font-display text-4xl leading-[1.05] tracking-tight text-dnd-parchment sm:text-5xl lg:text-[3.25rem]',
-                  label ? 'mt-2' : 'mt-1'
+                  'font-display leading-[1.05] tracking-tight text-dnd-parchment',
+                  isHome
+                    ? 'mt-2 text-3xl drop-shadow-[0_2px_20px_rgba(0,0,0,0.65)] sm:text-4xl lg:text-5xl'
+                    : cn('text-4xl sm:text-5xl lg:text-[3.25rem]', label ? 'mt-2' : 'mt-1'),
                 )}
               >
                 <span className="dnd-text-gradient-gold">{title}</span>
               </h1>
               {subtitle ? (
-                <p className="mt-3 max-w-lg font-narrative text-[0.95rem] leading-relaxed text-dnd-parchment-muted">
+                <p
+                  className={cn(
+                    'max-w-lg font-narrative leading-relaxed text-dnd-parchment-muted',
+                    isHome ? 'mt-3 text-base' : 'mt-3 text-[0.95rem]',
+                  )}
+                >
                   {subtitle}
                 </p>
               ) : null}
@@ -70,6 +88,7 @@ export function HubLayout({
               <div className="flex shrink-0 flex-wrap items-center gap-2">{headerActions}</div>
             ) : null}
           </div>
+          {isHome ? <DndDivider className="mt-6 opacity-70" /> : null}
         </header>
         {children}
       </div>
@@ -84,6 +103,41 @@ export function HubFooterActions({ children }: { children: React.ReactNode }) {
 }
 
 export type HubStatPillVariant = 'card' | 'inline';
+
+export function HubQuickStat({
+  icon: Icon,
+  label,
+  value,
+  onClick,
+  active,
+  accent,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string | number;
+  onClick: () => void;
+  active?: boolean;
+  accent?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'dnd-hub-stat group flex min-h-[88px] flex-col items-center justify-center gap-1.5 px-2 py-3.5 text-center',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dnd-gold/30',
+        'hover:-translate-y-0.5 hover:border-dnd-gold/30',
+        (active || accent) && 'dnd-hub-stat-active',
+      )}
+    >
+      <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-dnd-gold/20 bg-dnd-mist/30 text-dnd-gold transition group-hover:border-dnd-gold/35 group-hover:bg-dnd-gold/10">
+        <Icon className="h-4 w-4" aria-hidden />
+      </span>
+      <span className="font-display text-xl tabular-nums leading-none text-dnd-gold drop-shadow-sm">{value}</span>
+      <span className="font-ui text-[9px] uppercase tracking-[0.18em] text-dnd-parchment-muted">{label}</span>
+    </button>
+  );
+}
 
 export function HubStatPill({
   label,
@@ -119,15 +173,20 @@ export function HubSectionHeader({
   title,
   action,
   className,
+  ornate = true,
 }: {
   title: string;
   action?: React.ReactNode;
   className?: string;
+  ornate?: boolean;
 }) {
   return (
-    <div className={cn('mb-4 flex flex-wrap items-end justify-between gap-3', className)}>
-      <h2 className="font-display text-lg text-dnd-parchment">{title}</h2>
-      {action}
+    <div className={cn('mb-5', className)}>
+      {ornate ? <DndDivider className="mb-4 opacity-75" /> : null}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h2 className="font-display text-xl tracking-wide text-dnd-gold sm:text-2xl">{title}</h2>
+        {action}
+      </div>
     </div>
   );
 }
@@ -140,12 +199,14 @@ export function HubNavCard({
   description,
   onClick,
   accent = 'gold',
+  badge,
 }: {
   icon: React.ReactNode;
   title: string;
   description: string;
   onClick: () => void;
   accent?: HubNavCardAccent;
+  badge?: string;
 }) {
   const accentRing =
     accent === 'cyan'
@@ -166,16 +227,28 @@ export function HubNavCard({
       type="button"
       onClick={onClick}
       className={cn(
-        'group flex min-h-[120px] flex-col rounded-2xl border border-dnd-gold/12 bg-dnd-obsidian-raised/40 p-4 text-left transition duration-200',
-        'hover:bg-dnd-obsidian-raised/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dnd-gold/25',
-        accentRing
+        'group dnd-ornate-corners relative flex min-h-[132px] flex-col rounded-2xl border border-dnd-gold/14 bg-dnd-obsidian-raised/50 p-5 text-left transition duration-200',
+        'shadow-[var(--dnd-shadow-card)] hover:-translate-y-0.5 hover:bg-dnd-obsidian-raised/75',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dnd-gold/25',
+        accentRing,
       )}
     >
-      <span className={cn('mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl transition', iconBg)}>
+      <span className="dnd-corner dnd-corner-tl" aria-hidden />
+      <span className="dnd-corner dnd-corner-tr" aria-hidden />
+      <span className="dnd-corner dnd-corner-bl" aria-hidden />
+      <span className="dnd-corner dnd-corner-br" aria-hidden />
+      <span className={cn('mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-dnd-gold/15 transition', iconBg)}>
         {icon}
       </span>
-      <span className="font-display text-base leading-snug text-dnd-parchment">{title}</span>
-      <span className="mt-1 font-ui text-xs leading-relaxed text-dnd-parchment-muted">{description}</span>
+      <span className="flex items-center gap-2">
+        <span className="font-display text-base leading-snug text-dnd-parchment">{title}</span>
+        {badge ? (
+          <span className="rounded bg-dnd-gold/15 px-1.5 py-0.5 font-ui text-[9px] font-bold uppercase tracking-wider text-dnd-gold">
+            {badge}
+          </span>
+        ) : null}
+      </span>
+      <span className="mt-1.5 font-narrative text-xs leading-relaxed text-dnd-parchment-muted">{description}</span>
     </button>
   );
 }

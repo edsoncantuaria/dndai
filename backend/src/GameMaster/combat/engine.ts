@@ -144,6 +144,9 @@ export async function applyCombatEntityDeltaPenai(
 
     if (combatant.side === 'hero') {
         await syncHeroHpToCanonical(sessionId, combatant.hpCurrent);
+    } else if (combatant.side === 'ally') {
+        const { syncCompanionHpFromCombat } = await import('./summonService.js');
+        await syncCompanionHpFromCombat(sessionId, combatant.entityKey, combatant.hpCurrent);
     }
 
     const enemies = await repo.find({ where: { encounterId, side: 'enemy' } });
@@ -163,11 +166,53 @@ export async function applyCombatEntityDeltaPenai(
     }
 }
 
+async function addCompanionToActiveCombatInternal(
+    encounterId: number,
+    companion: import('./summonService.js').SessionCompanion,
+    combatantRepo: ReturnType<typeof PenaiDataSource.getRepository<SessionCombatant>>,
+    encRepo: ReturnType<typeof PenaiDataSource.getRepository<SessionCombatEncounter>>,
+): Promise<void> {
+    const existing = await combatantRepo.findOne({
+        where: { encounterId, entityKey: companion.id },
+    });
+    if (existing) return;
+
+    const dexGuess = companion.templateKey === 'skeleton' ? 14 : 12;
+    const mod = Math.floor((dexGuess - 10) / 2);
+    const initiative = Math.floor(Math.random() * 20) + 1 + mod;
+
+    await combatantRepo.save(
+        combatantRepo.create({
+            encounterId,
+            entityKey: companion.id,
+            displayName: companion.name,
+            side: 'ally',
+            hpCurrent: companion.hpCurrent,
+            hpMax: companion.hpMax,
+            armorClass: companion.ac,
+            initiative,
+            conditions: [],
+        }),
+    );
+
+    const all = await combatantRepo.find({ where: { encounterId } });
+    const enc = await encRepo.findOne({ where: { id: encounterId } });
+    if (enc) {
+        enc.initiativeOrder = [...all]
+            .filter(c => c.hpCurrent > 0)
+            .sort((a, b) => (b.initiative ?? 0) - (a.initiative ?? 0))
+            .map(c => c.entityKey);
+        await encRepo.save(enc);
+    }
+}
+
 export async function endPenaiCombat(
     sessionId: number,
     encounterId: number,
     _reason: string,
 ): Promise<void> {
+    const { purgeExpiredCombatCompanions } = await import('./summonService.js');
+    await purgeExpiredCombatCompanions(sessionId);
     const encRepo = PenaiDataSource.getRepository(SessionCombatEncounter);
     const sessionRepo = PenaiDataSource.getRepository(GameSession);
     const enc = await encRepo.findOne({ where: { id: encounterId } });
@@ -181,6 +226,11 @@ export async function endPenaiCombat(
         session.activeCombatEncounterId = null;
         await sessionRepo.save(session);
     }
+
+    const { maybeScheduleWorldPulse } = await import('../world/simulation/pulseSchedule.js');
+    void maybeScheduleWorldPulse(sessionId, 'combat_end', { encounterId, reason: _reason }).catch(
+        () => undefined,
+    );
 }
 
 export async function startPenaiCombat(
@@ -246,7 +296,21 @@ export async function startPenaiCombat(
 
     await combatantRepo.save(combatants);
 
-    const sorted = [...combatants].sort((a, b) => b.initiative - a.initiative);
+    const { ensureRangerCompanionIfEligible, deployCompanionsToCombat } = await import(
+        './summonService.js'
+    );
+    const rangerCompanion = await ensureRangerCompanionIfEligible(sessionId);
+    if (rangerCompanion) {
+        await addCompanionToActiveCombatInternal(enc.id, rangerCompanion, combatantRepo, encRepo);
+    }
+    await deployCompanionsToCombat(sessionId);
+
+    const refreshedEnc = await encRepo.findOne({
+        where: { id: enc.id },
+        relations: ['combatants'],
+    });
+    const allCombatants = refreshedEnc?.combatants ?? combatants;
+    const sorted = [...allCombatants].sort((a, b) => b.initiative - a.initiative);
     enc.initiativeOrder = sorted.map(c => c.entityKey);
     await encRepo.save(enc);
 
@@ -258,7 +322,7 @@ export async function startPenaiCombat(
     await syncHeroHpPenai(sessionId);
 
     const first = sorted[0];
-    if (first && first.side !== 'hero') {
+    if (first && first.side === 'enemy') {
         const { appendWorldEvent } = await import('../events/store.js');
         await appendWorldEvent({
             type: 'NPC_TURN_READY',

@@ -22,10 +22,16 @@ export function AiAccessStep({ onContinue }: { onContinue: () => void }) {
   const { aiAccess, setAiAccess } = useOnboarding();
   const [draftKey, setDraftKey] = useState(apiKey);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   const handleSaveKey = async () => {
     const trimmed = draftKey.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      setError('Cole uma chave Gemini válida (começa com AIza…).');
+      setSaved(false);
+      return;
+    }
+    setSaved(false);
     const ok = await saveApiKey(trimmed);
     if (ok) {
       setAiAccess(
@@ -39,6 +45,9 @@ export function AiAccessStep({ onContinue }: { onContinue: () => void }) {
           : null,
       );
       setError(null);
+      setSaved(true);
+    } else {
+      setError('Não foi possível salvar a chave no servidor. Verifique sua conexão e tente de novo.');
     }
   };
 
@@ -90,7 +99,10 @@ export function AiAccessStep({ onContinue }: { onContinue: () => void }) {
           autoComplete="off"
           placeholder="AIza…"
           value={draftKey}
-          onChange={(e) => setDraftKey(e.target.value)}
+          onChange={(e) => {
+            setDraftKey(e.target.value);
+            setSaved(false);
+          }}
         />
         <p className="mt-2 font-ui text-xs text-dnd-parchment-muted">
           A chave também fica neste navegador. Obtenha em{' '}
@@ -104,9 +116,19 @@ export function AiAccessStep({ onContinue }: { onContinue: () => void }) {
             <ExternalLink className="h-3 w-3" />
           </a>
         </p>
-        <DndButton variant="ghost" size="sm" className="mt-3" onClick={handleSaveKey} loading={isActionLoading}>
+        <DndButton
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="mt-3"
+          onClick={handleSaveKey}
+          loading={isActionLoading}
+        >
           Salvar chave
         </DndButton>
+        {saved ? (
+          <p className="mt-2 font-ui text-sm text-emerald-400">Chave salva — pronta para a mesa.</p>
+        ) : null}
       </div>
 
       {error ? <p className="font-ui text-sm text-red-400">{error}</p> : null}

@@ -294,10 +294,10 @@ export async function applyStructuredPenaiIntent(input: {
                 }, 'advance-npc-turn');
             }
             const current = combat.combatants.find(c => c.entityKey === combat.currentEntityKey);
-            if (current?.side === 'hero') {
+            if (current?.side === 'hero' || current?.side === 'ally') {
                 return mechanicalResult(input.sessionId, intent, {
                     status: 'rejected',
-                    reason: 'Turno atual é do herói.',
+                    reason: 'Turno atual é do grupo do jogador.',
                 }, 'advance-npc-turn');
             }
             const { executeNpcTurnAttack } = await import('../sessions/sessionExtras.js');
@@ -346,6 +346,47 @@ export async function applyStructuredPenaiIntent(input: {
                 { status: 'accepted', reason: `Nível ${result.newLevel} confirmado.` },
                 'apply-level-up',
                 { levelUpState: null, newLevel: result.newLevel },
+            );
+        }
+
+        case 'summon-spell': {
+            const payload = resolveStructuredPayload(input.payload);
+            const spellIndex = String(payload.spellIndex ?? payload.spell ?? '').trim().toLowerCase();
+            const { validateSummonSpellIntent, executeSummonSpell } = await import(
+                '../combat/summonService.js'
+            );
+            const check = await validateSummonSpellIntent({
+                sessionId: input.sessionId,
+                spellIndex,
+                slotLevel: typeof payload.slotLevel === 'number' ? payload.slotLevel : undefined,
+            });
+            if (check.status === 'rejected') {
+                return mechanicalResult(input.sessionId, intent, check, 'summon-spell');
+            }
+            const result = await executeSummonSpell({
+                sessionId: input.sessionId,
+                spellIndex,
+                slotLevel: typeof payload.slotLevel === 'number' ? payload.slotLevel : undefined,
+            });
+            const combatState = await getPenaiCombatState(input.sessionId);
+            await appendWorldEvent({
+                type: 'SUMMON_CREATED',
+                sessionId: input.sessionId,
+                payload: {
+                    spellIndex: result.spellIndex,
+                    count: result.companions.length,
+                    names: result.companions.map(c => c.name),
+                },
+            });
+            return mechanicalResult(
+                input.sessionId,
+                intent,
+                {
+                    status: 'accepted',
+                    reason: `${result.companions.map(c => c.name).join(', ')} entra${result.companions.length > 1 ? 'm' : ''} em cena.`,
+                },
+                'summon-spell',
+                { combatState, companions: result.companions },
             );
         }
 

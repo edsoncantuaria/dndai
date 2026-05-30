@@ -3,7 +3,6 @@ import React from 'react';
 import type { Attributes } from '@/types';
 import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
 import { getCostForScore } from '@/utils/creationHelpers';
-import type { LucideIcon } from 'lucide-react';
 import {
     Minus,
     Plus,
@@ -12,9 +11,9 @@ import {
     RefreshCw,
     Star,
     PlusSquare,
-    Dice5,
-    SlidersHorizontal,
 } from 'lucide-react';
+import { WizardSection, WizardPickCard } from '@/features/character-create/wizardUi';
+import { areAttributesComplete } from '@/features/character-create/stepCompleteness';
 
 interface Props {
     hook: ReturnType<typeof useCharacterCreator>;
@@ -32,62 +31,18 @@ const METHOD_OPTIONS: Array<{
     id: AttributeMethod;
     title: string;
     description: string;
-    badge: string;
-    icon: LucideIcon;
 }> = [
     {
         id: 'point-buy',
         title: 'Compra de Pontos',
         description: 'Controle total de onde investir seu potencial heroico.',
-        badge: 'Estratégico',
-        icon: SlidersHorizontal,
     },
     {
         id: 'roll',
         title: 'Rolar Dados',
         description: 'Deixe o destino moldar suas forças e fraquezas.',
-        badge: 'Caótico',
-        icon: Dice5,
     },
 ];
-
-const MethodOptionCard: React.FC<{
-    option: (typeof METHOD_OPTIONS)[number];
-    isActive: boolean;
-    onSelect: () => void;
-}> = ({ option, isActive, onSelect }) => {
-    const Icon = option.icon;
-    return (
-        <button
-            type="button"
-            onClick={onSelect}
-            className={`group relative flex flex-col gap-3 rounded-3xl border px-5 py-4 text-left transition-all duration-300 ${
-                isActive
-                    ? 'border-amber-400/70 bg-gradient-to-br from-amber-500/20 via-transparent to-rose-500/10 shadow-lg shadow-amber-500/20'
-                    : 'border-white/5 bg-stone-950/40 hover:border-amber-400/40 hover:bg-stone-900/60'
-            }`}
-        >
-            <div className="flex items-center justify-between">
-                <span
-                    className={`rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.4em] ${
-                        isActive ? 'border-amber-400/70 text-amber-200' : 'border-white/10 text-stone-500'
-                    }`}
-                >
-                    {option.badge}
-                </span>
-                <div
-                    className={`rounded-full border p-2 ${isActive ? 'border-amber-400/70 bg-amber-500/10 text-amber-100' : 'border-white/10 bg-stone-900 text-stone-400'}`}
-                >
-                    <Icon className="h-4 w-4" />
-                </div>
-            </div>
-            <div>
-                <p className="text-lg font-semibold text-stone-100">{option.title}</p>
-                <p className="text-sm text-stone-400">{option.description}</p>
-            </div>
-        </button>
-    );
-};
 
 const PointBuySection: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
     const { baseAttributes, points, handleAttributeChange, handleSuggestAttributes, characterClass, details } = hook;
@@ -292,50 +247,64 @@ const NewStep2_Attributes: React.FC<Props> = ({ hook, prevStep, nextStep, hideNa
     const {
         attributeMethod,
         setField,
-        points,
         isVariantHuman,
-        variantHumanBonusSelections,
     } = hook;
 
-    const canProceed =
-        (attributeMethod === 'roll' || (attributeMethod === 'point-buy' && points === 0)) &&
-        (!isVariantHuman || variantHumanBonusSelections.length === 2);
+    const canProceed = areAttributesComplete(hook);
+    const methodChosen = attributeMethod !== null;
 
     return (
-        <div className="space-y-8 animate-fadeIn">
-            <section className="rounded-[32px] border border-white/5 bg-stone-950/70 p-6 shadow-2xl shadow-black/40">
-                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 pb-4">
-                    <div>
-                        <p className="text-xs uppercase tracking-[0.5em] text-amber-400/80">Método de Distribuição</p>
-                        <h3 className="text-2xl font-semibold text-amber-50">Escolha como definir seus atributos</h3>
-                        {!attributeMethod && (
-                            <p className="text-sm text-stone-400">
-                                Selecione um método para desbloquear as ferramentas de alocação.
-                            </p>
-                        )}
-                    </div>
-                </div>
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
-                    {METHOD_OPTIONS.map(option => (
-                        <MethodOptionCard
+        <div className="space-y-6 animate-fadeIn">
+            <WizardSection
+                eyebrow="Passo 1"
+                title="Como definir os atributos?"
+                description="Escolha um método. Só depois disso você distribui ou rola os valores."
+            >
+                <div className="grid gap-2 sm:grid-cols-2">
+                    {METHOD_OPTIONS.map((option) => (
+                        <WizardPickCard
                             key={option.id}
-                            option={option}
-                            isActive={attributeMethod === option.id}
-                            onSelect={() => setField('attributeMethod', option.id)}
+                            title={option.title}
+                            subtitle={option.description}
+                            selected={attributeMethod === option.id}
+                            onClick={() => setField('attributeMethod', option.id)}
                         />
                     ))}
                 </div>
-            </section>
+            </WizardSection>
 
-            {attributeMethod === 'point-buy' && <PointBuySection hook={hook} />}
-            {attributeMethod === 'roll' && <RollDiceSection hook={hook} />}
+            {!methodChosen ? (
+                <p className="rounded-lg border border-dnd-gold/15 bg-dnd-obsidian/60 px-4 py-3 font-ui text-sm text-dnd-parchment-muted">
+                    Selecione <strong className="text-dnd-parchment">compra de pontos</strong> ou{' '}
+                    <strong className="text-dnd-parchment">rolar dados</strong> para continuar.
+                </p>
+            ) : (
+                <>
+                    <WizardSection
+                        eyebrow="Passo 2"
+                        title={
+                            attributeMethod === 'point-buy'
+                                ? 'Distribua seus pontos'
+                                : 'Role seus atributos'
+                        }
+                        description={
+                            attributeMethod === 'point-buy'
+                                ? 'Gaste os 27 pontos até zerar o saldo.'
+                                : 'Use 4d6 descartando o menor dado em cada atributo.'
+                        }
+                    >
+                        {attributeMethod === 'point-buy' ? <PointBuySection hook={hook} /> : null}
+                        {attributeMethod === 'roll' ? <RollDiceSection hook={hook} /> : null}
+                    </WizardSection>
 
-            {isVariantHuman && attributeMethod && <VariantHumanSection hook={hook} />}
+                    {isVariantHuman ? <VariantHumanSection hook={hook} /> : null}
 
-            {attributeMethod && <FinalAttributesPanel hook={hook} />}
+                    <FinalAttributesPanel hook={hook} />
+                </>
+            )}
 
             {!hideNav ? (
-            <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
                 <button
                     type="button"
                     onClick={prevStep}
@@ -350,7 +319,7 @@ const NewStep2_Attributes: React.FC<Props> = ({ hook, prevStep, nextStep, hideNa
                     disabled={!canProceed}
                     className="flex items-center justify-center gap-3 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/80 to-rose-500/70 px-6 py-3 text-base font-semibold text-stone-950 shadow-lg shadow-amber-500/30 transition disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                    {canProceed ? 'Prosseguir para Antecedente' : 'Conclua os ajustes'}
+                    {canProceed ? 'Prosseguir para Antecedente' : methodChosen ? 'Conclua os ajustes' : 'Escolha o método'}
                     <ArrowRight className="h-5 w-5" />
                 </button>
             </div>

@@ -1,5 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { listCanonicalRegions } from '../../../GameMaster/world/mapCatalog.js';
+import { describeSpawnPool } from '../../../GameMaster/world/penaiSpawnPool.js';
+import { describeFactionWorldBindings } from '../../../GameMaster/world/factionCatalog.js';
 import { findEntityCandidates } from '../../../GameMaster/world/entityRegistry.js';
 import { resolveTravelDuration } from '../../../GameMaster/world/travelCanon.js';
 import { PenaiDataSource } from '../../../GameMaster/database/data-source.js';
@@ -10,6 +12,14 @@ export async function worldRoutes(app: FastifyInstance): Promise<void> {
     app.get('/api/v2/world/regions', async () => {
         const regions = await listCanonicalRegions();
         return { regions, locale: 'pt-BR' };
+    });
+
+    app.get('/api/v2/world/spawn-pool', async () => {
+        return { spawns: describeSpawnPool(), locale: 'pt-BR' };
+    });
+
+    app.get('/api/v2/world/factions', async () => {
+        return { factions: describeFactionWorldBindings(), locale: 'pt-BR' };
     });
 
     app.get('/api/v2/world/entities/search', async (request) => {
@@ -44,6 +54,22 @@ export async function worldRoutes(app: FastifyInstance): Promise<void> {
         const sessionId = Number((request.params as { sessionId: string }).sessionId);
         const limit = Number((request.query as { limit?: string }).limit) || 40;
         const events = await listSessionWorldEvents(sessionId, limit);
-        return { events, locale: 'pt-BR' };
+        const { humanizeWorldEvents } = await import('../../../GameMaster/events/eventHumanizer.js');
+        const { PenaiDataSource } = await import('../../../GameMaster/database/data-source.js');
+        const { CanonicalRegion } = await import(
+            '../../../GameMaster/database/entities/CanonicalRegion.js'
+        );
+        const regions = await PenaiDataSource.getRepository(CanonicalRegion).find();
+        const regionNames = Object.fromEntries(regions.map(r => [r.slug, r.displayName]));
+        const humanized = humanizeWorldEvents(
+            events.map(ev => ({
+                id: ev.id,
+                type: ev.type,
+                payload: ev.payload,
+                createdAt: ev.createdAt,
+            })),
+            { regionNames },
+        ).sort((a, b) => b.at.localeCompare(a.at));
+        return { events: humanized, locale: 'pt-BR' };
     });
 }

@@ -2,10 +2,11 @@ import createError from 'http-errors';
 import type { z } from 'zod';
 import { PenaiDataSource } from '../database/data-source.js';
 import { PenaiUser } from '../database/entities/PenaiUser.js';
-import type { SettingsSchema } from '../../schemas/validationSchemas.js';
+import type { SettingsPatchSchema } from '../../schemas/validationSchemas.js';
 import {
     buildAiAccessStatus,
 } from '../../services/aiBillingService.js';
+import { getPenaiLicenseStatus } from './penaiLicenseService.js';
 
 function isOnboardingCompleted(settings?: Record<string, unknown> | null): boolean {
     return Boolean(settings?.onboardingCompleted);
@@ -23,17 +24,19 @@ export async function getPenaiUserProfile(userId: number) {
 export async function getPenaiUserMe(userId: number) {
     const userData = await getPenaiUserProfile(userId);
     const aiAccess = buildAiAccessStatus(userData, userData.apiKey);
+    const licenseActive = await getPenaiLicenseStatus(userId);
     const { apiKey: _apiKey, ...safeUser } = userData;
     return {
         ...safeUser,
         aiAccess,
         onboardingCompleted: isOnboardingCompleted(userData.settings),
+        licenseKey: { isActivated: licenseActive },
     };
 }
 
 export async function updatePenaiUserSettings(
     userId: number,
-    newSettings: z.infer<typeof SettingsSchema>,
+    newSettings: z.infer<typeof SettingsPatchSchema>,
 ) {
     const repo = PenaiDataSource.getRepository(PenaiUser);
     const user = await repo.findOneBy({ id: userId });

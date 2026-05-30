@@ -1,38 +1,17 @@
 import type { CharacterResourceSnapshot } from '../../rules/types.js';
 import { listSrdResources } from '../../services/srdCatalogService.js';
+import { normalizeSrdToken, resolveSrdClassIndex } from '../../services/srdClassResolve.js';
 
 type ClassLevel = { level: number; spellcasting?: Record<string, number> };
 
 type ClassEntry = { index: string; name: string; levels?: ClassLevel[] };
 
-const CLASS_ALIAS: Record<string, string> = {
-    mago: 'wizard',
-    wizard: 'wizard',
-    feiticeiro: 'sorcerer',
-    sorcerer: 'sorcerer',
-    clérigo: 'cleric',
-    clerigo: 'cleric',
-    cleric: 'cleric',
-    druida: 'druid',
-    druid: 'druid',
-    bruxo: 'warlock',
-    warlock: 'warlock',
-    bardo: 'bard',
-    bard: 'bard',
-    paladino: 'paladin',
-    paladin: 'paladin',
-    ranger: 'ranger',
-    patrulheiro: 'ranger',
-};
-
-function normalize(value: string): string {
-    return value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-}
-
 async function resolveClassEntry(characterClass: string): Promise<ClassEntry | undefined> {
     const classes = (await listSrdResources('classes')) as ClassEntry[];
-    const key = CLASS_ALIAS[normalize(characterClass)] ?? normalize(characterClass);
-    return classes.find(c => normalize(c.index) === key || normalize(c.name) === key);
+    const key = resolveSrdClassIndex(characterClass);
+    return classes.find(
+        c => c.index === key || normalizeSrdToken(c.name) === normalizeSrdToken(characterClass),
+    );
 }
 
 /** Seed spell slots SRD para recursos da sessão PENAI (sem MySQL). */

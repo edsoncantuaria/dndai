@@ -65,17 +65,17 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
   const [showStructuredTools, setShowStructuredTools] = useState(false);
 
   const gateOverlayMessage = useMemo(() => {
+    if (gate === 'LOCKED_ROLLING' || isRollPending || playerRollRequest) {
+      return 'Aguardando rolagem 3D…';
+    }
     if (gate === 'LOCKED_NARRATING' || turnPipelinePhase === 'narrating') {
       return 'O Mestre está narrando via Temporal…';
     }
     if (gate === 'LOCKED_MECHANICAL' || turnPipelinePhase === 'mechanical') {
       return 'Motor Computando Decisões…';
     }
-    if (gate === 'LOCKED_ROLLING' || isRollPending) {
-      return 'Aguardando rolagem 3D…';
-    }
     return null;
-  }, [gate, turnPipelinePhase, isRollPending]);
+  }, [gate, turnPipelinePhase, isRollPending, playerRollRequest]);
 
   const gateOverlay = gateOverlayMessage ? (
     <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-dnd-obsidian/70 backdrop-blur-sm">
@@ -97,14 +97,14 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
   }, [combatState, character]);
 
   const isActionLocked =
-    isStateChangingBlocked(gate) ||
+    (isStateChangingBlocked(gate) && gate !== 'LOCKED_ROLLING') ||
     Boolean(actionPhaseLabel) ||
-    isRollPending ||
+    (isRollPending && !playerRollRequest) ||
     !!pendingLootOffer ||
     !!pendingHitDiceRequest ||
     isLoading ||
-    turnPipelinePhase === 'mechanical' ||
-    turnPipelinePhase === 'narrating';
+    (turnPipelinePhase === 'mechanical' && !playerRollRequest) ||
+    (turnPipelinePhase === 'narrating' && !playerRollRequest);
 
   const loadingState = useMemo(
     () => resolveLoadingState({ isLoading, isRollPending, actionPhaseLabel }),

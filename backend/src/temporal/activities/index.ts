@@ -5,3 +5,5 @@ export * from './worldPulseActivity.js';
 export * from './memoryCompactionActivity.js';
 export * from './canonApprovalActivity.js';
 export * from './campaignGcActivity.js';
+export * from './worldBootstrapActivity.js';
+export * from './shardBackgroundTick.js';

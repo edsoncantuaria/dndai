@@ -8,6 +8,7 @@ import { Brackets } from 'typeorm';
 import * as DndApiModule from '../../services/dndApiService.js';
 import { mergeOfficialWithHomebrew, resolveOfficialIndex } from '../../services/homebrewMergeService.js';
 import { inferSourceKind } from '../../services/srdHomebrewValidator.js';
+import { isValidResourceDetail } from '../../services/srdResourceValidation.js';
 import { SYSTEM_AUTHOR_ID } from '../database/seed/seedSrdPtBrHomebrew.js';
 const DndApi = DndApiModule.default || DndApiModule.DndApi || DndApiModule;
 
@@ -19,7 +20,8 @@ const userRepo = () => PenaiDataSource.getRepository(PenaiUser);
 const localHexCache = new Map<number, string>();
 
 const norm = (s?: string) => (s ?? '').toLowerCase().trim();
-const globalKey = (r: string, i?: string) => i ? `dnd5e:v2014:${r}:${i}` : `dnd5e:v2014:${r}:list`;
+const globalKey = (r: string, i?: string) =>
+  i ? `dnd5e:v2:2014:${r}:${i}` : `dnd5e:v2:2014:${r}:list`;
 const userKey = (uid: number, hex: string, r: string, i?: string) =>
   i ? `user:${uid}:${hex}:${r}:${i}` : `user:${uid}:${hex}:${r}:list`;
 
@@ -211,22 +213,27 @@ async function getOfficialList(resource: string): Promise<any[]> {
  * Busca detalhes oficiais, validando o cache.
  */
 async function getOfficialDetails(resource: string, index: string): Promise<any | null> {
-  const key = globalKey(resource, index);
+  const normalizedResource = norm(resource);
+  const normalizedIndex = norm(index);
+  const key = globalKey(normalizedResource, normalizedIndex);
   const useCache = redisClient && redisClient.isOpen;
 
   if (useCache) {
     try {
       const cached = await redisClient.get(key);
       if (cached && cached !== 'null' && cached !== '{}') {
-        console.log(`[dndApiService-Cache] HIT detalhes: ${key}`);
-        return JSON.parse(cached);
+        const parsed = JSON.parse(cached);
+        if (isValidResourceDetail(normalizedResource, normalizedIndex, parsed)) {
+          console.log(`[dndApiService-Cache] HIT detalhes: ${key}`);
+          return parsed;
+        }
+        await redisClient.del(key);
       }
     } catch (err) {
       console.error(`[Cache] Erro ao ler chave ${key}:`, err);
     }
   }
 
-  // Mesmo esquema de fallback seguro
   const getDetailsFn =
     DndApi.getDetails ||
     DndApi.getResourceDetails ||
@@ -238,7 +245,7 @@ async function getOfficialDetails(resource: string, index: string): Promise<any 
 
   const data = await getDetailsFn.call(DndApi, resource, index);
 
-  if (useCache && data) {
+  if (useCache && data && isValidResourceDetail(normalizedResource, normalizedIndex, data)) {
     try {
       await redisClient.set(key, JSON.stringify(data));
     } catch (err) {
@@ -396,9 +403,12 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
         const qb = homebrewRepo.createQueryBuilder('hb');
         qb.where('LOWER(hb.type) = :type', { type: dbType })
           .andWhere(new Brackets(sqb => {
-             sqb.where("hb.id = :index", { index: normalizedIndex })
-                .orWhere("JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.index')) = :index", { index: normalizedIndex })
-                .orWhere("JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.official_index')) = :index", { index: normalizedIndex });
+             sqb.where("LOWER(COALESCE(hb.sourceIndex, '')) = :index", { index: normalizedIndex })
+                .orWhere("LOWER(hb.content->>'index') = :index", { index: normalizedIndex })
+                .orWhere("LOWER(hb.content->>'official_index') = :index", { index: normalizedIndex });
+             if (/^[0-9a-f-]{36}$/.test(normalizedIndex)) {
+                sqb.orWhere('hb.id = :homebrewId', { homebrewId: normalizedIndex });
+             }
           }))
           .andWhere(new Brackets(sqb => {
              sqb.where('hb.id IN (:...ids)', { ids: installedIds })

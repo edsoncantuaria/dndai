@@ -1,26 +1,35 @@
 // backend/src/services/dndApiService.ts
 import redisClient from '../database/redis-client.js';
 import * as SrdApi from './srdApiAdapter.js';
+import { isValidResourceDetail } from './srdResourceValidation.js';
 
 const norm = (s?: string) => (s ?? '').toLowerCase().trim();
 
+/** v2 — invalida cache legado que guardava só levels[] como detalhe de classe */
+const CACHE_SCHEMA = 'v2';
+
 const cacheKey = (resource: string, index?: string) => {
     return index
-        ? `dnd5e:v2014:${norm(resource)}:${norm(index)}`
-        : `dnd5e:v2014:${norm(resource)}:list`;
+        ? `dnd5e:${CACHE_SCHEMA}:2014:${norm(resource)}:${norm(index)}`
+        : `dnd5e:${CACHE_SCHEMA}:2014:${norm(resource)}:list`;
 };
 
-async function fetchWithCache<T>(fetcher: () => Promise<T | null>, redisKey: string): Promise<T | null> {
+async function fetchWithCache<T>(
+    fetcher: () => Promise<T | null>,
+    redisKey: string,
+    validate?: (data: unknown) => boolean,
+): Promise<T | null> {
     if (redisClient && redisClient.isOpen) {
         try {
             const cached = await redisClient.get(redisKey);
             if (cached) {
                 const parsed = JSON.parse(cached);
-                if (parsed && typeof parsed === 'object') {
+                if (parsed && typeof parsed === 'object' && (!validate || validate(parsed))) {
                     console.log(`[DndApiService] Cache HIT: ${redisKey}`);
                     return parsed as T;
                 }
                 console.warn(`[DndApiService] Cache INVÁLIDO para ${redisKey}. Buscando novamente.`);
+                await redisClient.del(redisKey);
             }
         } catch (err) {
             console.error(`[Cache] Erro ao ler chave ${redisKey}:`, err);
@@ -29,7 +38,7 @@ async function fetchWithCache<T>(fetcher: () => Promise<T | null>, redisKey: str
 
     const data = await fetcher();
 
-    if (redisClient && redisClient.isOpen && data) {
+    if (redisClient && redisClient.isOpen && data && (!validate || validate(data))) {
         try {
             await redisClient.set(redisKey, JSON.stringify(data));
             console.log(`[Cache] SET persistente: ${redisKey}`);
@@ -48,14 +57,15 @@ export async function getResourceList(resource: string): Promise<{ count: number
 
 export async function getResourceDetails(resource: string, index: string): Promise<any | null> {
     const key = cacheKey(resource, index);
-    const data = await fetchWithCache(() => SrdApi.get(resource, index), key);
+    const validate = (data: unknown) => isValidResourceDetail(resource, index, data);
+    const data = await fetchWithCache(() => SrdApi.get(resource, index), key, validate);
 
     if (Array.isArray(data)) {
         return data;
     }
 
-    if (data && typeof data === 'object' && 'levels' in data && Array.isArray((data as any).levels)) {
-        return (data as any).levels;
+    if (!validate(data)) {
+        return {};
     }
 
     return data || {};

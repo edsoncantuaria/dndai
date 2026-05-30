@@ -4,7 +4,7 @@ import { PenaiHomebrewContent } from '../../../GameMaster/database/entities/Home
 import { SYSTEM_AUTHOR_ID } from '../../../GameMaster/database/seed/seedSrdPtBrHomebrew.js';
 
 export async function translationRoutes(app: FastifyInstance): Promise<void> {
-    app.get('/translations', async (_request, reply) => {
+    app.get('/api/v2/translations', async (_request, reply) => {
         if (!PenaiDataSource.isInitialized) {
             return reply.code(503).send({ error: 'Banco indisponível' });
         }

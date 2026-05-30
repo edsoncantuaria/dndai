@@ -1,4 +1,5 @@
 // backend/src/scripts/seedRegions.ts
+// Legado MySQL (TypeORM regions). Stack PENAI: npm run seed:penai-world (Postgres).
 import { AppDataSource } from '../database/data-source.js';
 import regionGraph from '../data/regionsSeed.json' assert { type: 'json' };
 import { importRegionGraph } from '../services/regionService.js';

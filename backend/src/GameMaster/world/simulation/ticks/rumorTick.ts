@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { PenaiDataSource } from '../../../database/data-source.js';
 import { Rumor } from '../../../database/entities/Rumor.js';
 import { CanonicalRegionLink } from '../../../database/entities/CanonicalRegionLink.js';
+import { CanonicalRegion } from '../../../database/entities/CanonicalRegion.js';
 import { appendWorldEvent } from '../../../events/store.js';
 import {
     spreadKnowledgeFromRumor,
@@ -26,8 +27,11 @@ export async function runRumorTick(sessionId: number, regionSlug?: string | null
     });
     if (stale.length > 8) {
         for (const r of stale.slice(0, stale.length - 8)) {
-            r.status = 'faded';
-            await rumorRepo.save(r);
+            await appendWorldEvent({
+                type: 'RUMOR_FADED',
+                sessionId,
+                payload: { rumorId: r.id, title: r.title },
+            });
         }
         pulses.push('Rumores antigos perdem força nas tavernas.');
     }
@@ -61,12 +65,15 @@ async function propagateRumorAlongGraph(
     fromRegionSlug: string,
     body: string,
 ): Promise<void> {
+    const region = await PenaiDataSource.getRepository(CanonicalRegion).findOne({
+        where: { slug: fromRegionSlug },
+    });
+    if (!region) return;
+
     const linkRepo = PenaiDataSource.getRepository(CanonicalRegionLink);
     const links = await linkRepo
         .createQueryBuilder('l')
-        .innerJoin('l.fromRegion', 'fr')
-        .innerJoin('l.toRegion', 'tr')
-        .where('fr.slug = :slug OR tr.slug = :slug', { slug: fromRegionSlug })
+        .where('l.fromRegionId = :regionId OR l.toRegionId = :regionId', { regionId: region.id })
         .take(3)
         .getMany();
 

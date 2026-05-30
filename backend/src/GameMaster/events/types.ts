@@ -28,6 +28,12 @@ export const WORLD_EVENT_TYPES = [
     'WITNESSED',
     'KNOWLEDGE_SPREAD',
     'ENTITY_ARCHIVED',
+    'MICRO_WORLD_TICK',
+    'FACT_RECORDED',
+    'TIME_ADVANCED',
+    'WORLD_PULSE_RENDERED',
+    'RUMOR_FADED',
+    'POLITICS_STATE_CHANGED',
 ] as const;
 
 export type WorldEventType = (typeof WORLD_EVENT_TYPES)[number];

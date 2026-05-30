@@ -13,6 +13,9 @@ import {
 } from './structuredApply.js';
 import { formatMechanicalPack } from '../character/formatMechanicalPack.js';
 import type { PenaiMotorInput, PenaiMotorResult } from './types.js';
+import { penaiPipelineLog, penaiPipelineWait } from '../infra/pipelineLog.js';
+import { isSessionOpeningRequest } from '../ai/promptComposer.js';
+import { inferSummonSpellFromText } from '../combat/summonCatalog.js';
 
 function slugify(value: string): string {
     return value
@@ -121,6 +124,14 @@ async function resolvePenaiRollIntent(
 }
 
 export async function validateAndApply(input: PenaiMotorInput): Promise<PenaiMotorResult> {
+    const ctx = {
+        sessionId: input.sessionId,
+        userId: input.userId,
+        actionId: input.actionId,
+        actionSequence: input.actionSequence,
+    };
+    penaiPipelineLog('MOTOR', 'validateAndApply início', { playerAction: input.playerAction.slice(0, 120) }, ctx);
+
     const session = await getGameSession(input.sessionId);
     if (!session) {
         return {
@@ -133,6 +144,18 @@ export async function validateAndApply(input: PenaiMotorInput): Promise<PenaiMot
     }
 
     const payload = input.payload ?? {};
+
+    if (isSessionOpeningRequest(input.playerAction, payload)) {
+        penaiPipelineLog('MOTOR', 'abertura de sessão — bypass actionSense', {}, ctx);
+        const mechanical = await formatMechanicalPack(input.sessionId);
+        return {
+            intent: { type: 'free', payload: { opening: true, bootstrap: true } },
+            ruleCheck: { status: 'accepted', reason: 'Abertura cinematográfica da sessão.' },
+            mechanical: { ...mechanical, intentType: 'opening' },
+            blocked: false,
+            awaitingRoll: false,
+        };
+    }
 
     const structuredType = resolveStructuredIntentType(payload);
     if (structuredType) {
@@ -177,12 +200,33 @@ export async function validateAndApply(input: PenaiMotorInput): Promise<PenaiMot
         if (structured) return structured;
     }
 
+    const inferredSummon = inferSummonSpellFromText(input.playerAction);
+    if (inferredSummon) {
+        const structured = await applyStructuredPenaiIntent({
+            sessionId: input.sessionId,
+            userId: input.userId,
+            playerAction: input.playerAction,
+            actionId: input.actionId,
+            actionSequence: input.actionSequence,
+            intentType: 'summon-spell',
+            payload: { spellIndex: inferredSummon },
+        });
+        if (structured) return structured;
+    }
+
+    penaiPipelineWait('ACTION_SENSE', 'validando plausibilidade…', ctx);
     const sense = await validateActionSense({
         sessionId: input.sessionId,
         userId: input.userId,
         playerAction: input.playerAction,
         payload,
     });
+    penaiPipelineLog(
+        'ACTION_SENSE',
+        sense.ok ? 'ok' : 'rejeitado',
+        { reason: sense.reason, hint: sense.hint },
+        ctx,
+    );
     if (!sense.ok) {
         return {
             intent: { type: 'free', payload: {} },

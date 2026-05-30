@@ -1,7 +1,7 @@
-import { PenaiDataSource } from '../../database/data-source.js';
-import { WorldEntity } from '../../database/entities/WorldEntity.js';
-import { SessionEntityState } from '../../database/entities/SessionEntityState.js';
-import { appendWorldEvent } from '../../events/store.js';
+import { PenaiDataSource } from '../database/data-source.js';
+import { WorldEntity } from '../database/entities/WorldEntity.js';
+import { SessionEntityState } from '../database/entities/SessionEntityState.js';
+import { appendWorldEvent } from '../events/store.js';
 import {
     findEntityCandidates,
     findOrReuseNpcEntity,
@@ -9,6 +9,11 @@ import {
     createNpcEntity,
 } from './entityRegistry.js';
 import { getGameSession } from '../sessions/sessionService.js';
+import {
+    buildNpcCombatSheet,
+    npcCastFromEntity,
+    resolveHeroLevelForSession,
+} from './npcSheet.js';
 
 export type LifecycleDecision = 'reuse' | 'spawn' | 'promote' | 'retire' | 'kill' | 'noop';
 
@@ -41,7 +46,27 @@ export async function applyEntityLifecycle(
                 limit: 3,
             });
             if (candidates[0]) {
-                await markEntityAppeared(ctx.sessionId, candidates[0].id, { level: 1 });
+                const ent = await PenaiDataSource.getRepository(WorldEntity).findOne({
+                    where: { id: candidates[0].id },
+                });
+                const snap = ent
+                    ? (() => {
+                          const c = npcCastFromEntity(ent);
+                          return {
+                              givenName: c.givenName,
+                              roleTitle: c.roleTitle,
+                              displayName: ent.displayName,
+                              level: c.level,
+                              role: c.role,
+                              ac: c.ac,
+                              maxHp: c.vidaMax,
+                              hp: c.vida,
+                              vida: c.vida,
+                              vidaMax: c.vidaMax,
+                          };
+                      })()
+                    : { level: 1, vida: 8, vidaMax: 8 };
+                await markEntityAppeared(ctx.sessionId, candidates[0].id, snap);
                 await appendWorldEvent({
                     type: 'ENTITY_REUSED',
                     sessionId: ctx.sessionId,
@@ -52,24 +77,56 @@ export async function applyEntityLifecycle(
                 });
                 return entity;
             }
-            const reused = await findOrReuseNpcEntity({
-                displayName: 'Viajante',
+            const heroLevel = await resolveHeroLevelForSession(ctx.sessionId);
+            const sheet = buildNpcCombatSheet({
+                role: 'viajante',
+                tier: 'INCIDENTAL',
+                heroLevel,
+                homeRegion: ctx.regionSlug ?? undefined,
+                givenName: 'Elowen',
+                roleTitle: 'Viajante',
+            });
+            const { entity: reusedEntity, reused: wasReused } = await findOrReuseNpcEntity({
+                displayName: 'Elowen, Viajante',
+                description: 'Viajante de passagem.',
                 createdByUserId: ctx.userId,
+                stats: sheet.worldStats as unknown as Record<string, unknown>,
             });
-            await markEntityAppeared(ctx.sessionId, reused.id, { level: 1 });
+            await markEntityAppeared(
+                ctx.sessionId,
+                reusedEntity.id,
+                sheet.sessionSnapshot,
+                sheet.initialOverlay,
+            );
             await appendWorldEvent({
-                type: 'ENTITY_REUSED',
+                type: wasReused ? 'ENTITY_REUSED' : 'ENTITY_SPAWNED',
                 sessionId: ctx.sessionId,
-                payload: { entityId: reused.id, displayName: reused.displayName },
+                payload: { entityId: reusedEntity.id, displayName: reusedEntity.displayName },
             });
-            return reused;
+            return reusedEntity;
         }
         case 'spawn': {
-            const entity = await createNpcEntity({
-                displayName: 'Viajante',
-                createdByUserId: ctx.userId,
+            const heroLevel = await resolveHeroLevelForSession(ctx.sessionId);
+            const sheet = buildNpcCombatSheet({
+                role: 'viajante',
+                tier: 'INCIDENTAL',
+                heroLevel,
+                homeRegion: ctx.regionSlug ?? undefined,
+                givenName: 'Elowen',
+                roleTitle: 'Viajante',
             });
-            await markEntityAppeared(ctx.sessionId, entity.id, { level: 1 });
+            const entity = await createNpcEntity({
+                displayName: 'Elowen, Viajante',
+                description: 'Viajante de passagem.',
+                createdByUserId: ctx.userId,
+                stats: sheet.worldStats as unknown as Record<string, unknown>,
+            });
+            await markEntityAppeared(
+                ctx.sessionId,
+                entity.id,
+                sheet.sessionSnapshot,
+                sheet.initialOverlay,
+            );
             await appendWorldEvent({
                 type: 'ENTITY_SPAWNED',
                 sessionId: ctx.sessionId,

@@ -249,7 +249,7 @@ export async function executeNpcTurnAttack(sessionId: number): Promise<{
     if (!combat.isActive || !combat.currentEntityKey) return null;
 
     const attacker = combat.combatants.find(c => c.entityKey === combat.currentEntityKey);
-    if (!attacker || attacker.side === 'hero') return null;
+    if (!attacker || attacker.side !== 'enemy') return null;
 
     const hero = combat.combatants.find(c => c.side === 'hero');
     if (!hero) return null;
