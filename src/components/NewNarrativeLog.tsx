@@ -29,6 +29,8 @@ import {
   useNarrativeLogVariant,
   type NarrativeLogVariant,
 } from '@/features/gameplay/narrative/narrativeLogVariant';
+import { formatActionForDisplay, shouldRenderLogEntry } from '@/lib/logDisplay';
+import { dedupeSensoryTail } from '@/lib/narrationText';
 
 const IMAGE_FEATURE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_IMAGE_GENERATION === 'true';
 
@@ -100,6 +102,7 @@ const NarrationEntry: React.FC<{
     const isV2 = variant === 'v2';
     const textContent = extractEntryText(entry.content);
     if (!textContent) return null;
+    const displayText = dedupeSensoryTail(textContent);
     const audioUrl = getEntryAudioUrl(entry);
     const hasAudio = Boolean(audioUrl || getEntryAudioKey(entry));
 
@@ -154,7 +157,7 @@ const NarrationEntry: React.FC<{
               : clsx('font-sans text-stone-300', textClassName)
           )}
         >
-          {textContent}
+          {displayText}
         </p>
         {ttsBtn}
       </div>
@@ -548,8 +551,8 @@ const LogEntry = React.memo(function LogEntry({
             );
             break;
         case 'action': {
-             const actionText = extractEntryText(entry.content);
-             if (actionText && actionText.trim()) {
+             const actionText = formatActionForDisplay(entry.content) ?? extractEntryText(entry.content);
+             if (actionText && actionText.trim() && shouldRenderLogEntry(entry)) {
                  contentComponent = isV2 ? (
                     <NarrativeBeatCard type="action">
                       <div className="flex items-start gap-3">
@@ -637,8 +640,18 @@ const LogEntry = React.memo(function LogEntry({
         )
         : null;
 
+    const isNarrationReveal = entry.type === 'narration' || entry.type === 'system' || entry.type === 'combat';
+    const motionClass = isNarrationReveal
+        ? 'animate-fadeInSlideUp'
+        : entry.type === 'action'
+          ? ''
+          : 'animate-fadeIn';
+
     return (
-        <div className="relative animate-fadeIn pb-4" style={{ animationDuration: '500ms' }}>
+        <div
+            className={clsx('relative pb-4', motionClass)}
+            style={isNarrationReveal ? { animationDuration: '720ms' } : entry.type === 'action' ? undefined : { animationDuration: '400ms' }}
+        >
             {contentComponent}
             {stateVersionBadge}
         </div>
@@ -669,6 +682,42 @@ const NpcRollDisplay: React.FC = () => {
         <div className="bg-stone-900/60 p-3 my-2 rounded-md border border-stone-700 text-sm font-semibold">
             <p className="text-stone-300 font-mono">{initiativeString}</p>
         </div>
+    );
+};
+
+const NarrativeProcessingBanner: React.FC = () => {
+    const { isRollPending, turnPipelinePhase } = useGameStateContext();
+    const isV2 = useNarrativeLogVariant() === 'v2';
+    const processing =
+        !isRollPending &&
+        (turnPipelinePhase === 'narrating' || turnPipelinePhase === 'mechanical');
+    if (!processing) return null;
+
+    const inner = (
+      <div className="flex items-center justify-center gap-2 py-1.5">
+        <Loader2 className={clsx('h-4 w-4 shrink-0 animate-spin', isV2 ? 'text-dnd-gold' : 'text-amber-300')} />
+        <p className={clsx('text-xs', isV2 ? 'font-ui text-dnd-parchment-muted' : 'text-amber-100/90')}>
+          Aguarde o Mestre…
+        </p>
+      </div>
+    );
+
+    if (isV2) {
+      return (
+        <div className="sticky top-0 z-10 mb-3 border-b border-dnd-gold/20 bg-dnd-obsidian/90 backdrop-blur-sm" role="status" aria-live="polite">
+          {inner}
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className="sticky top-0 z-10 mb-3 border-b border-amber-500/20 bg-stone-950/90 backdrop-blur-sm"
+        role="status"
+        aria-live="polite"
+      >
+        {inner}
+      </div>
     );
 };
 
@@ -739,6 +788,7 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
     const logEndRef = useRef<HTMLDivElement>(null);
     const lastSpokenIdRef = useRef<string | null>(null);
     const needsEnterDelayRef = useRef(true);
+    const logHydratedForSessionRef = useRef<number | null>(null);
     const audioElementRef = useRef<HTMLAudioElement | null>(null);
     const suppressAutoSpeakRef = useRef(false);
     const [isAudioPlaying, setIsAudioPlaying] = useState(false);
@@ -871,11 +921,12 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
                 }
                 return null;
             }
+            const speakText = dedupeSensoryTail(textContent);
             if (!silent) {
                 setEntryGenerating(entry.id, true);
             }
             try {
-                const parts = splitNarrationByPunctuation(textContent);
+                const parts = splitNarrationByPunctuation(speakText);
                 const urls: string[] = [];
                 let firstKey: string | undefined;
 
@@ -892,7 +943,7 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
                 }
 
                 // Compat: mantém audioUrl/audioKey no log, mas o player usa a fila (cache).
-                updateEntryAudio(entry.id, urls[0]!, textContent, firstKey);
+                updateEntryAudio(entry.id, urls[0]!, speakText, firstKey);
                 setAudioUrlCache(prev => ({ ...prev, [getEntryTtsCacheKey(entry.id)]: urls }));
 
                 (entry as any).audioUrl = urls[0];
@@ -989,7 +1040,19 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
     useEffect(() => {
         needsEnterDelayRef.current = true;
         lastSpokenIdRef.current = null;
+        logHydratedForSessionRef.current = null;
     }, [sessionId]);
+
+    /** Ao reentrar na sessão, não reler narrações já existentes (autoSpeak). */
+    useEffect(() => {
+        if (!sessionId || !log?.length) return;
+        if (logHydratedForSessionRef.current === sessionId) return;
+        logHydratedForSessionRef.current = sessionId;
+        const last = getLastNarratableEntry(log);
+        if (last?.id) {
+            lastSpokenIdRef.current = last.id;
+        }
+    }, [sessionId, log]);
 
     type AudioQueueOptions = {
         onAutoPlayBlocked?: () => void;
@@ -1331,6 +1394,7 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
       ) : (
         <div className={clsx('space-y-3', isV2 && 'space-y-4')}>
           <PendingRollBanner />
+          <NarrativeProcessingBanner />
           <NpcRollDisplay />
           {log.map((entry) => {
             if (!entry || !entry.id) return null;

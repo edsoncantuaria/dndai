@@ -28,6 +28,12 @@ import { LoadingOracle } from './components/LoadingOracle';
 import { useGameplayScrollLock } from '@/hooks/useGameplayScrollLock';
 import { isStateChangingBlocked } from '@/hooks/game/inputGate';
 import { useInputGate } from '@/hooks/game/useInputGate';
+import { useAuth } from '@/contexts/AuthContext';
+import { usePenaiTurnPipeline } from '@/hooks/usePenaiTurnPipeline';
+import { PenaiGameplayProvider } from '@/contexts/PenaiGameplayContext';
+import { isPenaiSession } from '@/lib/penaiEngine';
+import { PenaiMechanicalSync } from '@/components/PenaiMechanicalSync';
+import { setPenaiBridge } from '@/lib/penaiBridge';
 
 export interface GameplayScreenProps {
   returnToMenu: () => void;
@@ -39,6 +45,7 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
     sessionId,
     isLoading,
     actionPhaseLabel,
+    turnPipelinePhase,
     isRollPending,
     levelUpState,
     shopState,
@@ -51,7 +58,7 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
     setSpellCastRequest,
     submitSpellCast,
     combatState,
-    processPlayerAction,
+    sendMotorAction,
     reinstallModal,
     setReinstallModal,
   } = useGameStateContext();
@@ -59,6 +66,13 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
   const { toast } = useToast();
   const { hasSeenGuidedTips, setHasSeenGuidedTips } = useSettingsContext();
   const gate = useInputGate();
+  const { user } = useAuth();
+  const penaiMode = isPenaiSession(sessionId);
+  const penaiTurn = usePenaiTurnPipeline(
+    sessionId,
+    user?.id ?? 1,
+    penaiMode && sessionId != null,
+  );
 
   const [freeActionOpen, setFreeActionOpen] = useState(false);
   const [freeText, setFreeText] = useState('');
@@ -70,7 +84,8 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
   const [guidedDismissed, setGuidedDismissed] = useState(false);
   const [guidedStep, setGuidedStep] = useState(0);
 
-  const showDiceModal = Boolean(playerRollRequest);
+  const activeRollRequest = penaiMode ? penaiTurn.playerRollRequest : playerRollRequest;
+  const showDiceModal = Boolean(activeRollRequest);
   const showCombatHud = combatState?.isActive;
 
   useGameplayScrollLock(Boolean(character));
@@ -80,10 +95,8 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
     [isLoading, isRollPending, actionPhaseLabel]
   );
 
-  const showNarrationBanner =
-    Boolean(actionPhaseLabel) && isLoading && loadingState.kind === 'narration';
-  const showBlockingLoader =
-    Boolean(actionPhaseLabel) && isLoading && loadingState.kind !== 'narration' && loadingState.kind !== 'idle';
+  const showNarrationBanner = false;
+  const showBlockingLoader = false;
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -99,6 +112,38 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
     const t = setTimeout(() => setIsGuidedTipsOpen(true), 1500);
     return () => clearTimeout(t);
   }, [character, hasSeenGuidedTips, guidedDismissed]);
+
+  useEffect(() => {
+    if (!penaiMode || !penaiTurn.lastError) return;
+    toast({ variant: 'destructive', description: penaiTurn.lastError });
+  }, [penaiMode, penaiTurn.lastError, toast]);
+
+  useEffect(() => {
+    if (!penaiMode) {
+      setPenaiBridge(null);
+      return;
+    }
+    setPenaiBridge({
+      active: true,
+      sendProcessAction: penaiTurn.sendProcessAction,
+      sendStructuredIntent: (intent, playerAction) => {
+        penaiTurn.sendProcessAction(playerAction ?? intent.type, { structuredIntent: intent });
+      },
+      submitRollResult: penaiTurn.submitRollResult,
+    });
+    return () => setPenaiBridge(null);
+  }, [penaiMode, penaiTurn.sendProcessAction, penaiTurn.submitRollResult]);
+
+  useEffect(() => {
+    if (!penaiMode || !penaiTurn.connected || sessionId == null) return;
+    const key = `cda:session:${sessionId}:penaiBootstrap`;
+    if (typeof window === 'undefined') return;
+    if (!sessionStorage.getItem(key)) return;
+    sessionStorage.removeItem(key);
+    penaiTurn.sendProcessAction(
+      'A aventura começa. Onde eu estou e o que está acontecendo?',
+    );
+  }, [penaiMode, penaiTurn.connected, penaiTurn.sendProcessAction, sessionId]);
 
   const handleNarrationToggle = useCallback(() => {
     if (isNarrationActive) {
@@ -130,10 +175,10 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
       toast({ description: 'Aguarde: o Mestre está resolvendo a última ação.' });
       return;
     }
-    processPlayerAction(text);
+    sendMotorAction(text);
     setFreeText('');
     setFreeActionOpen(false);
-  }, [freeText, gate, processPlayerAction, toast]);
+  }, [freeText, gate, sendMotorAction, toast]);
 
   if (isLoading && !character) {
     return (
@@ -158,10 +203,31 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
   const region =
     character.worldState?.currentRegion || character.currentRegion || 'Região desconhecida';
 
+  const penaiContextValue = {
+    active: penaiMode,
+    connected: penaiTurn.connected,
+    storyFeed: penaiTurn.storyFeed,
+    worldPulse: penaiTurn.worldPulse,
+    playerRollRequest: penaiTurn.playerRollRequest,
+    lastMechanical: penaiTurn.lastMechanical,
+    phase: penaiTurn.phase,
+    sendProcessAction: penaiTurn.sendProcessAction,
+    sendStructuredIntent: (
+      intent: { type: string; payload?: Record<string, unknown> },
+      playerAction?: string,
+    ) => {
+      penaiTurn.sendProcessAction(playerAction ?? intent.type, { structuredIntent: intent });
+    },
+    submitRollResult: penaiTurn.submitRollResult,
+    handleRollResult: penaiTurn.handleRollResult,
+  };
+
   return (
+    <PenaiGameplayProvider value={penaiContextValue}>
+    <PenaiMechanicalSync />
     <TooltipProvider>
       <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
-        {loadingState.banner && (
+        {loadingState.kind === 'roll' && loadingState.banner && (
           <div
             className={cn(
               'pointer-events-none absolute right-3 top-14 z-40 flex items-center gap-2 rounded-lg border px-3 py-1.5 font-ui text-xs shadow-lg',
@@ -199,10 +265,14 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
         {levelUpState?.isPending && <LevelUpModal />}
         {shopState?.isOpen && <ShopModal />}
 
-        {showDiceModal && playerRollRequest && (
+        {showDiceModal && activeRollRequest && (
           <DiceRollModal
-            request={playerRollRequest}
-            onRoll={handleRollResult}
+            request={activeRollRequest}
+            onRoll={
+              penaiMode
+                ? penaiTurn.handleRollResult(penaiTurn.submitRollResult)
+                : handleRollResult
+            }
             show={showDiceModal}
             anchorId="dice-roll-modal-anchor"
           />
@@ -311,5 +381,6 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
         </button>
       </div>
     </TooltipProvider>
+    </PenaiGameplayProvider>
   );
 }

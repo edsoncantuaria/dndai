@@ -422,6 +422,7 @@ export async function processFreeActionWithDmFlow(
             job: {
                 kind: 'action',
                 playerAction: prompt,
+                displayPlayerAction: playerAction,
                 apiKey,
                 combatState: combatState ?? undefined,
                 useAiHomebrew,
@@ -442,6 +443,9 @@ export async function processFreeActionWithDmFlow(
         undefined,
         actionId,
         params.narrationTts,
+        undefined,
+        'sync',
+        playerAction,
     );
 }
 

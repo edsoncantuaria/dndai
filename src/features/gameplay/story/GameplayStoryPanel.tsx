@@ -7,10 +7,29 @@ import StoryHighlightsCard from '@/components/StoryHighlightsCard';
 import { StoryTimeline } from './StoryTimeline';
 import { SessionFactsPanel } from './SessionFactsPanel';
 import { SessionCastPanel } from '../components/SessionCastPanel';
+import { usePenaiGameplay } from '@/contexts/PenaiGameplayContext';
+import { PenaiStoryFeed } from './PenaiStoryFeed';
+import { PenaiJournalPanel } from './PenaiJournalPanel';
+import { MundoVivoPanel } from '../world/MundoVivoPanel';
 
 export function GameplayStoryPanel({ sessionId }: { sessionId: number | null }) {
+  const penai = usePenaiGameplay();
+
   return (
     <div className="space-y-4">
+      {penai.active && sessionId ? (
+        <>
+          <PenaiStoryFeed entries={penai.storyFeed} />
+          <PenaiJournalPanel sessionId={sessionId} />
+          <MundoVivoPanel
+            sessionId={sessionId}
+            worldPulse={penai.worldPulse}
+            currentRegionSlug={
+              (penai.lastMechanical?.currentRegionSlug as string | undefined) ?? null
+            }
+          />
+        </>
+      ) : null}
       <div className="[&_.rounded-3xl]:rounded-lg [&_.border-white\\/10]:border-dnd-gold/15">
         <NewJournal variant="v2" />
       </div>

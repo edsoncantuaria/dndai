@@ -63,6 +63,7 @@ export const SettingsSchema = z.object({
     hasSeenGuidedTips: z.boolean().optional(),
     eventCuesEnabled: z.boolean().optional(),
     hapticsEnabled: z.boolean().optional(),
+    onboardingCompleted: z.boolean().optional(),
 });
 
 // --- Sessao ---

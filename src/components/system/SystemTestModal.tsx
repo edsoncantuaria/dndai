@@ -91,8 +91,9 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
         triggerTestShop,
         triggerTestCombat,
         handleSkillCheckSubmit,
-        processPlayerAction,
+        sendMotorAction,
         setCharacter,
+        character,
     } = useGameStateContext();
 
     const { model: currentModel } = useSettingsContext();
@@ -123,7 +124,7 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
 
     const handleTestAction = () => {
         if (!customAction.trim()) return;
-        processPlayerAction(customAction, -1, tempModel);
+        sendMotorAction(customAction);
         onClose();
     };
 
@@ -198,10 +199,10 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
             <div className="space-y-2">
                 <label className="block text-sm font-medium text-stone-400">5. Simular Cenários de UI</label>
                 <div className="grid grid-cols-2 gap-2">
-                     <button onClick={() => { triggerTestShop(processPlayerAction); onClose(); }} className="px-3 py-2 rounded-md font-semibold text-white bg-indigo-700 hover:bg-indigo-600 transition-colors flex items-center justify-center gap-2">
+                     <button onClick={() => { triggerTestShop(sendMotorAction); onClose(); }} className="px-3 py-2 rounded-md font-semibold text-white bg-indigo-700 hover:bg-indigo-600 transition-colors flex items-center justify-center gap-2">
                         <Store className="h-4 w-4"/> Testar UI da Loja
                     </button>
-                     <button onClick={() => { triggerTestCombat(processPlayerAction, character ?? undefined); onClose(); }} className="px-3 py-2 rounded-md font-semibold text-white bg-red-800 hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
+                     <button onClick={() => { triggerTestCombat(sendMotorAction, character ?? undefined); onClose(); }} className="px-3 py-2 rounded-md font-semibold text-white bg-red-800 hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
                         <Swords className="h-4 w-4"/> Testar UI de Combate
                     </button>
                 </div>

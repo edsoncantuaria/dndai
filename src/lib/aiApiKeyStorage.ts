@@ -1,15 +1,18 @@
-const STORAGE_KEY = 'dndai_openrouter_api_key';
+/** BYOK Gemini (Google AI Studio) — chave do jogador, só no dispositivo. */
+const STORAGE_KEY = 'dndai_gemini_byok_key';
 const LEGACY_GEMINI_KEY = 'dndai_gemini_api_key';
+const LEGACY_OPENROUTER_KEY = 'dndai_openrouter_api_key';
 const LEGACY_SETTINGS_KEY = 'userSettings';
 
-/** Chave OpenRouter (gameplay). Permanece no dispositivo — não vai ao servidor. */
 export function readAiApiKey(): string {
   if (typeof window === 'undefined') return '';
   try {
     const current = localStorage.getItem(STORAGE_KEY)?.trim();
     if (current) return current;
     const legacyGemini = localStorage.getItem(LEGACY_GEMINI_KEY)?.trim();
-    return legacyGemini ?? '';
+    if (legacyGemini) return legacyGemini;
+    const legacyOr = localStorage.getItem(LEGACY_OPENROUTER_KEY)?.trim();
+    return legacyOr ?? '';
   } catch {
     return '';
   }

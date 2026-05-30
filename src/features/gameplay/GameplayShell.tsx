@@ -8,7 +8,7 @@ import { GameplaySidePanel } from './components/GameplaySidePanel';
 import { GameplayTopBar } from './components/GameplayTopBar';
 import { GameplayMobileMenuPanel } from './components/GameplayMobileMenuPanel';
 import { DndTabs, type DndTabItem } from '@/components/primitives';
-import { BookOpen, Map, Menu, Package, User } from 'lucide-react';
+import { BookOpen, Map, Menu, Package, Terminal, User } from 'lucide-react';
 import { GameplayCombatTracker } from './combat/GameplayCombatTracker';
 import { cn } from '@/lib/utils';
 import Vignette from '@/components/Vignette';
@@ -18,6 +18,7 @@ const MOBILE_NAV: DndTabItem[] = [
   { id: 'map', label: 'Mapa', icon: <Map className="h-4 w-4" /> },
   { id: 'inventory', label: 'Inventário', icon: <Package className="h-4 w-4" /> },
   { id: 'sheet', label: 'Ficha', icon: <User className="h-4 w-4" /> },
+  { id: 'logs', label: 'Registro', icon: <Terminal className="h-4 w-4" /> },
   { id: 'menu', label: 'Menu', icon: <Menu className="h-4 w-4" /> },
 ];
 
@@ -123,6 +124,7 @@ export function GameplayShell({
                   onOpenSettings={onOpenSettings}
                   onNarrationToggle={onNarrationToggle}
                   isNarrationActive={isNarrationActive}
+                  onOpenSessionLog={() => setMobileTab('logs')}
                   onExitSession={() => onMenuClick?.()}
                 />
               </div>

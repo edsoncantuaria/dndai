@@ -18,7 +18,7 @@ export interface RegisterDetails {
  * @param details As informações de registro do usuário.
  */
 export const registerUser = async (details: RegisterDetails) => {
-    return apiClient<{ success: boolean; message: string; user?: any }>('/auth/register', {
+    return apiClient<{ success: boolean; message: string; user?: any }>('/v2/auth/register', {
         method: 'POST',
         body: JSON.stringify(details),
     });
@@ -29,7 +29,7 @@ export const registerUser = async (details: RegisterDetails) => {
  * @param credentials As credenciais de login (email e senha).
  */
 export const loginUser = async (credentials: LoginCredentials) => {
-    return apiClient<{ success: boolean; user: any; token: string; message: string }>('/auth/login', {
+    return apiClient<{ success: boolean; user: any; token: string; message: string }>('/v2/auth/login', {
         method: 'POST',
         body: JSON.stringify({ login: credentials.login, password: credentials.password }),
     });
@@ -40,7 +40,7 @@ export const loginUser = async (credentials: LoginCredentials) => {
  * @param licenseKey A chave de licença a ser ativada.
  */
 export const activateUserLicense = async (licenseKey: string) => {
-    return apiClient<{ success: boolean, message: string }>('/licenses/activate', {
+    return apiClient<{ success: boolean, message: string }>('/v2/licenses/activate', {
         method: 'POST',
         body: JSON.stringify({ key: licenseKey }),
     });
@@ -50,7 +50,7 @@ export const activateUserLicense = async (licenseKey: string) => {
  * Confirma que o usuário leu e aceitou o aviso sobre o sistema homebrew.
  */
 export const acknowledgeHomebrewDisclaimer = async () => {
-    return apiClient<{ success: boolean, message: string }>('/users/me/acknowledge-homebrew', {
+    return apiClient<{ success: boolean, message: string }>('/v2/users/me/acknowledge-homebrew', {
         method: 'POST',
     });
 };
@@ -63,7 +63,7 @@ export const saveUserSettings = async (settings: any) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { apiKey, ...settingsToSave } = settings;
 
-    return apiClient<{ success: boolean, message: string, settings: any }>('/users/me/settings', {
+    return apiClient<{ success: boolean, message: string, settings: any }>('/v2/users/me/settings', {
         method: 'PUT',
         body: JSON.stringify(settingsToSave),
     });
@@ -74,7 +74,7 @@ export const saveUserSettings = async (settings: any) => {
  * Invalida o cache do usuário no backend.
  */
 export const invalidateUserCache = async () => {
-    return apiClient<void>('/users/me/invalidate-cache', {
+    return apiClient<void>('/v2/users/me/invalidate-cache', {
         method: 'POST',
     });
 };

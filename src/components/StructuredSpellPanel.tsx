@@ -20,7 +20,7 @@ export interface StructuredSpellPanelProps {
 
 const StructuredSpellPanel: React.FC<StructuredSpellPanelProps> = ({ variant = 'legacy' }) => {
   const isV2 = variant === 'v2';
-  const { character, isLoading, processPlayerAction, setPendingStructuredIntent } = useGameStateContext();
+  const { character, isLoading, sendMotorAction } = useGameStateContext();
   const spells = character?.spells ?? [];
   const [selectedSpell, setSelectedSpell] = useState(() => (spells[0] as CharacterSpell | undefined)?.spellName ?? '');
   const [ability, setAbility] = useState<'intelligence' | 'wisdom' | 'charisma'>('intelligence');
@@ -31,7 +31,7 @@ const StructuredSpellPanel: React.FC<StructuredSpellPanelProps> = ({ variant = '
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!sanitizedSpell) return;
-    setPendingStructuredIntent({
+    sendMotorAction(`Eu conjuro ${sanitizedSpell}${targetAc ? ` contra CA ${targetAc}` : ''}.`, {
       type: 'spell-attack',
       payload: {
         spellIndex: sanitizedSpell,
@@ -39,7 +39,6 @@ const StructuredSpellPanel: React.FC<StructuredSpellPanelProps> = ({ variant = '
         targetArmorClass: targetAc ? Number(targetAc) : undefined,
       },
     });
-    processPlayerAction(`Eu conjuro ${sanitizedSpell}${targetAc ? ` contra CA ${targetAc}` : ''}.`);
     setTargetAc('');
   };
 

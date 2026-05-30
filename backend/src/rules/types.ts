@@ -219,6 +219,7 @@ export interface HealingIntentPayload {
 export interface TravelIntentPayload {
     targetRegionSlug: string;
     targetPoiSlug?: string;
+    travelMode?: string;
 }
 
 export interface DropItemPayload {

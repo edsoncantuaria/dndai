@@ -45,6 +45,9 @@ const DailyRecapPanel: React.FC<{ variant?: 'legacy' | 'v2' }> = ({ variant = 'l
     const location = worldState.location || character.currentRegion || 'Local desconhecido';
     const timeOfDay = worldState.timeOfDay || 'Horário indefinido';
     const climate = worldState.weather || worldState.climate || 'Clima imprevisível';
+    const gameDay = typeof worldState.gameClock === 'object' && worldState.gameClock !== null
+        ? Number((worldState.gameClock as { day?: number }).day ?? 1)
+        : null;
     const xpProgress = character.xpToNextLevel
         ? Math.max(0, Math.min(100, (character.xp / character.xpToNextLevel) * 100))
         : 0;
@@ -100,7 +103,8 @@ const DailyRecapPanel: React.FC<{ variant?: 'legacy' | 'v2' }> = ({ variant = 'l
                             <MapPin className="h-4 w-4 text-emerald-300" /> {location}
                         </p>
                         <p className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-sky-300" /> {timeOfDay}
+                            <Clock className="h-4 w-4 text-sky-300" />{' '}
+                            {gameDay != null ? `Dia ${gameDay} · ${timeOfDay}` : timeOfDay}
                         </p>
                         <p className="flex items-center gap-2">
                             <CloudSun className="h-4 w-4 text-amber-200" /> {climate}

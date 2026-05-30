@@ -1,24 +1,25 @@
 'use client';
 
-import { useCallback, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { useCallback, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import * as GameService from '@/services/gameService';
-import * as HomebrewService from '@/services/homebrewService';
-import * as characterUtils from '@/utils/characterUtils';
-import { initializeWebSocket, closeWebSocket } from '@/services/webSocketService';
 import type {
     Character,
+    CombatState,
     GameMasterResponse,
-    HomebrewContent,
-    InventoryItem,
     LogEntry,
+    LootOffer,
     NewCharacterInfo,
     ProgressionFeedItem,
-    SessaoIA,
+    ShopState,
 } from '@/types';
-import { deriveAmbientSoundFromWorld } from './ambientSound';
+import { hasSessionBeenOpened, markSessionOpened } from '@/lib/sessionDevStorage';
+import { deriveAmbientSoundFromWorld } from '@/hooks/game/ambientSound';
 import { setTurnPipelinePhase } from '@/hooks/game/turnPipelineStore';
 import { patchCharacter } from './characterPatch';
+import { loadPenaiGameSession } from '@/lib/penaiCharacterAdapter';
+import { getPenaiBridge } from '@/lib/penaiBridge';
+import { deletePenaiSession } from '@/services/penaiApi';
 import type { useGameLog } from '../useGameLog';
 import type { useInteractionManager } from '../useInteractionManager';
 
@@ -42,9 +43,6 @@ export interface UseGameSessionOptions {
     lastLogVersionRef: MutableRefObject<number>;
     resetActionPipeline: (label: string | null) => void;
     toast: (opts: { title?: string; description?: string; variant?: 'destructive' }) => void;
-    processPlayerActionRef: MutableRefObject<
-        ((action: string, sessionIdOverride?: number, modelOverride?: string) => Promise<void>) | undefined
-    >;
 }
 
 export function useGameSession(options: UseGameSessionOptions) {
@@ -65,14 +63,9 @@ export function useGameSession(options: UseGameSessionOptions) {
         lastLogVersionRef,
         resetActionPipeline,
         toast,
-        processPlayerActionRef,
     } = options;
 
-    const [reinstallModal, setReinstallModal] = useState<{
-        open: boolean;
-        deps: HomebrewContent[];
-        onConfirm: () => void;
-    }>({ open: false, deps: [], onConfirm: () => {} });
+    const bootstrappedSessionsRef = useRef(new Set<number>());
 
     const updateCharacter = useCallback(
         (updates: Partial<Character>) => {
@@ -190,19 +183,83 @@ export function useGameSession(options: UseGameSessionOptions) {
         setApiError(null);
         setProgressionFeed([]);
         resetActionPipeline(null);
-        closeWebSocket();
     }, [logState, interactionState, resetActionPipeline, setCharacter, setSessionId, setApiError, setProgressionFeed]);
 
     const startGame = useCallback(
         async (newSessionId?: number): Promise<void> => {
             const targetSessionId = newSessionId ?? sessionId;
-            if (!targetSessionId || !processPlayerActionRef.current) return;
-            await processPlayerActionRef.current(
-                'A aventura começa. Onde eu estou e o que está acontecendo?',
-                targetSessionId,
-            );
+            if (!targetSessionId) return;
+
+            const opening =
+                'A aventura começa. Onde eu estou e o que está acontecendo?';
+
+            const bridge = getPenaiBridge();
+            if (bridge?.active) {
+                bridge.sendProcessAction(opening);
+                return;
+            }
+            if (typeof window !== 'undefined') {
+                sessionStorage.setItem(
+                    `cda:session:${targetSessionId}:penaiBootstrap`,
+                    '1',
+                );
+            }
         },
-        [sessionId, processPlayerActionRef],
+        [sessionId],
+    );
+
+    const hydratePenaiMechanical = useCallback(
+        (mechanical: Record<string, unknown>) => {
+            const combatRaw = mechanical.combatState as Record<string, unknown> | undefined;
+            if (combatRaw && typeof combatRaw === 'object') {
+                const combatants = Array.isArray(combatRaw.combatants)
+                    ? (combatRaw.combatants as Array<Record<string, unknown>>)
+                    : [];
+                const order = Array.isArray(combatRaw.initiativeOrder)
+                    ? (combatRaw.initiativeOrder as string[])
+                    : combatants.map(c => String(c.entityKey ?? ''));
+                interactionState.setCombatState({
+                    isActive: Boolean(combatRaw.isActive),
+                    round: Number(combatRaw.round ?? 1),
+                    turn: Number(combatRaw.turn ?? 0),
+                    initiativeOrder: order,
+                    combatants: combatants.map(c => ({
+                        id: String(c.entityKey ?? c.id ?? ''),
+                        name: String(c.displayName ?? c.name ?? 'Combatente'),
+                        isPlayer: c.side === 'hero',
+                        hp: { current: Number(c.hp ?? 0), max: Number(c.hpMax ?? 1) },
+                        ac: Number(c.armorClass ?? 10),
+                        initiative: Number(c.initiative ?? 10),
+                        hasMoved: false,
+                        hasActed: false,
+                        actionPoints: 3,
+                        bonusActionPoints: 1,
+                        conditions: [],
+                        rollHistory: [],
+                    })),
+                } as CombatState);
+            }
+
+            const loot = mechanical.pendingLootOffer as LootOffer | null | undefined;
+            if (loot && typeof loot === 'object') {
+                interactionState.setRequest({ type: 'loot', request: loot });
+            }
+
+            const shop = mechanical.shopState as Record<string, unknown> | null | undefined;
+            if (shop && typeof shop === 'object' && Array.isArray(shop.inventory)) {
+                interactionState.setRequest({
+                    type: 'shop',
+                    request: {
+                        isOpen: true,
+                        isHaggling: false,
+                        name: String(shop.name ?? 'Loja'),
+                        inventory: shop.inventory,
+                        sellPrices: {},
+                    } as ShopState,
+                });
+            }
+        },
+        [interactionState],
     );
 
     const loadGameSession = useCallback(
@@ -210,153 +267,48 @@ export function useGameSession(options: UseGameSessionOptions) {
             setIsLoading(true);
             setApiError(null);
             try {
-                initializeWebSocket();
-                const sessionDetails: SessaoIA = await GameService.getSessionDetails(id);
-                const userInstalledIds = new Set(user?.installedHomebrewIds || []);
-                const sessionRequiredIds = sessionDetails.homebrewContentIds || [];
-                const missingIds = sessionRequiredIds.filter(hbId => !userInstalledIds.has(hbId));
+                const userId = (user as { id?: number } | undefined)?.id ?? 1;
+                const { session, mechanical, character: penaiCharacter } =
+                    await loadPenaiGameSession(id, userId);
 
-                const loadSessionContent = async () => {
-                    if (!sessionDetails) return null;
+                setCharacter(penaiCharacter);
+                logState.setLog([]);
+                setSessionId(id);
+                clientStateVersionRef.current =
+                    Number(mechanical.stateVersion ?? session.stateVersion ?? 0);
+                lastLogVersionRef.current = clientStateVersionRef.current;
+                hydratePenaiMechanical(mechanical);
 
-                    const characterId = sessionDetails.character?.id ?? sessionDetails.characterId;
-                    let backendCharacterPayload: Character | null = null;
-                    const inventorySnapshot = Array.isArray(sessionDetails.character?.inventory)
-                        ? sessionDetails.character?.inventory
-                        : null;
-
-                    if (characterId) {
-                        try {
-                            backendCharacterPayload = await GameService.getCharacterById(characterId);
-                        } catch (err) {
-                            console.warn(`[loadGameSession] Falha ao buscar personagem ${characterId}:`, err);
-                            backendCharacterPayload = sessionDetails.character as Character;
-                        }
-                    } else if (sessionDetails.character) {
-                        backendCharacterPayload = sessionDetails.character as Character;
-                    }
-
-                    if (!backendCharacterPayload) {
-                        setApiError('Não foi possível carregar os dados do personagem desta sessão.');
-                        return null;
-                    }
-
-                    const fullCharacter = await characterUtils.buildFrontendCharacter(backendCharacterPayload as Character);
-                    if ((!fullCharacter.inventory || fullCharacter.inventory.length === 0) && inventorySnapshot?.length) {
-                        fullCharacter.inventory = inventorySnapshot as InventoryItem[];
-                    }
-                    const baseStateVersion = sessionDetails.stateVersion ?? 0;
-                    const displayLogs = (sessionDetails.logs || [])
-                        .filter(log => !['state', 'gm_raw', 'gm_validation'].includes(log.type))
-                        .map(log => {
-                            let parsedContent: unknown = log.response;
-                            if (typeof log.response === 'string') {
-                                try {
-                                    parsedContent = JSON.parse(log.response);
-                                } catch {
-                                    parsedContent = log.response;
-                                }
-                            }
-                            const audioUrl =
-                                parsedContent &&
-                                typeof parsedContent === 'object' &&
-                                parsedContent !== null &&
-                                'audioUrl' in parsedContent
-                                    ? (parsedContent as { audioUrl?: string }).audioUrl
-                                    : undefined;
-                            return {
-                                id: log.id?.toString() || uuidv4(),
-                                type: log.type as LogEntry['type'],
-                                content: parsedContent,
-                                rollResult: log.rollResult,
-                                audioUrl,
-                                stateVersion: log.stateVersion ?? baseStateVersion,
-                            };
-                        });
-                    const previousStateVersion = lastLogVersionRef.current ?? 0;
-                    setCharacter(fullCharacter);
-                    logState.setLog(prev => {
-                        if (!prev.length || sessionId !== id) {
-                            return displayLogs as LogEntry[];
-                        }
-                        const incrementalEntries = (displayLogs as LogEntry[]).filter(entry => {
-                            if (typeof entry.stateVersion !== 'number') return false;
-                            return entry.stateVersion > previousStateVersion;
-                        });
-                        if (!incrementalEntries.length) return prev;
-                        return [...prev, ...incrementalEntries];
-                    });
-                    setSessionId(id);
-                    clientStateVersionRef.current = sessionDetails.stateVersion ?? clientStateVersionRef.current;
-                    lastLogVersionRef.current = sessionDetails.stateVersion ?? previousStateVersion;
-
-                    if (sessionDetails.combatState) {
-                        interactionState.setCombatState(sessionDetails.combatState);
-                    }
-                    if (sessionDetails.pendingLootOffer) {
-                        interactionState.setRequest({
-                            type: 'loot',
-                            request: sessionDetails.pendingLootOffer,
-                        });
-                    }
-                    if (sessionDetails.shopState) {
-                        interactionState.setRequest({
-                            type: 'shop',
-                            request: sessionDetails.shopState,
-                        });
-                    }
-
-                    const lastStateLog = [...(sessionDetails.logs || [])]
-                        .reverse()
-                        .find(l => l.type === 'state');
-                    if (lastStateLog?.response) {
-                        try {
-                            const parsedState = JSON.parse(lastStateLog.response);
-                            handleApiResponse(parsedState, true);
-                        } catch {
-                            await startGame(id);
-                        }
-                    } else if (displayLogs.length === 0) {
-                        await startGame(id);
-                    }
-                    return { character: fullCharacter, logs: displayLogs as LogEntry[] };
-                };
-
-                if (missingIds.length > 0) {
-                    const deps = await Promise.all(missingIds.map(hbId => HomebrewService.getHomebrewDetails(hbId)));
-                    setReinstallModal({
-                        open: true,
-                        deps: deps.filter((d): d is HomebrewContent => !!d),
-                        onConfirm: async () => {
-                            try {
-                                setIsLoading(true);
-                                for (const depId of missingIds) {
-                                    await GameService.updateSessionHomebrew(id, depId, 'install');
-                                }
-                                toast({
-                                    title: 'Dependências restauradas!',
-                                    description: 'O conteúdo necessário para a sessão foi instalado.',
-                                });
-                                setReinstallModal({ open: false, deps: [], onConfirm: () => {} });
-                                await loadSessionContent();
-                            } catch (err: unknown) {
-                                const message = err instanceof Error ? err.message : String(err);
-                                setApiError(`Falha ao reinstalar dependências: ${message}`);
-                            } finally {
-                                setIsLoading(false);
-                            }
-                        },
-                    });
-                    return null;
+                const regionSlug = String(
+                    mechanical.currentRegionSlug ??
+                        session.currentRegionSlug ??
+                        penaiCharacter.currentRegion ??
+                        '',
+                );
+                if (regionSlug) {
+                    setAmbientSound(deriveAmbientSoundFromWorld({ currentRegion: regionSlug }));
                 }
 
-                return await loadSessionContent();
+                if (hasSessionBeenOpened(id)) {
+                    markSessionOpened(id);
+                    bootstrappedSessionsRef.current.add(id);
+                } else if (!bootstrappedSessionsRef.current.has(id)) {
+                    bootstrappedSessionsRef.current.add(id);
+                    markSessionOpened(id);
+                    await startGame(id);
+                }
+
+                return { character: penaiCharacter, logs: [] as LogEntry[] };
             } catch (err: unknown) {
                 const httpError = err as { message?: string; response?: { status?: number } };
-                console.error('[loadGameSession] Erro ao carregar sessão:', err);
+                console.error('[loadGameSession] Erro ao carregar sessão PENAI:', err);
                 setApiError(httpError.message || 'Erro ao carregar sessão.');
                 if (httpError?.response?.status === 401) {
-                    console.warn('[loadGameSession] Sessão expirada — limpando estado.');
+                    toast({
+                        variant: 'destructive',
+                        title: 'Sessão expirada',
+                        description: 'Faça login novamente e reabra a aventura.',
+                    });
                     clearGameState();
                 }
                 return null;
@@ -366,18 +318,18 @@ export function useGameSession(options: UseGameSessionOptions) {
         },
         [
             user,
-            handleApiResponse,
             startGame,
             logState,
             toast,
             clearGameState,
-            sessionId,
             setIsLoading,
             setApiError,
             setCharacter,
             setSessionId,
+            setAmbientSound,
             clientStateVersionRef,
             lastLogVersionRef,
+            hydratePenaiMechanical,
         ],
     );
 
@@ -419,7 +371,7 @@ export function useGameSession(options: UseGameSessionOptions) {
             setIsLoading(true);
             setApiError(null);
             try {
-                await GameService.deleteSessionById(sessionIdToDelete);
+                await deletePenaiSession(sessionIdToDelete);
                 if (sessionId === sessionIdToDelete) {
                     clearGameState();
                 }
@@ -436,8 +388,6 @@ export function useGameSession(options: UseGameSessionOptions) {
     );
 
     return {
-        reinstallModal,
-        setReinstallModal,
         updateCharacter,
         handleApiResponse,
         clearGameState,

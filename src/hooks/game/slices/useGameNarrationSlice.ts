@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import { useGameLog } from '@/hooks/useGameLog';
+import { setTurnPipelinePhase } from '@/hooks/game/turnPipelineStore';
 import { useTurnPipeline } from '@/hooks/game/useTurnPipeline';
 import type { GameActionPipelineRefs } from './useGameActionPipelineRefs';
 
@@ -28,6 +29,7 @@ export function useGameNarrationSlice({ pipelineRefs, hasPendingRoll }: Narratio
         actionTimeoutsRef.current.clear();
         setIsLoading(false);
         setActionPhaseLabel(label);
+        setTurnPipelinePhase('idle');
     }, [pendingActionsRef, actionTimeoutsRef]);
 
     const clearPendingAction = useCallback(

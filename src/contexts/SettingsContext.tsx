@@ -15,32 +15,17 @@ import {
     type PiperVoiceId,
 } from '@/lib/narrationTts';
 
-/** Modelos free no OpenRouter — motor principal do jogo. */
-export const OPENROUTER_MODELS = [
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "qwen/qwen3-next-80b-a3b-instruct:free",
-    "openai/gpt-oss-120b:free",
-    "openai/gpt-oss-20b:free",
-    "nousresearch/hermes-3-llama-3.1-405b:free",
-    "deepseek/deepseek-chat-v3-0324:free",
-    "google/gemma-3-27b-it:free",
-] as const;
-
-/** Gemini — fallback (TTS/homebrew ainda usam Google). */
+/** PENAI — apenas modelos Gemini (PT-BR). */
 export const GEMINI_GAME_MODELS = [
     "gemini-2.5-flash",
     "gemini-2.5-flash-lite",
     "gemini-2.5-pro",
 ] as const;
 
-/** Modelos expostos no gameplay — OSS primeiro; Gemini oculto do fluxo principal. */
-export const GAMEPLAY_MODELS = [
-    'openai/gpt-oss-120b:free',
-    ...OPENROUTER_MODELS.filter(m => m !== 'openai/gpt-oss-120b:free'),
-] as const;
+/** Modelos expostos no gameplay. */
+export const GAMEPLAY_MODELS = [...GEMINI_GAME_MODELS] as const;
 
 export const AVAILABLE_MODELS = [
-    ...GAMEPLAY_MODELS,
     ...GEMINI_GAME_MODELS,
     "gemini-2.5-pro-preview-06-05",
     "gemini-2.5-flash-preview-09-2025",
@@ -149,7 +134,7 @@ export const defaultGenerationConfig: GenerationConfig = {
 };
 
 const defaultSettings = {
-    model: 'openai/gpt-oss-120b:free',
+    model: 'gemini-2.5-flash',
     ttsModel: AVAILABLE_TTS_MODELS[0],
     ttsVoice: AVAILABLE_TTS_VOICES[0],
     narrationVoice: defaultNarrationTts.voice,
@@ -211,8 +196,11 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [eventCuesEnabled, setEventCuesEnabled] = useState(defaultSettings.eventCuesEnabled);
     const [hapticsEnabled, setHapticsEnabled] = useState(defaultSettings.hapticsEnabled);
 
-    /** Servidor usa OPENROUTER_KEY*; cliente não envia chave do jogador. */
-    const getApiKey = useCallback(() => '', []);
+    /** BYOK: chave Gemini/OpenRouter no dispositivo (não persiste no servidor). */
+    const getApiKey = useCallback(() => {
+        const trimmed = apiKey?.trim() || readGeminiApiKey().trim();
+        return trimmed || undefined;
+    }, [apiKey]);
     
     // Load from localStorage on initial mount
     useEffect(() => {

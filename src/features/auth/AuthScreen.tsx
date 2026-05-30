@@ -8,8 +8,12 @@ import { LoginFormV2 } from './LoginFormV2';
 import { RegisterFormV2 } from './RegisterFormV2';
 import { LandscapeBlocker } from '@/features/intro/LandscapeBlocker';
 
-export function AuthScreen() {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+export interface AuthScreenProps {
+  initialMode?: 'login' | 'register';
+}
+
+export function AuthScreen({ initialMode = 'login' }: AuthScreenProps) {
+  const [mode, setMode] = useState<'login' | 'register'>(initialMode);
 
   return (
     <div className="relative flex min-h-screen items-center justify-center px-4 py-12">

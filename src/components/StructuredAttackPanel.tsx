@@ -13,8 +13,7 @@ const StructuredAttackPanel: React.FC<StructuredAttackPanelProps> = ({ variant =
     const {
         character,
         isLoading,
-        processPlayerAction,
-        setPendingStructuredIntent,
+        sendMotorAction,
         playerRollRequest,
         pendingLootOffer,
         pendingHitDiceRequest,
@@ -64,16 +63,14 @@ const StructuredAttackPanel: React.FC<StructuredAttackPanelProps> = ({ variant =
         const weapon = weapons.find(w => w.index === selectedWeaponId) ?? weapons[0];
         if (!weapon) return;
 
-        setPendingStructuredIntent({
+        const targetText = targetAc ? ` (contra CA ${targetAc})` : '';
+        sendMotorAction(`Eu ataco com ${weapon.name}${targetText}.`, {
             type: 'weapon-attack',
             payload: {
                 weaponIndex: weapon.index,
                 targetArmorClass: targetAc ? Number(targetAc) : undefined,
             },
         });
-
-        const targetText = targetAc ? ` (contra CA ${targetAc})` : '';
-        processPlayerAction(`Eu ataco com ${weapon.name}${targetText}.`);
         setTargetAc('');
     };
 

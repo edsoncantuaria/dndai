@@ -4,7 +4,8 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { useNewGameState } from '../hooks/newUseGameState';
 import type { Character, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, PlayerRollRequest, ApiSpell, InventoryItem, ShopItem, LevelUpSelections, NewCharacterInfo, HomebrewContent, ProgressionFeedItem } from '../types';
-import type { SkillCheckRequestState, SpellCastRequestState } from '@/hooks/useInteractionManager';
+import type { SkillCheckRequestState, SpellCastRequestState, SendMotorActionFn } from '@/hooks/useInteractionManager';
+import type { StructuredIntent } from '@/hooks/game/motorIntents';
 
 // Define a mais específica para o valor do contexto
 export interface GameStateContextType {
@@ -37,7 +38,7 @@ export interface GameStateContextType {
     deleteCharacter: (characterId: number) => Promise<boolean>;
     deleteSession: (sessionIdToDelete: number) => Promise<boolean>;
     startGame: (newSessionId?: number) => Promise<void>;
-    processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => Promise<void>;
+    sendMotorAction: (action: string, structured?: StructuredIntent) => void;
     applyLevelUp: (selections: LevelUpSelections) => Promise<void>;
     toggleEquipped: (itemId: string) => void;
     useConsumable: (itemId: string) => void;
@@ -68,14 +69,19 @@ export interface GameStateContextType {
     /** F.1 — idle | rolling | mechanical | narrating */
     turnPipelinePhase: 'idle' | 'rolling' | 'mechanical' | 'narrating';
     // Debug Triggers
-    triggerTestShop: (processPlayerAction?: (action: string) => void) => void;
+    triggerTestShop: (sendMotorAction?: SendMotorActionFn) => void;
     triggerTestCombat: (
-        processPlayerAction?: (action: string) => void,
+        sendMotorAction?: SendMotorActionFn,
         character?: { id: number; name: string; attributes?: { hp?: number; maxHp?: number; ac?: number } },
     ) => void;
     getTestShopCatalog?: () => { name: string; inventory: ShopItem[]; merchantName?: string };
     triggerTestSkillCheck: (skillName: string) => void;
     setPendingStructuredIntent: React.Dispatch<React.SetStateAction<any | null>>;
+    setCombatState: React.Dispatch<React.SetStateAction<CombatState>>;
+    setRequest: (args: { type: 'shop' | 'loot'; request: ShopState | LootOffer }) => void;
+    setActionOptions: React.Dispatch<
+        React.SetStateAction<(string | { text: string; action: string; skill?: string })[]>
+    >;
 }
 
 

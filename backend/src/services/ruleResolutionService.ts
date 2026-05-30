@@ -3,6 +3,14 @@ import type { RollRequestContext } from './rollRequestService.js';
 import { applyCharacterStateDelta, type StateDeltaContext } from './characterStateService.js';
 import { applyEntityDeltaWithLog } from './combatEntityService.js';
 import type { CharacterStateDelta, RollTargetDescriptor } from '../rules/types.js';
+import {
+    buildDamageFollowUp,
+    describeRollTarget,
+    resolveAttackRollCore,
+    rollResolutionShouldNarrate,
+} from '../rules/rollResolutionCore.js';
+
+export { rollResolutionShouldNarrate, buildDamageFollowUp } from '../rules/rollResolutionCore.js';
 
 const RULE_RESOLUTION_DEBUG = process.env.RULE_RESOLUTION_DEBUG !== 'false';
 const logRuleResolution = (stage: string, details: Record<string, unknown>) => {
@@ -10,12 +18,7 @@ const logRuleResolution = (stage: string, details: Record<string, unknown>) => {
     console.log(`[RuleResolution] ${stage}`, details);
 };
 
-const SIMPLE_DAMAGE_REGEX = /^\s*([+-]?\d+d\d+)([+-]\d+)?\s*$/i;
-const describeTarget = (target?: RollTargetDescriptor) => {
-    if (!target) return 'o alvo';
-    if (target.kind === 'character') return 'você';
-    return target.name ?? 'o alvo';
-};
+const describeTarget = describeRollTarget;
 
 interface PendingRollPayload extends PlayerRollRequest {
     context?: RollRequestContext;
@@ -50,61 +53,11 @@ export interface RollResolutionResult {
     hints?: string[];
 }
 
-const sanitizeFormulaNotation = (formula?: string, modifier = 0) => {
-    if (!formula) return { dice: '1d6', modifier: Math.max(0, modifier) };
-    const compact = formula.replace(/\s+/g, '');
-    const match = SIMPLE_DAMAGE_REGEX.exec(compact);
-    if (!match) {
-        return { dice: '1d6', modifier: Math.max(0, modifier) };
-    }
-    const dice = match[1];
-    const mod = match[2] ? Number(match[2]) : 0;
-    return { dice, modifier: mod + modifier };
-};
-
 const cloneWithoutResourceCosts = (metadata?: PlayerRollRequest['metadata']) => {
     if (!metadata) return undefined;
     const { resourceCosts, ...rest } = metadata;
     return rest;
 };
-
-const buildDamageFollowUp = (
-    pending: PendingRollPayload,
-    metadata: PlayerRollRequest['metadata']
-): RollResolutionResult['nextRollRequest'] | undefined => {
-    if (!metadata?.damageFormula) return undefined;
-    const { dice, modifier } = sanitizeFormulaNotation(metadata.damageFormula);
-    const reason = `Motor de Regras - Dano (${metadata.source?.name || 'Ataque'})`;
-    const sanitizedMetadata = {
-        ...cloneWithoutResourceCosts(metadata),
-        effect: 'damage' as const,
-    };
-    return {
-        request: {
-            reason,
-            dice,
-            modifier,
-            rollType: 'damage',
-            metadata: sanitizedMetadata,
-        },
-        context: {
-            actionId: pending.context?.actionId ?? pending.requestId,
-            intentType: 'damage',
-            metadata: sanitizedMetadata as Record<string, any>,
-        },
-    };
-};
-
-/** P0.4.3/4 — contrato de narração por efeito (testável sem DB). */
-export function rollResolutionShouldNarrate(
-    effect: 'attack' | 'damage' | 'healing',
-    opts: { hasDamageFollowUp?: boolean },
-): boolean {
-    if (effect === 'attack') {
-        return opts.hasDamageFollowUp ? false : true;
-    }
-    return true;
-}
 
 const mergeCharacterUpdates = (
     base: Awaited<ReturnType<typeof applyCharacterStateDelta>> | null,
@@ -226,32 +179,34 @@ export async function resolveStructuredRoll(
     }
 
     if (effect === 'attack') {
-        const armorClass = target?.armorClass;
-        const hit = typeof armorClass === 'number' ? total >= armorClass : true;
-        const nextRollRequest = hit ? buildDamageFollowUp(pending, metadata) : undefined;
+        const core = resolveAttackRollCore(
+            { context: pending.context, requestId: pending.requestId },
+            metadata,
+            total,
+        );
+        const nextRollRequest = core.nextRollRequest
+            ? {
+                  request: core.nextRollRequest.request as PlayerRollRequest,
+                  context: core.nextRollRequest.context as RollRequestContext,
+              }
+            : undefined;
         logRuleResolution('attackResolved', {
             sessionId,
             requestId: pending.requestId,
             target: target?.name ?? target?.id ?? 'unknown',
-            hit,
-            armorClass,
+            hit: core.hit,
+            armorClass: core.armorClass,
             followUp: Boolean(nextRollRequest),
         });
-        hints.push(
-            hit
-                ? `Ataque acertou ${describeTarget(target)}${typeof armorClass === 'number' ? ` (CA ${armorClass})` : ''}.`
-                : `Ataque falhou contra ${describeTarget(target)}${typeof armorClass === 'number' ? ` (CA ${armorClass})` : ''}.`
-        );
+        hints.push(...core.hints);
         return {
             attackOutcome: {
-                hit,
-                armorClass,
-                total,
-                targetName: target?.name,
+                hit: core.hit,
+                armorClass: core.armorClass,
+                total: core.total,
+                targetName: core.targetName,
             },
-            shouldNarrate: rollResolutionShouldNarrate('attack', {
-                hasDamageFollowUp: Boolean(nextRollRequest),
-            }),
+            shouldNarrate: core.shouldNarrate,
             updatedCharacter: cumulativeCharacterDelta ?? undefined,
             nextRollRequest,
             hints,

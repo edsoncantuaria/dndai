@@ -28,7 +28,7 @@ import type {
 import { fetchDetailsInChunks } from '@/utils/apiUtils';
 
 
-const API_BASE = '/data';
+const API_BASE = '/v2/data';
 
 // Cache em memória para a sessão atual do navegador
 const cache = new Map<string, any>();

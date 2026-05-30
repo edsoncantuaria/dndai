@@ -33,7 +33,7 @@ const CollapsibleSection: React.FC<{ title: string, children: React.ReactNode, d
 };
 
 const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalAction }) => {
-    const { character, processPlayerAction, isLoading, combatState } = useGameStateContext();
+    const { character, sendMotorAction, isLoading, combatState } = useGameStateContext();
 
     if (!character) return null;
 
@@ -125,7 +125,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
             <CollapsibleSection title="Ações de Descanso">
                  <div className="grid grid-cols-2 gap-3">
                     <button
-                        onClick={() => processPlayerAction("Tentar fazer um descanso curto.")}
+                        onClick={() => sendMotorAction("Tentar fazer um descanso curto.")}
                         disabled={isLoading || (combatState && combatState.isActive)}
                         className="text-center w-full bg-gradient-to-br from-stone-800/80 to-stone-700/60 hover:from-stone-700 hover:to-stone-600 border border-white/10 text-stone-100 font-semibold py-2.5 px-4 rounded-2xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
@@ -133,7 +133,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                         Descanso Curto
                     </button>
                     <button
-                        onClick={() => processPlayerAction("Tentar fazer um descanso longo.")}
+                        onClick={() => sendMotorAction("Tentar fazer um descanso longo.")}
                         disabled={isLoading || (combatState && combatState.isActive)}
                         className="text-center w-full bg-gradient-to-br from-stone-800/80 to-stone-700/60 hover:from-stone-700 hover:to-stone-600 border border-white/10 text-stone-100 font-semibold py-2.5 px-4 rounded-2xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >

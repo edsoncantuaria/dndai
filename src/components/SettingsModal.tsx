@@ -12,6 +12,7 @@ import { apiClient } from '@/services/apiClient';
 import { generateSceneImage as requestSceneImage } from '@/services/imageService';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { NARRATION_SPEEDS, PIPER_VOICES } from '@/lib/narrationTts';
+import { AiBillingSection } from '@/components/settings/AiBillingSection';
 
 const IMAGE_FEATURE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_IMAGE_GENERATION === 'true';
 
@@ -372,18 +373,8 @@ const CacheManagement: React.FC = () => {
     const handleFlushRedis = async () => {
         setIsFlushingRedis(true);
         try {
-            const response = await fetch('/api/cache/flush', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`,
-                },
-            });
-            if (!response.ok) {
-                const msg = await response.text();
-                throw new Error(msg || 'Falha ao limpar caches globais.');
-            }
-            const body = await response.json();
+            const { apiClient } = await import('@/services/apiClient');
+            const body = await apiClient<{ message?: string }>('/cache/flush', { method: 'POST' });
             toast({
                 title: 'Cache global limpo!',
                 description: body.message || 'Todos os caches foram limpos no servidor.',
@@ -572,6 +563,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     )}
 
                     <AudioControls />
+                    <AiBillingSection />
                     <AppearanceControls />
                     <FeedbackControls />
 

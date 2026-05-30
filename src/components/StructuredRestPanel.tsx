@@ -1,5 +1,6 @@
 import React from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
+import { useMotorAction } from '@/hooks/useMotorAction';
 import { DndButton, DndCard } from '@/components/primitives';
 import { structuredPanelTitleClass } from '@/features/gameplay/modals/structuredPanelStyles';
 import { cn } from '@/lib/utils';
@@ -10,18 +11,16 @@ export interface StructuredRestPanelProps {
 
 const StructuredRestPanel: React.FC<StructuredRestPanelProps> = ({ variant = 'legacy' }) => {
   const isV2 = variant === 'v2';
-  const { processPlayerAction, isLoading, setPendingStructuredIntent, combatState } = useGameStateContext();
+  const { sendMotorAction } = useMotorAction();
+  const { isLoading, combatState } = useGameStateContext();
   const isCombatActive = combatState?.isActive;
 
   const handleRest = (restType: 'short' | 'long') => {
-    setPendingStructuredIntent({
-      type: 'rest',
-      payload: { restType },
-    });
-    processPlayerAction(
+    sendMotorAction(
       restType === 'short'
         ? 'Quero fazer um descanso curto para recuperar o fôlego.'
-        : 'Organizo um descanso longo para recuperar minhas forças.'
+        : 'Organizo um descanso longo para recuperar minhas forças.',
+      { type: 'rest', payload: { restType } },
     );
   };
 

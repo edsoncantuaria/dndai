@@ -219,7 +219,7 @@ interface ActionOptionsProps {
 
 const ActionOptions: React.FC<ActionOptionsProps> = ({ variant = 'default' }) => {
     const { 
-        processPlayerAction, 
+        sendMotorAction, 
         isLoading, 
         actionOptions,
         pendingLootOffer, 
@@ -266,13 +266,13 @@ const ActionOptions: React.FC<ActionOptionsProps> = ({ variant = 'default' }) =>
                               action as string;
 
         if (actionCommand) {
-            processPlayerAction(actionCommand);
+            sendMotorAction(actionCommand);
         }
         setIsOpen(false);
     };
 
     const handleCustomSubmit = (action: string) => {
-        processPlayerAction(action);
+        sendMotorAction(action);
         setIsOpen(false);
     };
 

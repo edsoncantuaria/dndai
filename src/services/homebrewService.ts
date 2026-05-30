@@ -110,12 +110,12 @@ export const listHomebrewContent = async (scope: 'public' | 'mine', createdBy?: 
         params.append('createdBy', createdBy);
     }
     
-    const endpoint = `/homebrew?${params.toString()}`;
+    const endpoint = `/v2/homebrew?${params.toString()}`;
     return apiClient<HomebrewContent[]>(endpoint, { method: 'GET' });
 };
 
 export const createHomebrewContent = async (data: CreateHomebrewData): Promise<HomebrewContent> => {
-    const response = await apiClient<{ content: HomebrewContent }>('/homebrew', {
+    const response = await apiClient<{ content: HomebrewContent }>('/v2/homebrew', {
         method: 'POST',
         body: JSON.stringify(data),
     });
@@ -123,7 +123,7 @@ export const createHomebrewContent = async (data: CreateHomebrewData): Promise<H
 };
 
 export const updateHomebrewContent = async (id: string, data: Partial<CreateHomebrewData>): Promise<HomebrewContent> => {
-     const response = await apiClient<{ content: HomebrewContent }>(`/homebrew/${id}`, {
+     const response = await apiClient<{ content: HomebrewContent }>(`/v2/homebrew/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
     });
@@ -132,7 +132,7 @@ export const updateHomebrewContent = async (id: string, data: Partial<CreateHome
 
 export const getHomebrewDetails = async (id: string): Promise<HomebrewContent | null> => {
     try {
-        const response = await apiClient<{ content: HomebrewContent }>(`/homebrew/${id}`, { method: 'GET' });
+        const response = await apiClient<{ content: HomebrewContent }>(`/v2/homebrew/${id}`, { method: 'GET' });
         return response.content;
     } catch {
         return null;
@@ -140,7 +140,7 @@ export const getHomebrewDetails = async (id: string): Promise<HomebrewContent | 
 };
 
 export const getHomebrewDependencies = async (id: string): Promise<HomebrewContent[]> => {
-    return apiClient<HomebrewContent[]>(`/homebrew/${id}/dependencies`);
+    return apiClient<HomebrewContent[]>(`/v2/homebrew/${id}/dependencies`);
 };
 
 export const listBundles = async (scope?: 'public' | 'mine', page: number = 1, limit: number = 100): Promise<HomebrewBundle[]> => {
@@ -148,11 +148,11 @@ export const listBundles = async (scope?: 'public' | 'mine', page: number = 1, l
     if (scope) {
         params.append('scope', scope);
     }
-    return apiClient<HomebrewBundle[]>(`/homebrew/bundles?${params.toString()}`);
+    return apiClient<HomebrewBundle[]>(`/v2/homebrew/bundles?${params.toString()}`);
 };
 
 export const createBundle = async (data: BundleData): Promise<HomebrewBundle> => {
-    const response = await apiClient<{ bundle: HomebrewBundle }>('/homebrew/bundles', {
+    const response = await apiClient<{ bundle: HomebrewBundle }>('/v2/homebrew/bundles', {
         method: 'POST',
         body: JSON.stringify(data),
     });
@@ -160,7 +160,7 @@ export const createBundle = async (data: BundleData): Promise<HomebrewBundle> =>
 };
 
 export const updateBundle = async (id: string, data: Partial<BundleData>): Promise<HomebrewBundle> => {
-    const response = await apiClient<{ bundle: HomebrewBundle }>(`/homebrew/bundles/${id}`, {
+    const response = await apiClient<{ bundle: HomebrewBundle }>(`/v2/homebrew/bundles/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
     });
@@ -168,44 +168,44 @@ export const updateBundle = async (id: string, data: Partial<BundleData>): Promi
 };
 
 export const deleteBundle = async (id: string): Promise<void> => {
-    await apiClient<void>(`/homebrew/bundles/${id}`, { method: 'DELETE' });
+    await apiClient<void>(`/v2/homebrew/bundles/${id}`, { method: 'DELETE' });
 };
 
 export const getBundleContents = async (id: string): Promise<HomebrewContent[]> => {
-    return apiClient<HomebrewContent[]>(`/homebrew/bundles/${id}/contents`);
+    return apiClient<HomebrewContent[]>(`/v2/homebrew/bundles/${id}/contents`);
 };
 
 export const checkNameExists = async (name: string, type: HomebrewContentType): Promise<{ exists: boolean }> => {
-    return apiClient<{ exists: boolean }>('/homebrew/check-name', {
+    return apiClient<{ exists: boolean }>('/v2/homebrew/check-name', {
         method: 'POST',
         body: JSON.stringify({ name, type }),
     });
 };
 
 export const updateUserHomebrew = async (homebrewId: string, action: 'install' | 'uninstall') => {
-    return apiClient<{ user: any, message: string }>(`/users/me/homebrew`, {
+    return apiClient<{ user: any, message: string }>(`/v2/users/me/homebrew`, {
         method: 'PATCH',
         body: JSON.stringify({ homebrewId, action }),
     });
 };
 
 export const getSrdTypeMap = async (): Promise<SrdTypeMapResponse> => {
-    return apiClient<SrdTypeMapResponse>('/homebrew/srd/types', { method: 'GET' });
+    return apiClient<SrdTypeMapResponse>('/v2/homebrew/srd/types', { method: 'GET' });
 };
 
 export const listSrdResource = async (resource: string): Promise<SrdListResponse> => {
-    return apiClient<SrdListResponse>(`/homebrew/srd/${encodeURIComponent(resource)}`, { method: 'GET' });
+    return apiClient<SrdListResponse>(`/v2/homebrew/srd/${encodeURIComponent(resource)}`, { method: 'GET' });
 };
 
 export const getSrdResourceDetail = async (resource: string, index: string): Promise<Record<string, unknown>> => {
     return apiClient<Record<string, unknown>>(
-        `/homebrew/srd/${encodeURIComponent(resource)}/${encodeURIComponent(index)}`,
+        `/v2/homebrew/srd/${encodeURIComponent(resource)}/${encodeURIComponent(index)}`,
         { method: 'GET' },
     );
 };
 
 export const createHomebrewFromSrd = async (data: CreateFromSrdData): Promise<HomebrewContent> => {
-    const response = await apiClient<{ content: HomebrewContent }>('/homebrew/from-srd', {
+    const response = await apiClient<{ content: HomebrewContent }>('/v2/homebrew/from-srd', {
         method: 'POST',
         body: JSON.stringify(data),
     });
@@ -218,13 +218,13 @@ export interface ImportBundlePayload {
 }
 
 export const exportBundle = async (bundleId: string): Promise<BundleExportManifest> => {
-    return apiClient<BundleExportManifest>(`/homebrew/bundles/${encodeURIComponent(bundleId)}/export`, {
+    return apiClient<BundleExportManifest>(`/v2/homebrew/bundles/${encodeURIComponent(bundleId)}/export`, {
         method: 'GET',
     });
 };
 
 export const importBundle = async (payload: ImportBundlePayload): Promise<HomebrewBundle> => {
-    const response = await apiClient<{ bundle: HomebrewBundle; contentCount: number }>('/homebrew/bundles/import', {
+    const response = await apiClient<{ bundle: HomebrewBundle; contentCount: number }>('/v2/homebrew/bundles/import', {
         method: 'POST',
         body: JSON.stringify(payload),
     });

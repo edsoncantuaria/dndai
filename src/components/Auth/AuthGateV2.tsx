@@ -2,27 +2,36 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { IntroExperience } from '@/features/intro/IntroExperience';
-import { useIntroCompleted } from '@/features/intro/useIntroCompleted';
+import { LandingPage } from '@/features/landing/LandingPage';
 import { AuthScreen } from '@/features/auth/AuthScreen';
 import { LicenseStep } from '@/features/auth/LicenseStep';
 import { LoadingOracle } from '@/features/gameplay/components/LoadingOracle';
 import { AmbientBackground } from '@/components/primitives';
+import { OnboardingProvider } from '@/contexts/OnboardingContext';
+import { ProductOnboarding, OnboardingCreateHeroBar } from '@/features/onboarding/ProductOnboarding';
+import { completeOnboarding } from '@/services/userAiService';
+
+type GuestView = 'landing' | 'auth';
 
 export default function AuthGateV2({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLicenseActive, isLoading } = useAuth();
-  const { isComplete, markComplete } = useIntroCompleted();
-  const [showIntro, setShowIntro] = useState<boolean | null>(null);
+  const {
+    isAuthenticated,
+    isLicenseActive,
+    isLoading,
+    onboardingCompleted,
+    aiAccess,
+    revalidateUserSession,
+  } = useAuth();
+  const [guestView, setGuestView] = useState<GuestView>('landing');
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+
   useEffect(() => {
-    setShowIntro(!isComplete());
-  }, [isComplete]);
+    if (isAuthenticated) {
+      setGuestView('landing');
+    }
+  }, [isAuthenticated]);
 
-  const handleIntroComplete = () => {
-    markComplete();
-    setShowIntro(false);
-  };
-
-  if (isLoading || showIntro === null) {
+  if (isLoading) {
     return (
       <div className="relative flex min-h-screen items-center justify-center bg-dnd-obsidian">
         <AmbientBackground variant="cinematic" />
@@ -33,17 +42,40 @@ export default function AuthGateV2({ children }: { children: React.ReactNode }) 
     );
   }
 
-  if (showIntro) {
-    return <IntroExperience onComplete={handleIntroComplete} />;
-  }
-
   if (!isAuthenticated) {
-    return <AuthScreen />;
+    if (guestView === 'landing') {
+      return (
+        <LandingPage
+          onLogin={() => {
+            setAuthMode('login');
+            setGuestView('auth');
+          }}
+          onRegister={() => {
+            setAuthMode('register');
+            setGuestView('auth');
+          }}
+        />
+      );
+    }
+    return <AuthScreen initialMode={authMode} />;
   }
 
   if (!isLicenseActive) {
     return <LicenseStep />;
   }
 
-  return children;
+  return (
+    <OnboardingProvider
+      onboardingCompleted={onboardingCompleted}
+      initialAiAccess={aiAccess}
+      onCompleteOnboarding={async () => {
+        await completeOnboarding();
+        await revalidateUserSession();
+      }}
+    >
+      <ProductOnboarding />
+      <OnboardingCreateHeroBar />
+      {children}
+    </OnboardingProvider>
+  );
 }

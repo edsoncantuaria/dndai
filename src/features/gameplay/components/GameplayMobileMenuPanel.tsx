@@ -1,6 +1,6 @@
 'use client';
 
-import { Download, Map, Settings, Volume2, VolumeX } from 'lucide-react';
+import { Download, Map, Settings, Terminal, Volume2, VolumeX } from 'lucide-react';
 import { DndButton, DndCard } from '@/components/primitives';
 
 export interface GameplayMobileMenuPanelProps {
@@ -8,6 +8,7 @@ export interface GameplayMobileMenuPanelProps {
   onOpenSettings?: () => void;
   onNarrationToggle?: () => void;
   isNarrationActive?: boolean;
+  onOpenSessionLog?: () => void;
   onExitSession: () => void;
 }
 
@@ -16,6 +17,7 @@ export function GameplayMobileMenuPanel({
   onOpenSettings,
   onNarrationToggle,
   isNarrationActive,
+  onOpenSessionLog,
   onExitSession,
 }: GameplayMobileMenuPanelProps) {
   return (
@@ -40,6 +42,12 @@ export function GameplayMobileMenuPanel({
             <DndButton variant="ghost" className="w-full justify-start" onClick={onOpenSettings}>
               <Settings className="h-4 w-4" />
               Configurações
+            </DndButton>
+          ) : null}
+          {onOpenSessionLog ? (
+            <DndButton variant="ghost" className="w-full justify-start" onClick={onOpenSessionLog}>
+              <Terminal className="h-4 w-4" />
+              Registro técnico (prompts, raw)
             </DndButton>
           ) : null}
           <DndButton variant="ember" className="w-full justify-start" onClick={onExitSession}>

@@ -6,6 +6,7 @@ import {
     buildOpenShopIntent,
     buildStartEncounterFromCharacter,
 } from '@/hooks/game/motorIntents';
+import type { StructuredIntent } from '@/hooks/game/motorIntents';
 import type {
     PlayerRollRequest, CombatState, LevelUpState, ShopState,
     LootOffer, UseHitDiceRequest, ApiSpell, ShopItem, InventoryItem
@@ -33,6 +34,8 @@ export type SpellCastRequestState = {
     slotLevel?: number;
     slotsBefore?: { current: number; max: number };
 };
+
+export type SendMotorActionFn = (action: string, structured?: StructuredIntent) => void;
 
 export const useInteractionManager = () => {
     const [actionOptions, setActionOptions] = useState<(string | { text: string; action: string, skill?: string })[]>([]);
@@ -92,7 +95,7 @@ export const useInteractionManager = () => {
         clearTransientInteractions();
     }, [clearTransientInteractions]);
 
-    // --- Action Handlers that depend on processPlayerAction ---
+    // --- Action Handlers that depend on sendMotorAction ---
     const handleRollResult = useCallback((
         submitRollResult: (request: PlayerRollRequest, result: { rawRoll: number; rolls: number[] }) => void
     ) => (result: { rawRoll: number; rolls: number[] }) => {
@@ -102,7 +105,7 @@ export const useInteractionManager = () => {
         submitRollResult(currentRequest, result);
     }, [playerRollRequest]);
 
-    const handleSkillCheckSubmit = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (description: string, modelOverride?: string) => {
+    const handleSkillCheckSubmit = useCallback((sendMotorAction: SendMotorActionFn) => (description: string) => {
         if (!skillCheckRequest) return;
         const translatedSkill = translateApiString(skillCheckRequest.skillName);
         const base = skillCheckRequest.baseAction || `Eu tento usar ${translatedSkill}.`;
@@ -110,10 +113,10 @@ export const useInteractionManager = () => {
             ? `${base}${base.trim().endsWith('.') ? '' : '.'} Detalhes: ${description}`
             : base;
         setSkillCheckRequest(null);
-        processPlayerAction(actionText, undefined, modelOverride);
+        sendMotorAction(actionText);
     }, [skillCheckRequest]);
 
-    const submitSpellCast = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (spell: ApiSpell, description: string) => {
+    const submitSpellCast = useCallback((sendMotorAction: SendMotorActionFn) => (spell: ApiSpell, description: string) => {
         const slotLevel = spellCastRequest?.slotLevel && spellCastRequest.slotLevel > 0 ? spellCastRequest.slotLevel : null;
         let actionText = '';
         if (slotLevel) {
@@ -130,60 +133,57 @@ export const useInteractionManager = () => {
             actionText += ` (Antes da conjuração: ${spellCastRequest.slotsBefore.current}/${spellCastRequest.slotsBefore.max} espaços de nível ${slotLevel} restantes.)`;
         }
         setSpellCastRequest(null);
-        processPlayerAction(actionText);
+        sendMotorAction(actionText);
     }, [spellCastRequest]);
 
-    const handleTakeLoot = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (takeAll: boolean) => {
+    const handleTakeLoot = useCallback((sendMotorAction: SendMotorActionFn) => (takeAll: boolean) => {
         if (!pendingLootOffer) return;
         setPlayerRollRequest(null);
         if (takeAll) {
-            setPendingStructuredIntent({ type: 'claim-loot', payload: {} });
-            processPlayerAction('Eu pego todo o tesouro.');
+            sendMotorAction('Eu pego todo o tesouro.', { type: 'claim-loot', payload: {} });
         }
-    }, [pendingLootOffer, setPendingStructuredIntent]);
+    }, [pendingLootOffer]);
 
-    const handleBuyItem = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (item: ShopItem, price: number) => {
+    const handleBuyItem = useCallback((sendMotorAction: SendMotorActionFn) => (item: ShopItem, price: number) => {
         setPlayerRollRequest(null);
-        setPendingStructuredIntent(buildBuyItemIntent(item));
-        processPlayerAction(`Compro ${item.name} por ${price} ${item.cost.unit}.`);
-    }, [setPendingStructuredIntent]);
+        sendMotorAction(`Compro ${item.name} por ${price} ${item.cost.unit}.`, buildBuyItemIntent(item));
+    }, []);
 
-    const handleSellItem = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (item: InventoryItem, price: number) => {
+    const handleSellItem = useCallback((sendMotorAction: SendMotorActionFn) => (item: InventoryItem, price: number) => {
         setPlayerRollRequest(null);
         const intent = buildSellItemIntent(item, price);
-        if (intent.payload.itemId > 0) {
-            setPendingStructuredIntent(intent);
-            processPlayerAction(`Vendo ${item.name} por ${price} gp.`);
+        if (intent.type === 'sell-item' && intent.payload.itemId > 0) {
+            sendMotorAction(`Vendo ${item.name} por ${price} gp.`, intent);
         } else {
-            processPlayerAction(`Eu quero vender meu ${item.name} por ${price} gp.`);
+            sendMotorAction(`Eu quero vender meu ${item.name} por ${price} gp.`);
         }
-    }, [setPendingStructuredIntent]);
+    }, []);
 
     const handleOpenShop = useCallback((
-        processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void,
+        sendMotorAction: SendMotorActionFn,
     ) => (catalog: { name: string; inventory: ShopItem[]; merchantName?: string }) => {
-        setPendingStructuredIntent(buildOpenShopIntent(catalog.name, catalog.inventory, catalog.merchantName));
-        processPlayerAction(`Entro em ${catalog.name} para negociar.`);
-    }, [setPendingStructuredIntent]);
+        sendMotorAction(
+            `Entro em ${catalog.name} para negociar.`,
+            buildOpenShopIntent(catalog.name, catalog.inventory, catalog.merchantName),
+        );
+    }, []);
 
-    const handleCloseShop = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => () => {
+    const handleCloseShop = useCallback((sendMotorAction: SendMotorActionFn) => () => {
         setShopState(null);
-        setPendingStructuredIntent({ type: 'close-shop', payload: {} });
-        processPlayerAction('Saio da loja.');
-    }, [setPendingStructuredIntent]);
+        sendMotorAction('Saio da loja.', { type: 'close-shop', payload: {} });
+    }, []);
 
     const handleStartEncounter = useCallback((
-        processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void,
+        sendMotorAction: SendMotorActionFn,
     ) => (
         character: { id: number; name: string; attributes?: { hp?: number; maxHp?: number; ac?: number } },
         hostiles: Array<{ id: string; name: string; hp: number; maxHp: number; ac?: number; initiative?: number }>,
     ) => {
-        setPendingStructuredIntent(buildStartEncounterFromCharacter(character, hostiles));
-        processPlayerAction('O combate começa!');
-    }, [setPendingStructuredIntent]);
+        sendMotorAction('O combate começa!', buildStartEncounterFromCharacter(character, hostiles));
+    }, []);
     
-    const nextTurn = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => () => {
-        processPlayerAction("Processar próximo turno");
+    const nextTurn = useCallback((sendMotorAction: SendMotorActionFn) => () => {
+        sendMotorAction("Processar próximo turno");
     }, []);
 
     const handleSkillCheck = useCallback((skillName: string) => {
@@ -202,12 +202,14 @@ export const useInteractionManager = () => {
     }), []);
 
     const triggerTestShop = useCallback((
-        processPlayerAction?: (action: string) => void,
+        sendMotorAction?: (action: string) => void,
     ) => {
         const catalog = getTestShopCatalog();
-        if (processPlayerAction) {
-            setPendingStructuredIntent(buildOpenShopIntent(catalog.name, catalog.inventory, catalog.merchantName));
-            processPlayerAction(`Visito ${catalog.name}.`);
+        if (sendMotorAction) {
+            (sendMotorAction as SendMotorActionFn)(
+                `Visito ${catalog.name}.`,
+                buildOpenShopIntent(catalog.name, catalog.inventory, catalog.merchantName),
+            );
             return;
         }
         setShopState({
@@ -217,19 +219,21 @@ export const useInteractionManager = () => {
             inventory: catalog.inventory,
             sellPrices: {},
         });
-    }, [getTestShopCatalog, setPendingStructuredIntent]);
+    }, [getTestShopCatalog]);
 
     const triggerTestCombat = useCallback((
-        processPlayerAction?: (action: string) => void,
+        sendMotorAction?: (action: string) => void,
         character?: { id: number; name: string; attributes?: { hp?: number; maxHp?: number; ac?: number } },
     ) => {
         const hostiles = [
             { id: 'goblin-1', name: 'Goblin Batedor', hp: 7, maxHp: 7, ac: 13, initiative: 12 },
             { id: 'goblin-2', name: 'Goblin Arqueiro', hp: 5, maxHp: 7, ac: 13, initiative: 10 },
         ];
-        if (processPlayerAction && character) {
-            setPendingStructuredIntent(buildStartEncounterFromCharacter(character, hostiles));
-            processPlayerAction('Inimigos surgem — combate!');
+        if (sendMotorAction && character) {
+            (sendMotorAction as SendMotorActionFn)(
+                'Inimigos surgem — combate!',
+                buildStartEncounterFromCharacter(character, hostiles),
+            );
             return;
         }
         setCombatState({
@@ -243,7 +247,7 @@ export const useInteractionManager = () => {
                 { id: 'goblin-2', name: 'Goblin Arqueiro', hp: { current: 5, max: 7 }, ac: 13, initiative: 10, hasMoved: false, hasActed: false, actionPoints: 3, bonusActionPoints: 1, conditions: [], rollHistory: [], isDead: false },
             ],
         });
-    }, [setPendingStructuredIntent]);
+    }, []);
 
     const triggerTestSkillCheck = useCallback((skillName: string) => {
         setSkillCheckRequest({ skillName });
@@ -265,7 +269,7 @@ export const useInteractionManager = () => {
         clearTransientInteractions,
         clearAllInteractions,
         
-        // Handlers that need processPlayerAction
+        // Handlers that need sendMotorAction
         handleRollResult,
         handleSkillCheckSubmit,
         handleSkillCheck,

@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { fetchPenaiSessions } from '@/services/penaiApi';
 import * as GameService from '@/services/gameService';
 import type { Character, SessaoIA } from '@/types';
 import {
@@ -195,10 +196,15 @@ const PremiumMapPage = () => {
     if (!isAuthenticated) return;
     setIsLoadingSessions(true);
     try {
-      const data = await GameService.getGameSessions();
-      setSessions(data);
-      if (data.length && !selectedSessionId) {
-        setSelectedSessionId(data[0].id);
+      const data = await fetchPenaiSessions();
+      const sessions = (data.sessions ?? []).map(s => ({
+        id: Number(s.id),
+        nome: String(s.nome ?? s.name ?? 'Sessão'),
+        characterId: null,
+      })) as SessaoIA[];
+      setSessions(sessions);
+      if (sessions.length && !selectedSessionId) {
+        setSelectedSessionId(sessions[0].id);
       }
     } catch (error) {
       console.error('[premium-map] Falha ao carregar sessões', error);

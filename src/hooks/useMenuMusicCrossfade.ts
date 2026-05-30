@@ -4,11 +4,14 @@ import { useEffect, useRef } from 'react';
 import { AMBIENT_CROSSFADE_MS, fadeAudioVolume } from '@/lib/ambientSoundCrossfade';
 import type { GameStage } from '@/types/gameStage';
 
-const MENU_TRACK_URL = '/audios/index/inicio.mp3';
+/** Trilha de hub/menu — alinhada ao catálogo ambiente (fantasia calma). */
+const MENU_TRACK_URL = '/audios/ambient/62_Middle_Earth_Dawn.opus';
 
 interface UseMenuMusicCrossfadeOptions {
   gameStage: GameStage;
   playMenuMusic: boolean;
+  /** Quando ligado, o AmbientAudioEngine já toca a trilha do hub — evita sobreposição. */
+  playAmbientMusic: boolean;
   volume: number;
   isMuted: boolean;
 }
@@ -16,6 +19,7 @@ interface UseMenuMusicCrossfadeOptions {
 export function useMenuMusicCrossfade({
   gameStage,
   playMenuMusic,
+  playAmbientMusic,
   volume,
   isMuted,
 }: UseMenuMusicCrossfadeOptions) {
@@ -34,7 +38,8 @@ export function useMenuMusicCrossfade({
     const audio = audioRef.current;
     if (!audio) return;
 
-    const shouldPlay = playMenuMusic && gameStage !== 'playing';
+    const shouldPlay =
+      playMenuMusic && !playAmbientMusic && gameStage !== 'playing';
     const targetVolume = isMuted ? 0 : volume;
 
     cancelFadeRef.current?.();
@@ -63,5 +68,5 @@ export function useMenuMusicCrossfade({
     return () => {
       cancelFadeRef.current?.();
     };
-  }, [gameStage, playMenuMusic, volume, isMuted]);
+  }, [gameStage, playMenuMusic, playAmbientMusic, volume, isMuted]);
 }

@@ -6,15 +6,19 @@ import { ApiError } from '@/services/apiClient';
 import type { ApiFieldErrors } from '@/services/apiClient';
 import { mergeSettingsForHydration, useSettingsContext } from './SettingsContext';
 import { useToast } from '@/hooks/use-toast';
+import { clearStoredAuthToken, getStoredAuthToken, setStoredAuthToken } from '@/lib/authToken';
 import { readGeminiApiKey, writeGeminiApiKey } from '@/lib/geminiApiKeyStorage';
+import type { AiAccessStatus } from '@/types/aiAccess';
 
 interface User {
     id: number;
     username: string;
     licenseKey?: { isActivated: boolean };
-    settings?: any;
+    settings?: Record<string, unknown>;
     acknowledgedHomebrewDisclaimer?: boolean;
     installedHomebrewIds?: string[];
+    aiAccess?: AiAccessStatus;
+    onboardingCompleted?: boolean;
 }
 
 interface AuthActionResult {
@@ -27,6 +31,8 @@ interface AuthContextType {
     user: User | null;
     isAuthenticated: boolean;
     isLicenseActive: boolean;
+    onboardingCompleted: boolean;
+    aiAccess: AiAccessStatus | null;
     hasApiKey: boolean;
     isLoading: boolean;
     /** Preferências locais (incl. chave API) já carregadas do localStorage */
@@ -71,15 +77,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { apiKey, setApiKey, loadSettings, saveSettingsToDB, getSettingsObject, isLoaded: isSettingsLoaded } = useSettingsContext();
     const { toast } = useToast();
 
-    /** Chaves OpenRouter ficam no servidor; jogador não precisa configurar API. */
-    const hasApiKey = isSettingsLoaded;
+    const hasApiKey = Boolean(isSettingsLoaded && (apiKey?.trim() || readGeminiApiKey().trim()));
+    const onboardingCompleted = Boolean(user?.onboardingCompleted);
+    const aiAccess = user?.aiAccess ?? null;
 
     const revalidateUserSession = useCallback(async () => {
-        const token = localStorage.getItem('token');
+        const token = getStoredAuthToken();
         if (token) {
             try {
-                const response = await fetch(`${API_URL}/users/me`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                const response = await fetch(`${API_URL}/v2/users/me`, {
+                    headers: { Authorization: `Bearer ${token}` },
                 });
 
                 if (response.ok) {
@@ -96,6 +103,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     if (storedKey) {
                         setApiKey(storedKey);
                     }
+                } else if (response.status === 401) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Sessão expirada',
+                        description: 'Faça login novamente para continuar.',
+                    });
+                    logout();
                 } else {
                     logout();
                 }
@@ -111,7 +125,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsLicenseActive(false);
         setApiKey('');
         if (typeof window !== 'undefined') {
-            localStorage.removeItem('token');
+            clearStoredAuthToken();
             // Limpa também o cache de equipamentos para garantir que o próximo login tenha dados frescos
             sessionStorage.removeItem('equipmentCache');
             sessionStorage.removeItem('dndai_hub_v2_entered');
@@ -143,7 +157,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
             const response = await authService.loginUser(sanitizedCredentials);
             if (response && response.user && response.token) {
-                localStorage.setItem('token', response.token);
+                setStoredAuthToken(response.token);
                 await revalidateUserSession();
 
                 toast({
@@ -323,6 +337,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         user,
         isAuthenticated: !!user,
         isLicenseActive,
+        onboardingCompleted,
+        aiAccess,
         hasApiKey,
         isLoading: isLoading || !isSettingsLoaded,
         isSettingsReady: isSettingsLoaded,

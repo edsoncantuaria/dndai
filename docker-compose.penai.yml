@@ -1,0 +1,143 @@
+# PENAI — stack greenfield (Fastify + Postgres + Temporal + Redis + Qdrant)
+# Uso: docker compose -f docker-compose.penai.yml --profile penai up -d --build
+
+name: dndai-penai
+
+x-penai-env: &penai-env
+  DEFAULT_LOCALE: pt-BR
+  API_VERSION: v2
+  DATABASE_URL: postgres://penai:penai_secret@postgres:5432/penai
+  REDIS_URL: redis://redis:6379
+  TEMPORAL_ADDRESS: temporal:7233
+  TEMPORAL_NAMESPACE: penai
+  PENAI_DB_SYNC: 'true'
+  PENAI_SEED_ON_BOOT: 'true'
+  SKIP_TEMPORAL_WORKER: 'true'
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  JWT_SECRET: ${JWT_SECRET:-change-me-in-development}
+  QDRANT_ENABLED: ${QDRANT_ENABLED:-false}
+  QDRANT_URL: http://qdrant:6333
+  QDRANT_VECTOR_SIZE: '768'
+
+services:
+  postgres:
+    profiles: [penai]
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: penai
+      POSTGRES_PASSWORD: penai_secret
+      POSTGRES_DB: penai
+    ports:
+      - '5433:5432'
+    volumes:
+      - penai_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U penai -d penai']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  pgbouncer:
+    profiles: [penai]
+    image: edoburu/pgbouncer:v1.23.1-p2
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://penai:penai_secret@postgres:5432/penai
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 200
+    ports:
+      - '6432:5432'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  redis:
+    profiles: [penai]
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - '6381:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      retries: 10
+
+  qdrant:
+    profiles: [penai]
+    image: qdrant/qdrant:v1.12.5
+    restart: unless-stopped
+    ports:
+      - '6335:6333'
+
+  # Servidor Temporal — em produção pode buildar o fork github.com/edsoncantuaria/temporal
+  temporal:
+    profiles: [penai]
+    image: temporalio/auto-setup:1.26.2
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: penai
+      POSTGRES_PWD: penai_secret
+      POSTGRES_SEEDS: postgres
+      DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/development-sql.yaml
+    ports:
+      - '7233:7233'
+
+  temporal-ui:
+    profiles: [penai]
+    image: temporalio/ui:2.31.2
+    restart: unless-stopped
+    depends_on:
+      - temporal
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:8233
+    ports:
+      - '8233:8080'
+
+  penai-api:
+    profiles: [penai]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ['npx', 'tsx', 'src/penaiServer.ts']
+    restart: unless-stopped
+    environment:
+      <<: *penai-env
+      PORT: 8071
+    ports:
+      - '8071:8071'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_started
+
+  penai-temporal-worker:
+    profiles: [penai]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ['npx', 'tsx', 'src/temporalWorkerMain.ts']
+    restart: unless-stopped
+    environment:
+      <<: *penai-env
+      SKIP_TEMPORAL_WORKER: 'false'
+      TEMPORAL_DISABLED: 'false'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_started
+
+volumes:
+  penai_postgres_data:

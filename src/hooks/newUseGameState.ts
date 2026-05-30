@@ -3,22 +3,23 @@
 
 import { useCallback, useEffect, useMemo } from 'react';
 import { useInteractionManager } from './useInteractionManager';
-import { useSettingsContext } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from './use-toast';
-import { useGameWebSocket } from './game/useGameWebSocket';
 import { useGameSession } from './game/useGameSession';
-import { useGameActions } from './game/useGameActions';
 import {
     useGameActionPipelineRefs,
     useGameCombatSlice,
     useGameNarrationSlice,
     useGameSessionSlice,
 } from './game/slices';
+import { buildBuyItemIntent, buildSellItemIntent, buildOpenShopIntent } from './game/motorIntents';
+import type { StructuredIntent } from './game/motorIntents';
+import { getPenaiBridge } from '@/lib/penaiBridge';
+import { translateAttribute } from '@/utils/translator';
+import type { InventoryItem, LevelUpSelections, PlayerRollRequest, ShopItem } from '../types';
 
 export const useNewGameState = () => {
     const { user } = useAuth();
-    const { apiKey, model, useAiHomebrew, narrationVoice, narrationSpeed } = useSettingsContext();
     const { toast } = useToast();
 
     const session = useGameSessionSlice();
@@ -31,10 +32,52 @@ export const useNewGameState = () => {
         hasPendingRoll: Boolean(interactionState.playerRollRequest),
     });
 
-    const getApiKey = useCallback(() => apiKey, [apiKey]);
+    const getApiKey = useCallback(() => '', []);
+
+    const sendMotorAction = useCallback(
+        (playerAction: string, structured?: StructuredIntent) => {
+            const bridge = getPenaiBridge();
+            if (!bridge?.active) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Motor não conectado',
+                    description: 'Aguarde a conexão com a sessão ou reabra a aventura.',
+                });
+                return;
+            }
+            interactionState.clearTransientInteractions();
+            interactionState.setActionOptions([]);
+            narration.setActionPhaseLabel('Aguarde o Mestre…');
+            narration.setIsLoading(true);
+            if (structured) {
+                bridge.sendStructuredIntent(structured, playerAction);
+            } else {
+                bridge.sendProcessAction(playerAction);
+            }
+        },
+        [interactionState, narration, toast],
+    );
+
+    const submitRollResult = useCallback(
+        (request: PlayerRollRequest, result: { rawRoll: number; rolls: number[] }) => {
+            const bridge = getPenaiBridge();
+            if (!bridge?.submitRollResult) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Motor não conectado',
+                    description: 'Não foi possível enviar o resultado da rolagem.',
+                });
+                return;
+            }
+            narration.setActionPhaseLabel('Resolvendo rolagem…');
+            narration.setIsLoading(true);
+            bridge.submitRollResult(request, result);
+        },
+        [narration, toast],
+    );
 
     const sessionApi = useGameSession({
-        user,
+        user: user as { id?: number; installedHomebrewIds?: number[] } | null,
         sessionId: session.sessionId,
         character: session.character,
         ambientSound: session.ambientSound,
@@ -49,52 +92,6 @@ export const useNewGameState = () => {
         clientStateVersionRef: pipelineRefs.clientStateVersionRef,
         lastLogVersionRef: pipelineRefs.lastLogVersionRef,
         resetActionPipeline: narration.resetActionPipeline,
-        toast,
-        processPlayerActionRef: pipelineRefs.processPlayerActionRef,
-    });
-
-    const actionsApi = useGameActions({
-        sessionId: session.sessionId,
-        character: session.character,
-        model,
-        useAiHomebrew,
-        narrationVoice,
-        narrationSpeed,
-        getApiKey,
-        logState: narration.logState,
-        interactionState,
-        loadGameSession: sessionApi.loadGameSession,
-        setApiError: narration.setApiError,
-        setIsLoading: narration.setIsLoading,
-        setActionPhaseLabel: narration.setActionPhaseLabel,
-        pendingActionsRef: pipelineRefs.pendingActionsRef,
-        actionTimeoutsRef: pipelineRefs.actionTimeoutsRef,
-        actionOptionsBackupRef: pipelineRefs.actionOptionsBackupRef,
-        clientStateVersionRef: pipelineRefs.clientStateVersionRef,
-        actionCursorRef: pipelineRefs.actionCursorRef,
-        clientInstanceId: pipelineRefs.clientInstanceId,
-        toast,
-    });
-
-    useEffect(() => {
-        pipelineRefs.processPlayerActionRef.current = actionsApi.processPlayerAction;
-    }, [actionsApi.processPlayerAction, pipelineRefs.processPlayerActionRef]);
-
-    useGameWebSocket({
-        sessionId: session.sessionId,
-        handleApiResponse: sessionApi.handleApiResponse,
-        loadGameSession: sessionApi.loadGameSession,
-        interactionState,
-        clearPendingAction: narration.clearPendingAction,
-        resetActionPipeline: narration.resetActionPipeline,
-        setApiError: narration.setApiError,
-        setIsLoading: narration.setIsLoading,
-        setActionPhaseLabel: narration.setActionPhaseLabel,
-        pendingActionsRef: pipelineRefs.pendingActionsRef,
-        actionTimeoutsRef: pipelineRefs.actionTimeoutsRef,
-        actionOptionsBackupRef: pipelineRefs.actionOptionsBackupRef,
-        clientStateVersionRef: pipelineRefs.clientStateVersionRef,
-        latestActionSequenceRef: pipelineRefs.latestActionSequenceRef,
         toast,
     });
 
@@ -116,30 +113,130 @@ export const useNewGameState = () => {
     }, [session.sessionId, narration.resetActionPipeline, pipelineRefs.latestActionSequenceRef]);
 
     const applyLevelUp = useCallback(
-        (selections: Parameters<typeof actionsApi.handleApplyLevelUp>[0]) =>
-            actionsApi.handleApplyLevelUp(selections, actionsApi.processPlayerAction),
-        [actionsApi],
+        async (selections: LevelUpSelections) => {
+            if (!session.character || !interactionState.levelUpState?.isPending) return;
+
+            const { newLevel } = interactionState.levelUpState;
+            const summaryParts: string[] = [];
+
+            if (selections.attributes) {
+                const attrChanges = Object.entries(selections.attributes)
+                    .filter(([, value]) => !!value)
+                    .map(([attr, value]) => `${translateAttribute(attr)} +${value}`);
+                if (attrChanges.length) summaryParts.push(`Atributos: ${attrChanges.join(', ')}`);
+            }
+            if (selections.spells?.length) summaryParts.push(`Novas magias: ${selections.spells.join(', ')}`);
+            if (selections.featureChoices?.length) {
+                const featSummary = selections.featureChoices
+                    .map(choice => choice.selections.join(', '))
+                    .filter(Boolean);
+                if (featSummary.length) summaryParts.push(`Características: ${featSummary.join('; ')}`);
+            }
+            if (selections.subclass) summaryParts.push(`Subclasse: ${selections.subclass}`);
+            if (selections.hpIncrease !== undefined) {
+                summaryParts.push(`Aumento de PV total: +${selections.hpIncrease}`);
+            }
+
+            const actionText = [
+                `Confirmo meu avanço para o nível ${newLevel}.`,
+                summaryParts.length ? summaryParts.join(' | ') : '',
+            ]
+                .filter(Boolean)
+                .join(' ');
+
+            interactionState.clearRequest('levelUp');
+            interactionState.setActionOptions([]);
+            sendMotorAction(actionText, {
+                type: 'apply-level-up',
+                payload: {
+                    newLevel,
+                    attributes: selections.attributes,
+                    spells: selections.spells,
+                    hpIncrease: selections.hpIncrease,
+                    subclass: selections.subclass,
+                    featureChoices: selections.featureChoices,
+                },
+            });
+        },
+        [session.character, interactionState, sendMotorAction],
     );
 
     const toggleEquipped = useCallback(
-        (itemId: string) => actionsApi.handleToggleEquipped(itemId, actionsApi.processPlayerAction),
-        [actionsApi],
+        (itemId: string) => {
+            const item = session.character?.inventory.find(i => String(i.id) === String(itemId));
+            if (!item) return;
+
+            const actionText = item.equipped ? `Eu desequipo meu ${item.name}.` : `Eu equipo meu ${item.name}.`;
+            const numericId = Number(itemId);
+            if (Number.isFinite(numericId)) {
+                sendMotorAction(actionText, {
+                    type: 'equip-item',
+                    payload: { itemId: numericId, equipped: !item.equipped },
+                });
+            } else {
+                sendMotorAction(actionText);
+            }
+        },
+        [session.character, sendMotorAction],
     );
 
     const useConsumable = useCallback(
-        (itemId: string) => actionsApi.handleUseConsumable(itemId, actionsApi.processPlayerAction),
-        [actionsApi],
+        (itemId: string) => {
+            const item = session.character?.inventory.find(i => i.id === itemId);
+            if (!item || !item.consumable) {
+                toast({ variant: 'destructive', title: 'Item não consumível' });
+                return;
+            }
+            sendMotorAction(`Eu uso ${item.name}.`);
+        },
+        [session.character, sendMotorAction, toast],
     );
 
     const spendHitDice = useCallback(
-        (diceCount: number) => actionsApi.handleSpendHitDice(diceCount, actionsApi.processPlayerAction),
-        [actionsApi],
+        (diceCount: number) => {
+            if (!session.character || session.character.hitDice.current < diceCount) return;
+            sendMotorAction(`Eu gasto ${diceCount} dado(s) de vida para me curar.`);
+        },
+        [session.character, sendMotorAction],
     );
 
-    const declineHitDiceRequest = useCallback(
-        () => actionsApi.handleDeclineHitDiceRequest(actionsApi.processPlayerAction),
-        [actionsApi],
+    const declineHitDiceRequest = useCallback(() => {
+        interactionState.clearRequest('hitDice');
+        toast({
+            title: 'Sem descanso agora',
+            description: 'Os Dados de Vida continuam disponíveis para a próxima pausa.',
+        });
+        sendMotorAction('Eu não vou gastar dados de vida agora.');
+    }, [interactionState, sendMotorAction, toast]);
+
+    const takeLoot = useCallback(
+        (takeAll: boolean) => {
+            if (!interactionState.pendingLootOffer || !takeAll) return;
+            sendMotorAction('Eu pego todo o tesouro.', { type: 'claim-loot', payload: {} });
+        },
+        [interactionState.pendingLootOffer, sendMotorAction],
     );
+
+    const buyItem = useCallback(
+        (item: ShopItem, price: number) => {
+            sendMotorAction(`Compro ${item.name}.`, buildBuyItemIntent(item));
+        },
+        [sendMotorAction],
+    );
+
+    const openShop = useCallback(
+        (catalog: { name: string; inventory: ShopItem[]; merchantName?: string }) => {
+            sendMotorAction(
+                `Entro em ${catalog.name}.`,
+                buildOpenShopIntent(catalog.name, catalog.inventory, catalog.merchantName),
+            );
+        },
+        [sendMotorAction],
+    );
+
+    const closeShop = useCallback(() => {
+        sendMotorAction('Saio da loja.', { type: 'close-shop', payload: {} });
+    }, [sendMotorAction]);
 
     return useMemo(
         () => ({
@@ -157,13 +254,12 @@ export const useNewGameState = () => {
             setRequest: interactionState.setRequest,
             clearRequest: interactionState.clearRequest,
             setPlayerRollRequest: interactionState.setPlayerRollRequest,
-            setCombatState: combat.setCombatState,
             handleSkillCheck: interactionState.handleSkillCheck,
             getTestShopCatalog: interactionState.getTestShopCatalog,
             triggerTestSkillCheck: interactionState.triggerTestSkillCheck,
             ...combat,
-            reinstallModal: sessionApi.reinstallModal,
-            setReinstallModal: sessionApi.setReinstallModal,
+            reinstallModal: { open: false, deps: [], onConfirm: () => {} },
+            setReinstallModal: () => {},
             isLoading: narration.isLoading,
             apiError: narration.apiError,
             ambientSound: session.ambientSound,
@@ -175,28 +271,30 @@ export const useNewGameState = () => {
             deleteCharacter: sessionApi.deleteCharacter,
             deleteSession: sessionApi.deleteSession,
             startGame: sessionApi.startGame,
-            processPlayerAction: actionsApi.processPlayerAction,
+            sendMotorAction,
             clearGameState: sessionApi.clearGameState,
             loadGameSession: sessionApi.loadGameSession,
-            handleRollResult: interactionState.handleRollResult(actionsApi.submitRollResult),
-            handleSkillCheckSubmit: interactionState.handleSkillCheckSubmit(actionsApi.processPlayerAction),
-            submitSpellCast: interactionState.submitSpellCast(actionsApi.processPlayerAction),
+            handleRollResult: interactionState.handleRollResult(submitRollResult),
+            handleSkillCheckSubmit: interactionState.handleSkillCheckSubmit(sendMotorAction),
+            submitSpellCast: interactionState.submitSpellCast(sendMotorAction),
             applyLevelUp,
             toggleEquipped,
             useConsumable,
             spendHitDice,
             declineHitDiceRequest,
-            takeLoot: combat.handleTakeLoot(actionsApi.processPlayerAction),
-            buyItem: combat.handleBuyItem(actionsApi.processPlayerAction),
-            sellItem: combat.handleSellItem(actionsApi.processPlayerAction),
-            openShop: combat.handleOpenShop(actionsApi.processPlayerAction),
-            closeShop: combat.handleCloseShop(actionsApi.processPlayerAction),
-            startEncounter: combat.handleStartEncounter(actionsApi.processPlayerAction),
-            nextTurn: combat.nextTurn(actionsApi.processPlayerAction),
-            triggerTestShop: (processPlayerAction?: (action: string) => void) =>
-                combat.triggerTestShop(processPlayerAction ?? actionsApi.processPlayerAction),
+            takeLoot,
+            buyItem,
+            sellItem: (item: InventoryItem, price: number) => {
+                sendMotorAction(`Vendo ${item.name}.`, buildSellItemIntent(item, price));
+            },
+            openShop,
+            closeShop,
+            startEncounter: combat.handleStartEncounter(sendMotorAction),
+            nextTurn: combat.nextTurn(sendMotorAction),
+            triggerTestShop: (motorAction?: (action: string) => void) =>
+                combat.triggerTestShop(motorAction ?? sendMotorAction),
             triggerTestCombat: (
-                processPlayerAction?: (action: string) => void,
+                motorAction?: (action: string) => void,
                 charOverride?: { id: number; name: string; attributes?: { hp?: number; maxHp?: number; ac?: number } },
             ) => {
                 const c =
@@ -208,7 +306,7 @@ export const useNewGameState = () => {
                               attributes: session.character.attributes,
                           }
                         : undefined);
-                combat.triggerTestCombat(processPlayerAction ?? actionsApi.processPlayerAction, c);
+                combat.triggerTestCombat(motorAction ?? sendMotorAction, c);
             },
             setCharacter: session.setCharacter,
             setLog: narration.logState.setLog,
@@ -223,12 +321,17 @@ export const useNewGameState = () => {
             interactionState,
             combat,
             sessionApi,
-            actionsApi,
             applyLevelUp,
             toggleEquipped,
             useConsumable,
             spendHitDice,
             declineHitDiceRequest,
+            takeLoot,
+            buyItem,
+            openShop,
+            closeShop,
+            sendMotorAction,
+            submitRollResult,
             getApiKey,
             isRollPending,
         ],

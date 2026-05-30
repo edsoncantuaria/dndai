@@ -32,6 +32,13 @@ export class User {
     @Column({ type: 'simple-json', nullable: true })
     installedHomebrewIds: string[];
 
+    /** Créditos de narração inclusos (plataforma paga a API quando BYOK ausente). */
+    @Column({ type: 'int', default: 0 })
+    aiCreditsRemaining: number;
+
+    @Column({ type: 'int', default: 0 })
+    aiCreditsUsed: number;
+
     @OneToOne(() => LicenseKey)
     @JoinColumn({ name: 'licenseKeyId' })
     licenseKey: LicenseKey;

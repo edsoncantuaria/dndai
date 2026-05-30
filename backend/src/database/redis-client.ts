@@ -1,8 +1,12 @@
 // backend/src/database/redis-client.ts
 import { createClient } from 'redis';
 import 'dotenv/config';
+import { resolveRedisUrl } from '../config/redisUrl.js';
 
-const redisUrl = process.env.REDIS_URL;
+const redisUrl = resolveRedisUrl();
+if (redisUrl && redisUrl !== process.env.REDIS_URL) {
+    process.env.REDIS_URL = redisUrl;
+}
 
 if (!redisUrl) {
     console.warn("AVISO: REDIS_URL não está definida. O cache não será utilizado.");

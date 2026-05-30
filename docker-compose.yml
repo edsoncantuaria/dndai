@@ -25,6 +25,17 @@ x-media-env: &media-env
   API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:8071/api}
   NARRATION_BULL_CONCURRENCY: ${NARRATION_BULL_CONCURRENCY:-2}
 
+x-ai-env: &ai-env
+  AI_ENGINE: gemini
+  AI_PROVIDER: gemini
+  AI_DEFAULT_MODEL: gemini-2.5-flash
+  AI_FAILOVER_CHAIN: gemini-2.5-flash,gemini-2.5-flash-lite
+  AI_EMBEDDING_PROVIDER: gemini
+  AI_OPENROUTER_ONLY: 'false'
+  GEMINI_STREAM_NARRATION: 'true'
+  AI_PLATFORM_BILLING_ENABLED: ${AI_PLATFORM_BILLING_ENABLED:-false}
+  QDRANT_VECTOR_SIZE: ${QDRANT_VECTOR_SIZE:-2048}
+
 services:
   mysql:
     image: mysql:8.0
@@ -168,7 +179,7 @@ services:
       DB_USER: ${DB_USER:-dndai}
       DB_PASSWORD: ${DB_PASSWORD:-dndai_secret}
       DB_NAME: ${DB_NAME:-dndai}
-      DB_SYNC: ${DB_SYNC:-true}
+      DB_SYNC: ${DB_SYNC:-false}
       DB_MIGRATIONS_ONLY: 'false'
       REDIS_URL: redis://redis:6379
       SRD_API_BASE: http://srd-api:3000/api/2014
@@ -179,8 +190,7 @@ services:
       SKIP_NARRATION_WORKERS: 'true'
       QDRANT_ENABLED: ${QDRANT_ENABLED:-false}
       QDRANT_URL: http://qdrant:6333
-      QDRANT_VECTOR_SIZE: ${QDRANT_VECTOR_SIZE:-2048}
-      <<: *media-env
+      <<: [*ai-env, *media-env]
     ports:
       - '8071:8071'
     depends_on:
@@ -212,6 +222,9 @@ services:
     command: ['npx', 'tsx', 'src/narrationWorkerMain.ts']
     environment:
       NODE_ENV: production
+      RUN_NARRATION_WORKER: 'true'
+      NARRATION_WORKER_VERBOSE: 'true'
+      LOG_NARRATION_PROMPT: 'true'
       DB_HOST: mysql
       DB_PORT: 3306
       DB_USER: ${DB_USER:-dndai}
@@ -221,13 +234,9 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       AI_PIPELINE_MODE: ${AI_PIPELINE_MODE:-narration_only}
-      AI_ENGINE: ${AI_ENGINE:-oss}
-      OPENROUTER_PREFER_SERVER_KEYS: ${OPENROUTER_PREFER_SERVER_KEYS:-true}
-      OPENROUTER_KEY1: ${OPENROUTER_KEY1:-}
-      OPENROUTER_KEY2: ${OPENROUTER_KEY2:-}
-      OPENROUTER_KEY3: ${OPENROUTER_KEY3:-}
-      OPENROUTER_KEY4: ${OPENROUTER_KEY4:-}
-      <<: *media-env
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      <<: [*ai-env, *media-env]
     depends_on:
       mysql:
         condition: service_healthy

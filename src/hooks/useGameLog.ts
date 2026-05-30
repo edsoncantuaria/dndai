@@ -1,16 +1,17 @@
 // src/hooks/useGameLog.ts
 import { useState, useCallback } from 'react';
 import type { LogEntry } from '../types';
+import { mergeLogEntries } from '@/lib/logDisplay';
 
 export const useGameLog = () => {
     const [log, setLog] = useState<LogEntry[]>([]);
 
     const addLogEntry = useCallback((entry: LogEntry) => {
-        setLog(prev => [...prev, entry]);
+        setLog(prev => mergeLogEntries(prev, [entry]));
     }, []);
 
     const addLogEntries = useCallback((entries: LogEntry[]) => {
-        setLog(prev => [...prev, ...entries]);
+        setLog(prev => mergeLogEntries(prev, entries));
     }, []);
 
     const clearLog = useCallback(() => {

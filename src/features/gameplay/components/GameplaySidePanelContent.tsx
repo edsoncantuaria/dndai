@@ -5,6 +5,7 @@ import { GameplayInventoryPanel } from '../inventory/GameplayInventoryPanel';
 import { GameplayMapPanel } from '../map/GameplayMapPanel';
 import { GameplayStoryPanel } from '../story/GameplayStoryPanel';
 import { GameplayCharacterSheetPanel } from '../character-sheet/GameplayCharacterSheetPanel';
+import { GameplaySessionLogPanel } from '../debug/GameplaySessionLogPanel';
 
 export interface GameplaySidePanelContentProps {
   tab: string;
@@ -34,6 +35,8 @@ export function GameplaySidePanelContent({
       return <GameplayInventoryPanel />;
     case 'sheet':
       return <GameplayCharacterSheetPanel />;
+    case 'logs':
+      return <GameplaySessionLogPanel sessionId={sessionId} />;
     default:
       return <GameplayCharacterSheetPanel />;
   }

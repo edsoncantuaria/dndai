@@ -19,6 +19,7 @@ export function runNarrativeGmValidator(
     };
 
     if (raw.systemLog) response.systemLog = raw.systemLog;
+    if (raw.playerRollRequest) response.playerRollRequest = raw.playerRollRequest;
     if (raw.memoryContext) {
         response.memoryContext = raw.memoryContext;
     } else if (context?.memorySummary) {
@@ -32,7 +33,7 @@ export function runNarrativeGmValidator(
         });
     }
 
-    if (response.actionOptions.length < 3) {
+    if (response.actionOptions.length < 3 && !response.playerRollRequest) {
         const fillers = [
             { text: 'Observar o ambiente', action: 'observe' },
             { text: 'Aguardar e escutar', action: 'listen' },

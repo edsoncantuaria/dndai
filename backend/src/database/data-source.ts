@@ -48,12 +48,9 @@ import { SessionFactTier1742000000000 } from './migrations/1742000000000-Session
 import { ActionSequenceNarrationCompletion1743000000000 } from './migrations/1743000000000-ActionSequenceNarrationCompletion.js';
 import { NarrationCompletion } from '../entities/NarrationCompletion.js';
 
-const isProduction = process.env.NODE_ENV === 'production';
 const migrationsOnly = process.env.DB_MIGRATIONS_ONLY === 'true';
-/** Dev: DB_SYNC=true (padrão). Prod: false — use npm run migration:run */
-const synchronize =
-    process.env.DB_SYNC === 'true' ||
-    (!isProduction && !migrationsOnly && process.env.DB_SYNC !== 'false');
+/** Só liga sync com DB_SYNC=true explícito. Dev local: export DB_SYNC=true se quiser auto-schema. */
+const synchronize = process.env.DB_SYNC === 'true' && !migrationsOnly;
 
 /**
  * Configuração da fonte de dados para o TypeORM.

@@ -118,6 +118,24 @@
 
 ---
 
+## PENAI — GameMaster greenfield (2026)
+
+| Fase | Status | Comando |
+|------|--------|---------|
+| 0 Fastify + Postgres + Temporal | ✅ código | `npm run dev:penai` · `docker compose -f docker-compose.penai.yml --profile penai up` |
+| 1 Mundo + locale PT-BR | ✅ | `docs/PENAI.md` |
+| 2 Temporal narração | ✅ | `npm run worker:temporal` |
+| 3 UI modelos Gemini | ✅ | `GAMEPLAY_MODELS` só Gemini |
+| 4 PENAI 100% gameplay (A–F) | ✅ | Inventário, loja, descanso, loot, combate P0.4 FSM, lobby v2 |
+| 5 Wipe legado + auth/homebrew/v2 | ✅ | Fastify único · cofre `world_entities` · JWT WS |
+| 6 Visão completa PENAI | ✅ | apply-level-up, spell SRD, world pulse, facções, clone, canon |
+
+Testes PENAI: `npm run test --prefix backend` (37+) · `npm run penai:smoke --prefix backend`
+
+Testes PENAI: `npm run test --prefix backend` (30+) · `npm run penai:smoke --prefix backend`
+
+---
+
 ## P3 — Explícito “não agora”
 
 | Item | Motivo |

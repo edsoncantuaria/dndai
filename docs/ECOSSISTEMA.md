@@ -6,6 +6,23 @@
 
 ---
 
+## PENAI (motor greenfield — maio/2026)
+
+> Documento dedicado: **[PENAI.md](./PENAI.md)**. Bootstrap: `npm run dev:penai` (Fastify :8071), **não** `dev:legacy`.
+
+| Aspecto | PENAI | Legado Express |
+|---------|-------|----------------|
+| Banco sessão | PostgreSQL `game_sessions` | MySQL `SessaoIA` |
+| Fila narração | Temporal `penai-narration` | BullMQ (legado) |
+| WS | `/ws?userId=` contract v2 | `/` com JWT |
+| Viagem | `canonical_region_links` km/tempo fixo | `regionService` MySQL |
+| Hot path | `PENAI_MOTOR` + `structuredApply` | `processAction` Express (desligável com `PENAI_ONLY=true`) |
+| Inventário / loja / descanso | Postgres `hero_inventory_items` + `shopPenai` | MySQL `character_items` (legado) |
+
+**Regra:** sessões **novas** = PENAI greenfield (`NEXT_PUBLIC_PENAI_WS=true`). MySQL legado congelado — sem migração automática. Lobby e load usam `GET/POST /api/v2/sessions` + `/mechanical`. Combate PENAI: FSM P0.4 em Postgres (`combatPhasePenai.ts`), chain attack→damage com `deferNarration`, HP canônico em `sessionStatsSnapshot`.
+
+---
+
 ## Sumário
 
 1. [Visão e contexto](#1-visão-e-contexto)

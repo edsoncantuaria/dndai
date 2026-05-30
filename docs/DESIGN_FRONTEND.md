@@ -223,6 +223,8 @@ flowchart TB
 
 ## 7. Pipeline visual do turno (BG3-like)
 
+> **Mesa PENAI** (`NEXT_PUBLIC_PENAI_WS=true`): mesmo pipeline via `usePenaiTurnPipeline` + WS v2 — ver [`PENAI.md`](./PENAI.md) §12. **Lobby:** nova aventura/continuar usa `POST/GET /api/v2/sessions` + `/mechanical` (`usePenaiGameSession`, `penaiCharacterAdapter`) — sem fetch MySQL de ficha no load.
+
 Espelha o backend (ECOSSISTEMA §5).
 
 ```mermaid

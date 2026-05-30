@@ -1,94 +1,73 @@
-// src/hooks/useEventFeedback.ts
 'use client';
 
 import { useCallback, useRef } from 'react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
+import {
+  GAME_SFX_URLS,
+  GAME_SFX_VOLUME_SCALE,
+  type GameSfxId,
+} from '@/lib/gameSfx';
 
-type EventCue =
-    | 'xp'
-    | 'loot'
-    | 'relationshipUp'
-    | 'relationshipDown'
-    | 'shop'
-    | 'hpLoss'
-    | 'hpGain'
-    | 'resourceUse'
-    | 'diceRoll'
-    | 'diceCritical'
-    | 'diceFailure';
+type EventCue = GameSfxId;
 
-const cueConfig: Record<EventCue, { frequency: number; duration: number; vibrate: number | number[] }> = {
-    xp: { frequency: 920, duration: 180, vibrate: 25 },
-    loot: { frequency: 640, duration: 200, vibrate: 30 },
-    relationshipUp: { frequency: 760, duration: 160, vibrate: 20 },
-    relationshipDown: { frequency: 420, duration: 220, vibrate: 35 },
-    shop: { frequency: 520, duration: 160, vibrate: 18 },
-    hpLoss: { frequency: 380, duration: 240, vibrate: 40 },
-    hpGain: { frequency: 680, duration: 220, vibrate: 25 },
-    resourceUse: { frequency: 560, duration: 200, vibrate: 22 },
-    diceRoll: { frequency: 320, duration: 140, vibrate: 18 },
-    diceCritical: { frequency: 920, duration: 320, vibrate: [20, 40, 55, 30] },
-    diceFailure: { frequency: 180, duration: 280, vibrate: [45, 35, 50] },
+const cueVibrate: Record<EventCue, number | number[]> = {
+  xp: 25,
+  loot: 30,
+  relationshipUp: 20,
+  relationshipDown: 35,
+  shop: 18,
+  hpLoss: 40,
+  hpGain: 25,
+  resourceUse: 22,
+  diceRoll: 18,
+  diceCritical: [20, 40, 55, 30],
+  diceFailure: [45, 35, 50],
 };
 
 export const useEventFeedback = () => {
-    const { eventCuesEnabled, hapticsEnabled } = useSettingsContext();
-    const audioCtxRef = useRef<AudioContext | null>(null);
+  const { eventCuesEnabled, hapticsEnabled, volume, isMuted } = useSettingsContext();
+  const sampleCacheRef = useRef<Map<string, HTMLAudioElement>>(new Map());
 
-    const ensureContext = useCallback(() => {
-        if (typeof window === 'undefined') return null;
-        if (!audioCtxRef.current) {
-            const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-            audioCtxRef.current = AudioCtx ? new AudioCtx() : null;
-        }
-        return audioCtxRef.current;
-    }, []);
+  const triggerVibration = useCallback(
+    (pattern: number | number[]) => {
+      if (!hapticsEnabled) return;
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate(pattern);
+      }
+    },
+    [hapticsEnabled]
+  );
 
-    const triggerVibration = useCallback(
-        (pattern: number | number[]) => {
-            if (!hapticsEnabled) return;
-            if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-                navigator.vibrate(pattern);
-            }
-        },
-        [hapticsEnabled]
-    );
+  const playSample = useCallback(
+    (url: string) => {
+      if (!eventCuesEnabled || isMuted || typeof window === 'undefined') return;
 
-    const triggerTone = useCallback(
-        (frequency: number, duration: number) => {
-            if (!eventCuesEnabled) return;
-            const ctx = ensureContext();
-            if (!ctx) return;
+      let audio = sampleCacheRef.current.get(url);
+      if (!audio) {
+        audio = new Audio(url);
+        sampleCacheRef.current.set(url, audio);
+      }
 
-            const oscillator = ctx.createOscillator();
-            const gain = ctx.createGain();
-            oscillator.type = 'sine';
-            oscillator.frequency.value = frequency;
+      audio.volume = Math.min(1, Math.max(0, volume * GAME_SFX_VOLUME_SCALE));
+      audio.currentTime = 0;
+      void audio.play().catch(() => {
+        /* autopolicy ou arquivo ausente — ignorar */
+      });
+    },
+    [eventCuesEnabled, isMuted, volume]
+  );
 
-            const currentTime = ctx.currentTime;
-            gain.gain.setValueAtTime(0.001, currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.2, currentTime + 0.01);
-            gain.gain.exponentialRampToValueAtTime(0.001, currentTime + duration / 1000);
+  const playCue = useCallback(
+    (cue: EventCue) => {
+      const url = GAME_SFX_URLS[cue];
+      if (!url) return;
+      playSample(url);
+      triggerVibration(cueVibrate[cue]);
+    },
+    [playSample, triggerVibration]
+  );
 
-            oscillator.connect(gain);
-            gain.connect(ctx.destination);
-            oscillator.start(currentTime);
-            oscillator.stop(currentTime + duration / 1000 + 0.02);
-        },
-        [ensureContext, eventCuesEnabled]
-    );
-
-    const playCue = useCallback(
-        (cue: EventCue) => {
-            const config = cueConfig[cue];
-            if (!config) return;
-            triggerTone(config.frequency, config.duration);
-            triggerVibration(config.vibrate);
-        },
-        [triggerTone, triggerVibration]
-    );
-
-    return { playCue };
+  return { playCue };
 };
 
 export type { EventCue };

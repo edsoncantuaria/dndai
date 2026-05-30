@@ -1,22 +1,24 @@
 #!/bin/sh
 set -e
 
-if [ "${DB_SYNC}" = "true" ]; then
-  echo "[entrypoint] DB_SYNC=true — schema via TypeORM (sem migrações SQL)."
-else
-  echo "[entrypoint] Aplicando migrações TypeORM..."
-  npx tsx src/database/run-migrations.ts
+WORKER_MODE=false
+for arg in "$@"; do
+  case "$arg" in
+    *temporalWorkerMain*) WORKER_MODE=true ;;
+  esac
+done
+
+if [ "$WORKER_MODE" = "true" ]; then
+  echo "[entrypoint] Modo temporal-worker — iniciando worker PENAI."
+  exec "$@"
 fi
 
-echo "[entrypoint] Spawn pool (cidades iniciais do mapa)..."
-if npx tsx src/scripts/ensureSpawnRegions.ts; then
-  echo "[entrypoint] Spawn pool OK."
-else
-  echo "[entrypoint] Aviso: spawn pool não pronto; o servidor tentará importar o mapa padrão na subida."
+if [ "${PENAI_SEED_ON_BOOT}" = "true" ]; then
+  echo "[entrypoint] PENAI_SEED_ON_BOOT=true — seed via penaiServer bootstrap."
 fi
 
-echo "[entrypoint] Iniciando servidor..."
+echo "[entrypoint] Iniciando servidor PENAI..."
 if [ $# -gt 0 ]; then
   exec "$@"
 fi
-exec npx tsx src/server.ts
+exec npx tsx src/penaiServer.ts

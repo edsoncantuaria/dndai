@@ -35,7 +35,7 @@ export interface StructuredSkillPanelProps {
 
 const StructuredSkillPanel: React.FC<StructuredSkillPanelProps> = ({ variant = 'legacy' }) => {
   const isV2 = variant === 'v2';
-  const { processPlayerAction, isLoading, setPendingStructuredIntent } = useGameStateContext();
+  const { sendMotorAction, isLoading } = useGameStateContext();
   const [selectedSkill, setSelectedSkill] = useState(SKILL_OPTIONS[0]?.index ?? 'perception');
   const [targetDc, setTargetDc] = useState('');
 
@@ -45,14 +45,13 @@ const StructuredSkillPanel: React.FC<StructuredSkillPanelProps> = ({ variant = '
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    setPendingStructuredIntent({
+    sendMotorAction(`Eu tento usar ${selectedSkillLabel}.`, {
       type: 'skill-check',
       payload: {
         skillIndex: selectedSkill,
         dc: targetDc ? Number(targetDc) : undefined,
       },
     });
-    processPlayerAction(`Eu tento usar ${selectedSkillLabel}.`);
     setTargetDc('');
   };
 

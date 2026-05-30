@@ -1,9 +1,48 @@
 # Hot reload dentro do Docker (opcional).
 # Uso: npm run dev:docker
 #
-# Requer infra rodando: npm run dev:infra (ou já estiver up)
+# Requer infra PENAI: npm run dev:infra (Postgres, Redis, Temporal, Qdrant)
 
 name: dndai
+
+x-penai-dev-env: &penai-dev-env
+  NODE_ENV: development
+  DEFAULT_LOCALE: pt-BR
+  API_VERSION: v2
+  DATABASE_URL: postgres://penai:penai_secret@postgres:5432/penai
+  REDIS_URL: redis://redis:6379
+  TEMPORAL_ADDRESS: temporal:7233
+  TEMPORAL_NAMESPACE: penai
+  PENAI_DB_SYNC: ${PENAI_DB_SYNC:-true}
+  PENAI_SEED_ON_BOOT: ${PENAI_SEED_ON_BOOT:-true}
+  SKIP_TEMPORAL_WORKER: 'true'
+  JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+  AI_PIPELINE_MODE: narration_only
+  AI_ENGINE: gemini
+  AI_PROVIDER: gemini
+  AI_DEFAULT_MODEL: gemini-2.5-flash
+  AI_FAILOVER_CHAIN: gemini-2.5-flash,gemini-2.5-flash-lite
+  AI_OPENROUTER_ONLY: 'false'
+  DM_LLM_CLASSIFY: 'false'
+  GEMINI_STREAM_NARRATION: 'true'
+  AI_EMBEDDING_PROVIDER: gemini
+  AI_PLATFORM_BILLING_ENABLED: ${AI_PLATFORM_BILLING_ENABLED:-false}
+  AI_INCLUDED_CREDITS_DEFAULT: ${AI_INCLUDED_CREDITS_DEFAULT:-30}
+  QDRANT_ENABLED: ${QDRANT_ENABLED:-true}
+  QDRANT_URL: http://qdrant:6333
+  QDRANT_VECTOR_SIZE: ${QDRANT_VECTOR_SIZE:-768}
+  SRD_API_BASE: http://srd-api:3000/api/2014
+  MINIO_ENABLED: 'true'
+  MINIO_ENDPOINT: minio
+  MINIO_PORT: '9000'
+  MINIO_USE_SSL: 'false'
+  MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-dndai_minio}
+  MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-dndai_minio_secret}
+  MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-chronicles}
+  PIPER_HTTP_URL: http://piper:5500
+  API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:8071/api}
 
 services:
   backend-dev:
@@ -17,74 +56,23 @@ services:
       - ./backend/data:/app/data
       - ./backend/logs:/app/logs
     environment:
-      NODE_ENV: development
+      <<: *penai-dev-env
       PORT: 8071
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: ${DB_USER:-dndai}
-      DB_PASSWORD: ${DB_PASSWORD:-dndai_secret}
-      DB_NAME: ${DB_NAME:-dndai}
-      DB_SYNC: ${DB_SYNC:-true}
-      REDIS_URL: redis://redis:6379
-      SRD_API_BASE: http://srd-api:3000/api/2014
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
-      AI_PIPELINE_MODE: ${AI_PIPELINE_MODE:-narration_only}
-      AI_ENGINE: ${AI_ENGINE:-oss}
-      AI_PROVIDER: ${AI_PROVIDER:-openrouter}
-      AI_OPENROUTER_ONLY: ${AI_OPENROUTER_ONLY:-true}
-      AI_DEFAULT_MODEL: ${AI_DEFAULT_MODEL:-openai/gpt-oss-120b:free}
-      AI_FAILOVER_CHAIN: ${AI_FAILOVER_CHAIN:-openai/gpt-oss-120b:free}
-      DM_LLM_CLASSIFY: ${DM_LLM_CLASSIFY:-false}
-      OSS_MAX_API_ATTEMPTS: ${OSS_MAX_API_ATTEMPTS:-2}
-      OSS_PROMPT_CACHE: ${OSS_PROMPT_CACHE:-true}
-      OSS_STREAM_NARRATION: ${OSS_STREAM_NARRATION:-false}
-      OSS_TRACE_LOG: ${OSS_TRACE_LOG:-true}
-      OSS_PROMPT_LOG: ${OSS_PROMPT_LOG:-true}
-      OSS_JSON_ONLY_REPAIR: ${OSS_JSON_ONLY_REPAIR:-true}
-      AI_EMBEDDING_PROVIDER: ${AI_EMBEDDING_PROVIDER:-openrouter}
-      OPENROUTER_EMBEDDING_MODEL: ${OPENROUTER_EMBEDDING_MODEL:-nvidia/llama-nemotron-embed-vl-1b-v2:free}
-      OPENROUTER_KEY_EMBEDDING: ${OPENROUTER_KEY_EMBEDDING:-}
-      QDRANT_ENABLED: ${QDRANT_ENABLED:-true}
-      QDRANT_URL: http://qdrant:6333
-      QDRANT_VECTOR_SIZE: ${QDRANT_VECTOR_SIZE:-2048}
-      OPENROUTER_PREFER_SERVER_KEYS: ${OPENROUTER_PREFER_SERVER_KEYS:-true}
-      OPENROUTER_KEY1: ${OPENROUTER_KEY1:-}
-      OPENROUTER_KEY2: ${OPENROUTER_KEY2:-}
-      OPENROUTER_KEY3: ${OPENROUTER_KEY3:-}
-      OPENROUTER_KEY4: ${OPENROUTER_KEY4:-}
-      OPENROUTER_KEYS: ${OPENROUTER_KEYS:-}
-      OPENROUTER_API_KEYS: ${OPENROUTER_API_KEYS:-}
-      OPENROUTER_APP_NAME: ${OPENROUTER_APP_NAME:-DnDAI}
-      OPENROUTER_APP_URL: ${OPENROUTER_APP_URL:-}
-      MINIO_ENABLED: 'true'
-      MINIO_ENDPOINT: minio
-      MINIO_PORT: '9000'
-      MINIO_USE_SSL: 'false'
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-dndai_minio}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-dndai_minio_secret}
-      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-chronicles}
-      PIPER_HTTP_URL: http://piper:5500
-      API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:8071/api}
-      SKIP_NARRATION_WORKERS: 'true'
     ports:
       - '8071:8071'
-    entrypoint: ["/docker-entrypoint.sh"]
-    command: ["npx", "tsx", "watch", "src/server.ts"]
+    entrypoint: ['/docker-entrypoint.sh']
+    command: ['npx', 'tsx', 'watch', 'src/penaiServer.ts']
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      minio:
-        condition: service_healthy
-      piper:
-        condition: service_healthy
+      temporal:
+        condition: service_started
       qdrant:
-        condition: service_healthy
+        condition: service_started
 
-  narration-worker-dev:
+  temporal-worker-dev:
     profiles: ['dev']
     build:
       context: ./backend
@@ -93,24 +81,18 @@ services:
     volumes:
       - ./backend/src:/app/src
     environment:
-      NODE_ENV: development
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: ${DB_USER:-dndai}
-      DB_PASSWORD: ${DB_PASSWORD:-dndai_secret}
-      DB_NAME: ${DB_NAME:-dndai}
-      DB_SYNC: ${DB_SYNC:-true}
-      REDIS_URL: redis://redis:6379
-      AI_PIPELINE_MODE: narration_only
-      AI_ENGINE: oss
-      OPENROUTER_KEY1: ${OPENROUTER_KEY1:-}
-    entrypoint: ["/docker-entrypoint.sh"]
-    command: ["npx", "tsx", "watch", "src/narrationWorkerMain.ts"]
+      <<: *penai-dev-env
+      SKIP_TEMPORAL_WORKER: 'false'
+      TEMPORAL_DISABLED: 'false'
+    entrypoint: ['/docker-entrypoint.sh']
+    command: ['npx', 'tsx', 'watch', 'src/temporalWorkerMain.ts']
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      temporal:
+        condition: service_started
 
   frontend-dev:
     profiles: ['dev']

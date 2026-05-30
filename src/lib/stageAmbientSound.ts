@@ -1,7 +1,7 @@
 import type { GameStage } from '@/types/gameStage';
 
-/** Trilha calma do hub (biblioteca medieval). */
-export const HUB_AMBIENT_SOUND_ID = 'medieval_library';
+/** Trilha calma do hub — alvorecer fantástico (par com menu music). */
+export const HUB_AMBIENT_SOUND_ID = 'middle_earth_dawn';
 
 const HUB_STAGES: GameStage[] = [
   'loading',

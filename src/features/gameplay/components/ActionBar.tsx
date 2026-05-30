@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ChevronLeft, ChevronRight, PenLine, Swords, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, PenLine, Swords, X } from 'lucide-react';
 import { DndButton } from '@/components/primitives';
 import { cn } from '@/lib/utils';
 
@@ -261,7 +261,11 @@ export function ActionBar({
           )}
           onClick={() => setOpen((v) => !v)}
         >
-          {open ? <X className="h-6 w-6" strokeWidth={2} /> : <Swords className="h-6 w-6" strokeWidth={2} />}
+          {open ? <X className="h-6 w-6" strokeWidth={2} /> : disabled && statusLabel ? (
+            <Loader2 className="h-6 w-6 animate-spin" strokeWidth={2} />
+          ) : (
+            <Swords className="h-6 w-6" strokeWidth={2} />
+          )}
           {!open && filledCount > 0 ? (
             <span
               className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-dnd-gold px-1 font-ui text-[10px] font-bold text-dnd-obsidian"

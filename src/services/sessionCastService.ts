@@ -5,16 +5,14 @@ export type CastRole = 'pc' | 'npc' | 'ally' | 'enemy';
 export type CastVitals = 'alive' | 'dead' | 'unconscious' | 'unknown';
 
 export interface SessionCastMemberDto {
-  id: number;
+  id: string | number;
   sessionId: number;
-  ownerUserId: number;
-  characterId: number | null;
   displayName: string;
   role: CastRole;
   vitals: CastVitals;
-  sheetSnapshot: Record<string, unknown> | null;
-  metadata: Record<string, unknown> | null;
-  visibleToParty: boolean;
+  source?: string;
+  hp?: number;
+  hpMax?: number;
 }
 
 export interface WorldEchoDto {
@@ -30,25 +28,28 @@ export interface SessionCastListResponse {
 }
 
 export async function fetchSessionCast(sessionId: number): Promise<SessionCastListResponse> {
-  return apiClient<SessionCastListResponse>(`/sessoes/${sessionId}/cast`);
+  const res = await apiClient<{ sessionId: number; members: SessionCastMemberDto[] }>(
+    `/v2/sessions/${sessionId}/cast`,
+  );
+  return {
+    cast: res.members ?? [],
+    worldEchoes: [],
+  };
 }
 
 export async function syncSessionCast(
   sessionId: number,
-  combatState?: CombatState | null,
+  _combatState?: CombatState | null,
 ): Promise<SessionCastListResponse> {
-  return apiClient<SessionCastListResponse>(`/sessoes/${sessionId}/cast/sync`, {
-    method: 'POST',
-    body: JSON.stringify({ combatState: combatState ?? null }),
-  });
+  return fetchSessionCast(sessionId);
 }
 
 export async function updateCastMember(
   sessionId: number,
-  memberId: number,
+  memberId: string | number,
   patch: Partial<{ displayName: string; role: CastRole; vitals: CastVitals }>,
 ): Promise<SessionCastMemberDto> {
-  return apiClient<SessionCastMemberDto>(`/sessoes/${sessionId}/cast/${memberId}`, {
+  return apiClient<SessionCastMemberDto>(`/v2/sessions/${sessionId}/cast/${memberId}`, {
     method: 'PATCH',
     body: JSON.stringify(patch),
   });

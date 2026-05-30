@@ -13,9 +13,6 @@ export function useGameActionPipelineRefs() {
     const lastLogVersionRef = useRef(0);
     const pendingActionsRef = useRef<Set<string>>(new Set());
     const actionTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
-    const processPlayerActionRef = useRef<
-        (action: string, sessionIdOverride?: number, modelOverride?: string) => Promise<void>
-    >();
     const actionCursorRef = useRef(0);
     const [clientInstanceId] = useState(() => `web-${Math.random().toString(36).slice(2, 10)}`);
 
@@ -26,7 +23,6 @@ export function useGameActionPipelineRefs() {
         lastLogVersionRef,
         pendingActionsRef,
         actionTimeoutsRef,
-        processPlayerActionRef,
         actionCursorRef,
         clientInstanceId,
     };

@@ -1,0 +1,58 @@
+# Deploy Cloudflare Tunnel — só expõe 9011 (API) e 9012 (app).
+# Infra (MySQL, Redis, SRD, MinIO, Piper, Qdrant) fica só na rede Docker.
+#
+# Subir:
+#   docker compose -f docker-compose.yml -f docker-compose.cloudive.yml --profile full up -d --build
+# ou: npm run compose:cloudive
+
+services:
+  mysql:
+    ports: !reset []
+
+  redis:
+    ports: !reset []
+
+  srd-db:
+    ports: !reset []
+
+  srd-cache:
+    ports: !reset []
+
+  srd-api:
+    ports: !reset []
+
+  minio:
+    ports: !reset []
+
+  qdrant:
+    ports: !reset []
+
+  piper:
+    ports: !reset []
+
+  backend:
+    ports: !override
+      - '9011:8071'
+    environment:
+      REDIS_URL: redis://redis:6379
+      RUNNING_IN_DOCKER: 'true'
+      API_PUBLIC_URL: ${API_PUBLIC_URL:-https://api-rpg.cloudive.com.br/api}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://dnd.cloudive.com.br,http://dnd.cloudive.com.br,https://api-rpg.cloudive.com.br}
+
+  narration-worker:
+    environment:
+      NODE_ENV: production
+      DB_SYNC: 'false'
+      REDIS_URL: redis://redis:6379
+      RUNNING_IN_DOCKER: 'true'
+      RUN_NARRATION_WORKER: 'true'
+      NARRATION_WORKER_VERBOSE: 'true'
+      LOG_NARRATION_PROMPT: 'true'
+
+  frontend:
+    ports: !override
+      - '9012:9002'
+    build:
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api-rpg.cloudive.com.br/api}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-wss://api-rpg.cloudive.com.br/}

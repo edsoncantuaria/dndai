@@ -6,11 +6,13 @@ import { User } from '../entities/User.js';
 import createError from 'http-errors';
 import type { RegisterSchema } from '../schemas/validationSchemas.js';
 import type { z } from 'zod';
+import { includedCreditsForNewUser } from './aiBillingService.js';
+import { AI_PRODUCT } from '../config/aiProductDefaults.js';
 
 // Configurações padrão para novos usuários
 const defaultSettings = {
-    model: "meta-llama/llama-3.3-70b-instruct:free",
-    aiProvider: "openrouter",
+    model: AI_PRODUCT.defaultModel,
+    aiProvider: AI_PRODUCT.provider,
     ttsModel: "gemini-2.5-flash-preview-tts",
     ttsVoice: "Charon",
     narrationVoice: "faber",
@@ -54,7 +56,9 @@ export const registerUser = async (userData: z.infer<typeof RegisterSchema>) => 
     user.username = username;
     user.email = email;
     user.password = hashedPassword;
-    user.settings = defaultSettings;
+    user.settings = { ...defaultSettings, onboardingCompleted: false };
+    user.aiCreditsRemaining = includedCreditsForNewUser();
+    user.aiCreditsUsed = 0;
 
     const savedUser = await userRepository.save(user);
     const { password: _, ...userResponse } = savedUser;

@@ -1,5 +1,7 @@
 // src/services/apiClient.ts
 
+import { getStoredAuthToken } from '@/lib/authToken';
+
 const API_URL =
     process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ||
     'http://localhost:8071/api';
@@ -24,7 +26,7 @@ export class ApiError extends Error {
  * Retorna null se o token não for encontrado, permitindo que a chamada decida como proceder.
  */
 const getAuthHeaders = (): HeadersInit | null => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const token = getStoredAuthToken();
     if (!token) {
         return null;
     }
@@ -35,7 +37,16 @@ const getAuthHeaders = (): HeadersInit | null => {
 };
 
 // Lista de rotas que não exigem autenticação.
-const PUBLIC_ROUTES = ['/auth/login', '/auth/register', '/data', '/translations', '/health'];
+const PUBLIC_ROUTES = [
+    '/v2/auth/login',
+    '/v2/auth/register',
+    '/v2/data',
+    '/data',
+    '/translations',
+    '/health',
+    '/v2/health',
+    '/v2/world',
+];
 
 
 /**

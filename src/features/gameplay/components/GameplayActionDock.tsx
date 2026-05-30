@@ -8,7 +8,6 @@ import { isStateChangingBlocked } from '@/hooks/game/inputGate';
 import { useInputGate } from '@/hooks/game/useInputGate';
 import { DndButton } from '@/components/primitives';
 import { ActionBar } from './ActionBar';
-import { LoadingOracle } from './LoadingOracle';
 import StructuredAttackPanel from '@/components/StructuredAttackPanel';
 import StructuredSkillPanel from '@/components/StructuredSkillPanel';
 import StructuredSpellPanel from '@/components/StructuredSpellPanel';
@@ -26,7 +25,7 @@ function actionLabel(action: string | { text: string; action: string; skill?: st
 /** Painel de ações v2 — 4 slots + atalhos só quando o contexto da cena permitir */
 export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void }) {
   const {
-    processPlayerAction,
+    sendMotorAction,
     isLoading,
     actionOptions,
     pendingLootOffer,
@@ -43,6 +42,7 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
     shopState,
     openShop,
     setPendingStructuredIntent,
+    turnPipelinePhase,
   } = useGameStateContext();
 
   const gate = useInputGate();
@@ -109,9 +109,10 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
   }, [combatState.isActive]);
 
   const handleSelect = (index: number, text: string) => {
+    if (isActionLocked) return;
     const raw = actionOptions[index];
     if (!raw) {
-      processPlayerAction(text);
+      sendMotorAction(text);
       return;
     }
     const cmd =
@@ -120,7 +121,7 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
         : typeof raw === 'object' && raw.action
           ? raw.action
           : text;
-    processPlayerAction(cmd);
+    sendMotorAction(cmd);
   };
 
   const handleReopenShop = () => {
@@ -133,12 +134,10 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
   };
 
   const handleQuestComplete = () => {
-    if (!setPendingStructuredIntent) return;
-    setPendingStructuredIntent({
+    sendMotorAction('Concluo o objetivo principal da missão.', {
       type: 'quest-complete',
       payload: { description: 'Objetivo cumprido na aventura.' },
     });
-    processPlayerAction('Concluo o objetivo principal da missão.');
   };
 
   if (combatState.isActive && !isPlayerTurn) {
@@ -197,15 +196,6 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
     );
   }
 
-  if (isLoading && !actionPhaseLabel) {
-    return (
-      <div className="pointer-events-auto relative mx-3 mb-2 max-w-lg overflow-hidden rounded-2xl border border-dnd-gold/15 dnd-surface-glass max-md:mb-16 md:mx-auto md:mb-0 md:max-w-none md:rounded-none md:border-x-0 md:border-b-0 md:pb-[calc(0.75rem+var(--dnd-safe-bottom))]">
-        {gateOverlay}
-        <LoadingOracle label={loadingState.shortLabel ?? 'O mestre pensa…'} />
-      </div>
-    );
-  }
-
   const actionPanelHeader =
     showContextRow || (showStructuredTools && contextual.showSrdTools) ? (
       <>
@@ -217,7 +207,7 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
                   {contextual.shopLabel}
                 </DndButton>
               ) : null}
-              {contextual.showQuestComplete && setPendingStructuredIntent ? (
+              {contextual.showQuestComplete ? (
                 <DndButton variant="ghost" size="sm" disabled={isActionLocked} onClick={handleQuestComplete}>
                   Concluir missão
                 </DndButton>
@@ -247,20 +237,13 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
     ) : null;
 
   return (
-    <>
-      {loadingState.banner && !isActionLocked ? (
-        <p className="pointer-events-auto mx-auto mb-2 max-w-md rounded-lg border border-dnd-gold/15 bg-dnd-obsidian/90 px-3 py-1 text-center font-ui text-xs text-dnd-parchment-muted backdrop-blur-sm">
-          {loadingState.banner}
-        </p>
-      ) : null}
-      <ActionBar
-        options={optionTexts}
-        disabled={isActionLocked}
-        statusLabel={isActionLocked ? statusLabel : undefined}
-        panelHeader={actionPanelHeader}
-        onSelect={handleSelect}
-        onFreeAction={onFreeAction}
-      />
-    </>
+    <ActionBar
+      options={optionTexts}
+      disabled={isActionLocked}
+      statusLabel={isActionLocked ? (isLoading || turnPipelinePhase !== 'idle' ? 'Aguarde o Mestre…' : statusLabel) : undefined}
+      panelHeader={actionPanelHeader}
+      onSelect={handleSelect}
+      onFreeAction={onFreeAction}
+    />
   );
 }

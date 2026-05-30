@@ -248,7 +248,7 @@ export const deriveAmbientSoundFromWorld = (
         return bestSoundId;
     }
 
-    const fallback = isCombatContext ? 'monster_attack' : 'windswept_plains';
+    const fallback = isCombatContext ? 'skirmish' : 'woodland_campsite';
     if (soundLibrary.has(fallback)) {
         return fallback;
     }

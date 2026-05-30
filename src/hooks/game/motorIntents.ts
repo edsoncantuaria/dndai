@@ -10,6 +10,21 @@ export type StructuredIntent =
     | { type: 'buy-item'; payload: { itemId: string | number; priceGp: number; quantity?: number } }
     | { type: 'sell-item'; payload: { itemId: number; priceGp: number; quantity?: number } }
     | { type: 'close-shop'; payload?: Record<string, never> }
+    | { type: 'weapon-attack'; payload: { weaponIndex: string; targetArmorClass?: number } }
+    | { type: 'skill-check'; payload: { skillIndex: string; dc?: number } }
+    | { type: 'spell-attack'; payload: { spellIndex: string; ability: string; targetArmorClass?: number } }
+    | { type: 'rest'; payload: { restType: 'short' | 'long' } }
+    | {
+          type: 'apply-level-up';
+          payload: {
+              newLevel: number;
+              attributes?: Record<string, number>;
+              spells?: string[];
+              hpIncrease?: number;
+              subclass?: string;
+              featureChoices?: Array<{ featureIndex: string; selections: string[] }>;
+          };
+      }
     | {
           type: 'quest-complete';
           payload?: { questLevel?: number; description?: string; difficulty?: string };

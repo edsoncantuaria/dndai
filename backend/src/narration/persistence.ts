@@ -28,6 +28,7 @@ import { enforceWorldStateLocation } from './regionMapValidation.js';
 import { prepareLogPayload } from './logPayload.js';
 import { buildWorldStateSnapshot } from './worldStateSnapshot.js';
 import { instrumentGameEvent } from '../services/gameEventInstrumentation.js';
+import { resolvePlayerActionForDisplay } from '../services/dm/playerActionDisplay.js';
 import {
     type NarrationExecutionSource,
     isStaleBeforePersist,
@@ -58,6 +59,8 @@ export interface PersistNarrationTurnParams {
     actionSequence?: number | null;
     /** P5.2 — `worker` não grava combate/mecânica; apenas append narrativo. */
     executionSource?: NarrationExecutionSource;
+    /** Texto curto exibido ao jogador (≠ prompt LLM). */
+    displayPlayerAction?: string | null;
 }
 
 /** Transação de logs, homebrew, merge de personagem e memória vetorial (extraído de narrarService). */
@@ -84,6 +87,7 @@ export async function persistNarrationTurn(params: PersistNarrationTurnParams): 
         sessionCacheKey,
         actionSequence,
         executionSource = 'sync',
+        displayPlayerAction,
     } = params;
 
     if (await isStaleBeforePersist(sessao.id, actionSequence)) {
@@ -173,7 +177,10 @@ export async function persistNarrationTurn(params: PersistNarrationTurnParams): 
         }
 
         if (!isInternalAction) {
-            await persistSessionLog('action', 'Player Action', playerAction);
+            const actionForDisplay = resolvePlayerActionForDisplay(playerAction, displayPlayerAction);
+            if (actionForDisplay) {
+                await persistSessionLog('action', 'Player Action', actionForDisplay);
+            }
         }
 
         const stateForLog: Partial<GameMasterResponse> = { ...aiResponse };
@@ -396,6 +403,11 @@ export async function persistNarrationTurn(params: PersistNarrationTurnParams): 
         persistedStateVersion = await incrementStateVersion(sessao.id);
         aiResponse.stateVersion = persistedStateVersion;
 
+        if (userId > 0) {
+            const { consumePlatformNarrationCredit } = await import('../services/aiBillingService.js');
+            await consumePlatformNarrationCredit(userId, apiKey);
+        }
+
         instrumentGameEvent(sessao.id, 'NarrationCompleted', {
             actionId: actionId ?? null,
             stateVersion: persistedStateVersion,
@@ -472,6 +484,19 @@ export async function persistNarrationTurn(params: PersistNarrationTurnParams): 
             }).catch(err => {
                 console.warn('[persistence] snapshot narrativo:', err);
             });
+        }
+
+        if (!isInternalAction) {
+            const actionForDisplay = resolvePlayerActionForDisplay(playerAction, displayPlayerAction);
+            const entries = (aiResponse.logEntries ?? []).filter(entry => {
+                if (entry?.type !== 'action') return true;
+                const text = typeof entry.content === 'string' ? entry.content : '';
+                return Boolean(resolvePlayerActionForDisplay(text));
+            });
+            if (actionForDisplay && !entries.some(e => e?.type === 'action')) {
+                entries.unshift({ type: 'action', content: actionForDisplay });
+            }
+            aiResponse.logEntries = entries;
         }
 
         return aiResponse;

@@ -13,8 +13,8 @@ export interface ResolvedLoadingState {
 }
 
 const ROLL_HINTS = ['rolagem', 'rolar', 'dado'];
-const NARRATION_HINTS = ['narrando', 'narrativa', 'mestre', 'gerando'];
-const RULES_HINTS = ['validando', 'regras', 'enfileirando', 'motor'];
+const NARRATION_HINTS = ['narrando', 'narrativa', 'mestre', 'gerando', 'enfileirando', 'fila'];
+const RULES_HINTS = ['validando', 'regras', 'motor'];
 
 function matchesHint(label: string, hints: string[]) {
     const normalized = label.toLowerCase();

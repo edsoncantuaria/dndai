@@ -15,15 +15,23 @@ import ArchitectureHelpModal from './system/ArchitectureHelpModal';
 import { loadTranslations } from '@/utils/translator';
 import type { SessionFactsResponse } from '@/services/gameService';
 import { useToast } from '@/hooks/use-toast';
+import {
+    createAndLoadPenaiSession,
+    fetchPenaiSessions,
+    penaiSessionToSessaoIA,
+} from '@/lib/penaiCharacterAdapter';
 import { StageTransition } from '@/components/motion/StageTransition';
 import { AmbientAudioEngine } from '@/components/AmbientAudioEngine';
 import { useStageAmbientSound } from '@/hooks/useStageAmbientSound';
 import { useMenuMusicCrossfade } from '@/hooks/useMenuMusicCrossfade';
+import { useOnboarding } from '@/contexts/OnboardingContext';
 import GameMenuContent from './game-menu/GameMenuContent';
 import { GameStage } from '@/types/gameStage';
 import { Loader2 } from 'lucide-react';
 import Game from './Game';
 import ErrorModal from './ui/ErrorModal';
+import { AiKeyRequiredModal } from './AiKeyRequiredModal';
+import { AI_KEY_REQUIRED_EVENT, isInferenceKeyError } from '@/lib/clientAiAccess';
 
 
 const GameContainer = () => {
@@ -37,7 +45,7 @@ const GameContainer = () => {
         clearApiError,
     } = useGameStateContext();
 
-    const { useAiHomebrew, playMenuMusic, volume, isMuted } = useSettingsContext();
+    const { useAiHomebrew, playMenuMusic, playAmbientMusic, volume, isMuted } = useSettingsContext();
     const { logout, user } = useAuth();
     const { toast } = useToast();
 
@@ -46,6 +54,7 @@ const GameContainer = () => {
     const [characters, setCharacters] = useState<Character[]>([]);
     const [featuredSessionFacts, setFeaturedSessionFacts] = useState<SessionFactsResponse | null>(null);
     const [showSettingsModal, setShowSettingsModal] = useState(false);
+    const [showAiKeyModal, setShowAiKeyModal] = useState(false);
     const [showTestModal, setShowTestModal] = useState(false);
     const [showArchitectureModal, setShowArchitectureModal] = useState(false); 
     const [isLoadingData, setIsLoadingData] = useState(true);
@@ -60,9 +69,16 @@ const GameContainer = () => {
 
 
     const onSetStage = (stage: GameStage) => setGameStage(stage);
+    const { needsOnboarding, step: onboardingStep, setStep: setOnboardingStep } = useOnboarding();
+
+    useEffect(() => {
+        if (needsOnboarding && onboardingStep === 'create_hero' && gameStage !== 'creating_character') {
+            setGameStage('creating_character');
+        }
+    }, [needsOnboarding, onboardingStep, gameStage]);
 
     useStageAmbientSound(gameStage);
-    useMenuMusicCrossfade({ gameStage, playMenuMusic, volume, isMuted });
+    useMenuMusicCrossfade({ gameStage, playMenuMusic, playAmbientMusic, volume, isMuted });
 
     const fetchInitialData = useCallback(async () => {
         setIsLoadingData(true);
@@ -70,8 +86,10 @@ const GameContainer = () => {
             await loadTranslations();
 
             const [userSessions, userCharacters] = await Promise.all([
-                GameService.getGameSessions(),
-                GameService.getCharacters()
+                fetchPenaiSessions().then(res =>
+                    (res.sessions ?? []).map(row => penaiSessionToSessaoIA(row)),
+                ),
+                GameService.getCharacters(),
             ]);
             const sortedSessions = (userSessions || [])
                 .slice()
@@ -120,12 +138,18 @@ const GameContainer = () => {
                 await loadGameSession(sessionId);
                 return;
             }
-            const { sessao } = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
-            if (sessao) {
-                await loadGameSession(sessao.id);
-            } else {
-                throw new Error('Failed to create a new session from the server.');
+            const userId = user?.id ?? 1;
+            const { session } = await createAndLoadPenaiSession(
+                `Aventura de ${char.name}`,
+                { name: char.name, id: char.id },
+                userId,
+            );
+            const newId = Number(session.id);
+            if (!Number.isFinite(newId)) {
+                throw new Error('Sessão PENAI criada sem id válido.');
             }
+            await loadGameSession(newId);
+            return;
         } catch (error) {
             console.error('[GameContainer] Failed to start new game session:', error);
             const message =
@@ -141,9 +165,12 @@ const GameContainer = () => {
             });
             setGameStage('character_vault');
         }
-    }, [loadGameSession, toast]);
+    }, [loadGameSession, toast, user?.id]);
     
     const handleCharacterCreated = () => {
+        if (needsOnboarding && onboardingStep === 'create_hero') {
+            setOnboardingStep('play');
+        }
         setGameStage('character_vault');
         fetchInitialData();
     };
@@ -242,21 +269,19 @@ const GameContainer = () => {
     const openSettings = useCallback(() => setShowSettingsModal(true), []);
     const openSystemTests = useCallback(() => setShowTestModal(true), []);
     const openArchitecture = useCallback(() => setShowArchitectureModal(true), []);
-    const handleOpenSettingsFromError = useCallback(() => {
-        clearApiError();
-        setShowSettingsModal(true);
-    }, [clearApiError]);
 
-    const shouldPromptApiKey = Boolean(
-        apiError &&
-        (apiError.toLowerCase().includes('chave da api') || apiError.toLowerCase().includes('api key'))
-    );
+    const shouldPromptApiKey = Boolean(apiError && isInferenceKeyError(apiError));
+
+    const openAiKeyModal = useCallback(() => setShowAiKeyModal(true), []);
 
     useEffect(() => {
         const handler = () => setShowSettingsModal(true);
+        const aiKeyHandler = () => setShowAiKeyModal(true);
         window.addEventListener('game-open-settings', handler as EventListener);
+        window.addEventListener(AI_KEY_REQUIRED_EVENT, aiKeyHandler as EventListener);
         return () => {
             window.removeEventListener('game-open-settings', handler as EventListener);
+            window.removeEventListener(AI_KEY_REQUIRED_EVENT, aiKeyHandler as EventListener);
         };
     }, []);
 
@@ -363,6 +388,10 @@ const GameContainer = () => {
                 isOpen={showSettingsModal}
                 onClose={() => setShowSettingsModal(false)}
             />
+            <AiKeyRequiredModal
+                isOpen={showAiKeyModal}
+                onClose={() => setShowAiKeyModal(false)}
+            />
             <SystemTestModal
                 isOpen={showTestModal}
                 onClose={() => setShowTestModal(false)}
@@ -377,8 +406,8 @@ const GameContainer = () => {
                 <ErrorModal
                     message={apiError}
                     onClose={clearApiError}
-                    actionLabel={shouldPromptApiKey ? 'Abrir Configurações' : undefined}
-                    onAction={shouldPromptApiKey ? handleOpenSettingsFromError : undefined}
+                    actionLabel={shouldPromptApiKey ? 'Configurar chave Gemini' : undefined}
+                    onAction={shouldPromptApiKey ? () => { clearApiError(); openAiKeyModal(); } : undefined}
                 />
             )}
         </>
