@@ -29,12 +29,13 @@ import { useGameplayScrollLock } from '@/hooks/useGameplayScrollLock';
 import { isStateChangingBlocked } from '@/hooks/game/inputGate';
 import { useInputGate } from '@/hooks/game/useInputGate';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePenaiTurnPipeline } from '@/hooks/usePenaiTurnPipeline';
+import { PENAI_OPENING_PROMPT, usePenaiTurnPipeline } from '@/hooks/usePenaiTurnPipeline';
 import { PenaiGameplayProvider } from '@/contexts/PenaiGameplayContext';
 import { PenaiMechanicalSync } from '@/components/PenaiMechanicalSync';
 import { setPenaiBridge } from '@/lib/penaiBridge';
 import { usePenaiWorldBootstrap } from '@/hooks/usePenaiWorldBootstrap';
 import { SessionWorldLoadingScreen } from './components/SessionWorldLoadingScreen';
+import { HeroDeathScreen } from './HeroDeathScreen';
 
 export interface GameplayScreenProps {
   returnToMenu: () => void;
@@ -62,6 +63,8 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
     sendMotorAction,
     reinstallModal,
     setReinstallModal,
+    loadGameSession,
+    setSessionId,
   } = useGameStateContext();
 
   const { toast } = useToast();
@@ -133,23 +136,24 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
   useEffect(() => {
     if (!penaiTurn.connected || sessionId == null || !worldReady) return;
     if (!penaiTurn.storyHydrated) return;
+    if (penaiTurn.narrationPending) return;
     const hasNarration = penaiTurn.storyFeed.some(
-      e => e.kind === 'narration' && Boolean(String(e.content ?? '').trim()),
+      e =>
+        (e.kind === 'narration' || e.kind === 'opening' || e.kind === 'system') &&
+        Boolean(String(e.content ?? '').trim()),
     );
     if (hasNarration) return;
     const key = `cda:session:${sessionId}:penaiOpening`;
     if (typeof window === 'undefined') return;
     if (sessionStorage.getItem(key)) return;
     sessionStorage.setItem(key, '1');
-    penaiTurn.sendProcessAction(
-      'A aventura começa. Onde eu estou e o que está acontecendo?',
-      { bootstrap: true },
-    );
+    penaiTurn.sendProcessAction(PENAI_OPENING_PROMPT, { bootstrap: true });
   }, [
     penaiTurn.connected,
     penaiTurn.sendProcessAction,
     penaiTurn.storyFeed,
     penaiTurn.storyHydrated,
+    penaiTurn.narrationPending,
     sessionId,
     worldReady,
   ]);
@@ -242,6 +246,7 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
     lastError: penaiTurn.lastError,
     phase: penaiTurn.phase,
     sendProcessAction: penaiTurn.sendProcessAction,
+    retryOpening: penaiTurn.retryOpening,
     sendStructuredIntent: (
       intent: { type: string; payload?: Record<string, unknown> },
       playerAction?: string,
@@ -401,6 +406,27 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
             setIsGuidedTipsOpen(false);
           }}
         />
+
+        {penaiTurn.gameOver && sessionId != null && user?.id != null ? (
+          <HeroDeathScreen
+            sessionId={sessionId}
+            payload={penaiTurn.gameOver}
+            userId={user.id}
+            onReturnToHub={() => {
+              penaiTurn.clearGameOver();
+              returnToMenu();
+            }}
+            onNewHero={() => {
+              penaiTurn.clearGameOver();
+              returnToMenu();
+            }}
+            onResumePlaying={async (newSessionId) => {
+              penaiTurn.clearGameOver();
+              setSessionId(newSessionId);
+              await loadGameSession(newSessionId);
+            }}
+          />
+        ) : null}
 
         <button
           type="button"

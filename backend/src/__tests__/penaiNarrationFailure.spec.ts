@@ -13,9 +13,9 @@ test('isNonRecoverableNarrationError detecta cota diária esgotada', () => {
     );
 });
 
-test('isNonRecoverableNarrationError ignora 429 temporário', () => {
+test('isNonRecoverableNarrationError trata 429 como fatal (sem retry)', () => {
     assert.equal(
         isNonRecoverableNarrationError(new Error('429 RESOURCE_EXHAUSTED — retry in 7s')),
-        false,
+        true,
     );
 });

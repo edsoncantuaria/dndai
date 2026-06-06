@@ -7,6 +7,8 @@ export type PlayerRollTargetKind = 'character' | 'entity' | 'object';
 export type PlayerRollResourceKind = 'spell-slot' | 'class-resource' | 'item';
 
 export interface PlayerRollRequestMetadata {
+    deathSave?: boolean;
+    criticalHit?: boolean;
     source?: {
         kind: PlayerRollSourceKind;
         index?: string;
@@ -256,6 +258,9 @@ export interface NewCharacterInfo {
     background: string;
     alignment: string;
     attributes: Attributes;
+    baseAttributes?: Attributes;
+    attributeMethod?: 'point-buy' | 'roll';
+    rollSessionId?: string;
     proficiencies: Proficiency[];
     traits: ApiListItem[];
     languages: string[];

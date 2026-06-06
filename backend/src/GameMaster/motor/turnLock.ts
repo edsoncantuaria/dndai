@@ -22,6 +22,24 @@ export async function isPenaiTurnLocked(sessionId: number): Promise<{ locked: bo
     return { locked: false };
 }
 
+/** Evita segunda chamada LLM em workflow Temporal obsoleto ou turno já narrado. */
+export async function isStaleNarrationTurn(
+    sessionId: number,
+    actionSequence: number,
+): Promise<{ stale: boolean; reason?: string }> {
+    const session = await PenaiDataSource.getRepository(GameSession).findOne({
+        where: { id: sessionId },
+    });
+    if (!session) return { stale: true, reason: 'Sessão não encontrada.' };
+    if (actionSequence < session.actionSequence) {
+        return { stale: true, reason: 'Turno substituído por ação mais recente.' };
+    }
+    if (actionSequence <= session.actionCursor) {
+        return { stale: true, reason: 'Narração deste turno já foi concluída.' };
+    }
+    return { stale: false };
+}
+
 export async function completePenaiTurnNarration(
     sessionId: number,
     actionSequence: number,

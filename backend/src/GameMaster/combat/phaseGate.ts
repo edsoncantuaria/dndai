@@ -100,10 +100,12 @@ export async function advancePenaiCombatPhaseAfterNarration(sessionId: number): 
 }
 
 function livingOrder(order: string[], combatants: SessionCombatant[]): string[] {
-    const alive = new Set(
-        combatants.filter(c => c.hpCurrent > 0).map(c => c.entityKey),
-    );
-    return order.filter(k => alive.has(k));
+    return order.filter(k => {
+        const c = combatants.find(x => x.entityKey === k);
+        if (!c) return false;
+        if (c.hpCurrent > 0) return true;
+        return c.side === 'hero';
+    });
 }
 
 export async function advancePenaiCombatTurn(sessionId: number): Promise<{

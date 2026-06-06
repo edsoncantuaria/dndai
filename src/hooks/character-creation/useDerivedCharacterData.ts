@@ -4,7 +4,7 @@ import type { ApiRace, ApiClass, ApiBackground, ApiSubrace, InventoryItem, Profi
 import type { CharacterCreatorState } from './reducer';
 import * as characterUtils from '@/utils/characterUtils';
 import { v4 as uuidv4 } from 'uuid';
-import { findCacheMatch, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder';
+import { findCacheMatch, resolveEquipmentCategory, equipmentCategoryKey } from '@/utils/equipmentCacheBuilder';
 
 // ============================================================
 // 🧩 Função auxiliar para normalizar URLs de equipamentos
@@ -174,7 +174,7 @@ export const useDerivedCharacterData = (
 
       if (!optionsSource && group.choice?.from?.equipment_category) {
         const cat = group.choice.from.equipment_category;
-        const categoryKey = typeof cat === 'string' ? cat : cat.name || cat.index;
+        const categoryKey = equipmentCategoryKey(cat);
         const cacheKey = findCacheMatch(categoryKey, equipmentCategoryCache);
         const resolvedCategory = cacheKey ? equipmentCategoryCache[cacheKey] : [];
         if (resolvedCategory.length > 0) {

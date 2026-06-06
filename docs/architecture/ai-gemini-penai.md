@@ -8,7 +8,8 @@
 - `AI_PIPELINE_MODE=narration_only` — LLM não altera HP, rolls ou inventário.
 - **actionSense** (plausibilidade LLM) ≠ **motor** (rolagens/bloqueios SRD) — ver ADR 0001.
 - Narração: structured JSON nativo (`responseJsonSchema` + Zod); action options via agente separado + registry mecânico.
-- BYOK: `resolveInferenceApiKey` na narração; **actionSense usa `GEMINI_API_KEY` plataforma** (gap P2).
+- BYOK: `resolveInferenceApiKey` na narração, **actionSense** (free/social), actionOptions e bootstrap.
+- **Uma tentativa por turno (jun/2026):** `GEMINI_MAX_ATTEMPTS=1`, `PENAI_NARRATION_MAX_ATTEMPTS=1`, Temporal `maximumAttempts: 1`; turnos obsoletos abortam em `isStaleNarrationTurn` sem LLM; `PENAI_ACTION_OPTIONS_LLM=false` (registry mecânico).
 
 ## Dois runtimes
 

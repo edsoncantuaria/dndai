@@ -2,7 +2,8 @@ export type InputGate =
   | 'OPEN'
   | 'LOCKED_MECHANICAL'
   | 'LOCKED_ROLLING'
-  | 'LOCKED_NARRATING';
+  | 'LOCKED_NARRATING'
+  | 'LOCKED_UNCONSCIOUS';
 
 export type InputGatePhase = 'idle' | 'rolling' | 'mechanical' | 'narrating';
 

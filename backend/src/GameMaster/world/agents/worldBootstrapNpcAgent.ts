@@ -133,7 +133,7 @@ export async function generateBootstrapNpcs(opts: {
     if (!apiKey) {
         failNpcBatch(
             'no_api_key',
-            'GEMINI_API_KEY ausente (raiz/backend .env, BYOK do usuário ou --api-key)',
+            'Chave de inferência indisponível (BYOK ou plataforma)',
             ctx,
         );
     }

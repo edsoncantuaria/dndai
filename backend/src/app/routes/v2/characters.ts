@@ -7,6 +7,7 @@ import {
     listVaultHeroes,
     updateVaultHero,
 } from '../../../GameMaster/character/vault.js';
+import { issueCharacterAttributeRoll } from '../../../services/characterAttributeRollService.js';
 import createError from 'http-errors';
 
 function sendErr(reply: FastifyReply, err: unknown) {
@@ -18,6 +19,11 @@ function sendErr(reply: FastifyReply, err: unknown) {
 
 export async function characterRoutes(app: FastifyInstance): Promise<void> {
     const auth = { preHandler: [app.authenticate] };
+
+    app.post('/api/v2/characters/roll-attributes', auth, async (request) => {
+        const result = await issueCharacterAttributeRoll(request.userId);
+        return result;
+    });
 
     app.post('/api/v2/characters', auth, async (request, reply) => {
         try {
@@ -48,6 +54,22 @@ export async function characterRoutes(app: FastifyInstance): Promise<void> {
             const character = await updateVaultHero(request.userId, id, parsed);
             return {
                 message: 'Personagem atualizado no cofre. Campanhas em andamento não são alteradas.',
+                character,
+            };
+        } catch (err) {
+            return sendErr(reply, err);
+        }
+    });
+
+    app.post('/api/v2/characters/:id/reset-progress', auth, async (request, reply) => {
+        try {
+            const { id } = request.params as { id: string };
+            const { resetVaultHeroProgress } = await import(
+                '../../../GameMaster/character/vault.js'
+            );
+            const character = await resetVaultHeroProgress(request.userId, id);
+            return {
+                message: 'Herói reiniciado para nível 1 no cofre.',
                 character,
             };
         } catch (err) {

@@ -9,6 +9,7 @@ import {
 } from '../../rules/rollResolutionCore.js';
 import { applyCharacterStateDeltaPenai } from '../character/applyStateDelta.js';
 import { syncHeroHpPenai, syncHeroHpToCanonical } from '../character/syncHeroHp.js';
+import { ammoDisplayName } from '../../rules/ammunition.js';
 import { applyCombatEntityDeltaPenai } from './engine.js';
 import type { StoredPenaiRoll } from '../motor/rollStore.js';
 
@@ -32,6 +33,7 @@ export interface PenaiRollResolutionResult {
         context?: { actionId?: string; intentType?: string; metadata?: Record<string, unknown> };
     };
     hints?: string[];
+    permanentlyDead?: boolean;
 }
 
 type RollResolutionInput = {
@@ -52,9 +54,15 @@ const mergeCharacterUpdates = (
 export async function resolvePenaiStructuredRoll(
     sessionId: number,
     pending: StoredPenaiRoll,
-    { total }: RollResolutionInput,
+    input: RollResolutionInput,
 ): Promise<PenaiRollResolutionResult | null> {
+    const { total, rawRoll } = input;
     const metadata = pending.metadata;
+
+    if (metadata?.deathSave) {
+        return resolvePenaiDeathSave(sessionId, pending, input);
+    }
+
     const targets = metadata?.targets;
     const effect =
         metadata?.effect ??
@@ -109,6 +117,11 @@ export async function resolvePenaiStructuredRoll(
             });
             cumulativeCharacterDelta = mergeCharacterUpdates(cumulativeCharacterDelta, applied);
             await syncHeroHpPenai(sessionId);
+            for (const cost of metadata.resourceCosts) {
+                if (cost.kind === 'item' && cost.itemIndex) {
+                    hints.push(`Gasta 1× ${ammoDisplayName(cost.itemIndex)}.`);
+                }
+            }
         }
         if (pending.metadata) pending.metadata.resourceCosts = undefined;
     }
@@ -164,9 +177,11 @@ async function applyPenaiDamage(
 ): Promise<PenaiRollResolutionResult> {
     const dmg = Math.max(amount, 0);
     if (target.kind === 'character') {
-        const applied = await applyCharacterStateDeltaPenai(sessionId, {
-            hp: { delta: -dmg },
-        });
+        const applied = await applyCharacterStateDeltaPenai(
+            sessionId,
+            { hp: { delta: -dmg } },
+            { isCriticalDamage: Boolean(metadata?.criticalHit), userId: undefined },
+        );
         cumulativeCharacterDelta = mergeCharacterUpdates(cumulativeCharacterDelta, applied);
         await syncHeroHpPenai(sessionId);
         hints.push(
@@ -262,6 +277,48 @@ async function applyPenaiHealing(
     }
 
     return { hints };
+}
+
+async function resolvePenaiDeathSave(
+    sessionId: number,
+    pending: StoredPenaiRoll,
+    input: RollResolutionInput,
+): Promise<PenaiRollResolutionResult> {
+    const { resolveDeathSaveForSession } = await import('../character/heroVitalsService.js');
+    const { getSessionHeroEntityId } = await import('../character/heroStats.js');
+    const heroEntityId = await getSessionHeroEntityId(sessionId);
+
+    const outcome = await resolveDeathSaveForSession(
+        sessionId,
+        input.total,
+        input.rawRoll,
+        pending.userId,
+    );
+
+    if (!outcome || !heroEntityId) {
+        return { shouldNarrate: false, hints: ['Teste de morte inválido.'] };
+    }
+
+    const updatedCharacter = {
+        heroEntityId,
+        stats: outcome.stats,
+        applied: true,
+    };
+
+    if (outcome.kind === 'dead') {
+        return {
+            shouldNarrate: false,
+            permanentlyDead: true,
+            hints: outcome.hints,
+            updatedCharacter,
+        };
+    }
+
+    return {
+        shouldNarrate: true,
+        hints: outcome.hints,
+        updatedCharacter,
+    };
 }
 
 export { buildDamageFollowUp, rollResolutionShouldNarrate };

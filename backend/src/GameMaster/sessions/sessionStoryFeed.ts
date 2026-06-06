@@ -3,7 +3,11 @@ import { PenaiDataSource } from '../database/data-source.js';
 import { SessionMemory } from '../database/entities/SessionMemory.js';
 import { getGameSession } from './sessionService.js';
 import { assertSessionOwner } from './sessionExtras.js';
-import { isPenaiTurnLocked, completePenaiTurnNarration } from '../motor/turnLock.js';
+import {
+    isPenaiTurnLocked,
+    completePenaiTurnNarration,
+    rollbackPenaiTurnOnNarrationFailure,
+} from '../motor/turnLock.js';
 import { penaiPipelineLog } from '../infra/pipelineLog.js';
 
 export type StoryFeedEntry = {
@@ -68,11 +72,11 @@ export async function reconcileStaleNarrationLock(sessionId: number): Promise<bo
     }
 
     const staleMs = Date.now() - new Date(session.updatedAt).getTime();
-    if (staleMs > 2 * 60 * 1000) {
-        await completePenaiTurnNarration(sessionId, session.actionSequence);
+    if (staleMs > 5 * 60 * 1000) {
+        await rollbackPenaiTurnOnNarrationFailure(sessionId, session.actionSequence);
         penaiPipelineLog(
             'NARRATION',
-            'actionCursor recuperado (narração stale)',
+            'lock stale revertido — narração nunca concluiu (sem auto-complete)',
             { actionSequence: session.actionSequence, staleMs },
             { sessionId },
         );
@@ -80,6 +84,19 @@ export async function reconcileStaleNarrationLock(sessionId: number): Promise<bo
     }
 
     return false;
+}
+
+/** Sessão já tem texto narrativo persistido (opening ou turno anterior). */
+export async function sessionHasPlayableNarration(sessionId: number): Promise<boolean> {
+    const repo = PenaiDataSource.getRepository(SessionMemory);
+    const count = await repo
+        .createQueryBuilder('m')
+        .where('m.sessionId = :sessionId', { sessionId })
+        .andWhere('m.decayedAt IS NULL')
+        .andWhere("(m.storyKind IS NULL OR m.storyKind IN ('narration', 'system', 'opening'))")
+        .andWhere('length(trim(m.text)) > 0')
+        .getCount();
+    return count > 0;
 }
 
 export async function listSessionStoryFeed(sessionId: number, userId: number) {

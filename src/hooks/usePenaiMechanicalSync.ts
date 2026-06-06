@@ -5,6 +5,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { usePenaiGameplay } from '@/contexts/PenaiGameplayContext';
 import { applyPenaiMechanicalInteractionSlice } from '@/lib/penaiMechanicalHydrate';
+import {
+    getTurnPipelinePhase,
+    setInputGate,
+    setVitalsInputSignals,
+} from '@/hooks/game/turnPipelineStore';
 import type { Character, LevelUpState, ProgressionFeedItem } from '@/types';
 
 /**
@@ -13,6 +18,7 @@ import type { Character, LevelUpState, ProgressionFeedItem } from '@/types';
 export function usePenaiMechanicalSync() {
     const penai = usePenaiGameplay();
     const {
+        character,
         setCombatState,
         setRequest,
         setActionOptions,
@@ -21,6 +27,7 @@ export function usePenaiMechanicalSync() {
     } = useGameStateContext();
 
     const appliedMechanicalKeyRef = useRef<string>('');
+    const heroStatusRef = useRef<string>('alive');
 
     useEffect(() => {
         if (!penai.active || !penai.lastMechanical) {
@@ -116,6 +123,37 @@ export function usePenaiMechanicalSync() {
                     ...(curHp != null && Number.isFinite(curHp) ? { hp: curHp } : {}),
                     ...(curMax != null && Number.isFinite(curMax) ? { maxHp: curMax } : {}),
                 };
+                if (curHp != null && Number.isFinite(curHp)) {
+                    next.hp = {
+                        ...prev.hp,
+                        current: curHp,
+                        max: curMax != null && Number.isFinite(curMax) ? curMax : prev.hp.max,
+                    };
+                }
+            }
+
+            const deathSaves = charFromM.deathSaves as
+                | { successes?: number; failures?: number }
+                | undefined;
+            if (deathSaves && typeof deathSaves === 'object') {
+                next.deathSaves = {
+                    successes: Number(deathSaves.successes ?? 0),
+                    failures: Number(deathSaves.failures ?? 0),
+                };
+            }
+
+            if (Array.isArray(charFromM.conditions)) {
+                next.conditions = charFromM.conditions as Character['conditions'];
+            }
+
+            const heroStatus = charFromM.heroStatus;
+            if (
+                heroStatus === 'alive' ||
+                heroStatus === 'unconscious' ||
+                heroStatus === 'stable' ||
+                heroStatus === 'dead'
+            ) {
+                heroStatusRef.current = heroStatus;
             }
 
             const inv = charFromM.inventory as Character['inventory'] | undefined;
@@ -205,6 +243,46 @@ export function usePenaiMechanicalSync() {
         setActionOptions,
         setCharacter,
         setProgressionFeed,
+    ]);
+
+    useEffect(() => {
+        if (!penai.active) return;
+        if (penai.gameOver) {
+            setVitalsInputSignals({ gameOver: true, unconsciousAtZero: false });
+            setInputGate('LOCKED_UNCONSCIOUS');
+            return;
+        }
+        setVitalsInputSignals({ gameOver: false });
+
+        const hp = character?.hp?.current ?? character?.attributes?.hp ?? 0;
+        const status = heroStatusRef.current;
+        const unconsciousAtZero =
+            hp <= 0 &&
+            (status === 'unconscious' ||
+                status === 'stable' ||
+                character?.conditions?.some(
+                    c =>
+                        String(c.index ?? c.name ?? '')
+                            .toLowerCase()
+                            .includes('unconscious'),
+                ));
+
+        setVitalsInputSignals({ unconsciousAtZero });
+        const phase = getTurnPipelinePhase();
+        if (
+            unconsciousAtZero &&
+            phase === 'idle' &&
+            !penai.playerRollRequest
+        ) {
+            setInputGate('LOCKED_UNCONSCIOUS');
+        }
+    }, [
+        penai.active,
+        penai.gameOver,
+        penai.playerRollRequest,
+        character?.hp?.current,
+        character?.attributes?.hp,
+        character?.conditions,
     ]);
 }
 

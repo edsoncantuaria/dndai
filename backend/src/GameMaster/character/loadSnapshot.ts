@@ -88,6 +88,7 @@ export async function loadPenaiCharacterSnapshot(
             index: i.itemKey,
             name: i.name,
             equipped: i.equipped,
+            quantity: i.quantity,
         })),
         resources: heroStats.resources,
         spellcasting,

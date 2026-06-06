@@ -145,6 +145,35 @@ export async function validateAndApply(input: PenaiMotorInput): Promise<PenaiMot
 
     const payload = input.payload ?? {};
 
+    const {
+        isSessionHeroDead,
+        isSessionEnded,
+        getHeroVitals,
+        tryOfferDeathSaveRoll,
+    } = await import('../character/heroVitalsService.js');
+    const { heroCanTakeActions } = await import('../../rules/deathSaves.js');
+
+    if (await isSessionEnded(input.sessionId)) {
+        return {
+            intent: { type: 'free', payload: {} },
+            ruleCheck: { status: 'rejected', reason: 'Esta campanha terminou — o herói não sobreviveu.' },
+            mechanical: { intentType: 'hero_dead', code: 'HERO_DEAD' },
+            blocked: true,
+            awaitingRoll: false,
+        };
+    }
+
+    const heroStats = await getHeroVitals(input.sessionId);
+    if (heroStats?.heroStatus === 'dead' || (await isSessionHeroDead(input.sessionId))) {
+        return {
+            intent: { type: 'free', payload: {} },
+            ruleCheck: { status: 'rejected', reason: 'O herói está morto — não há mais ações possíveis.' },
+            mechanical: { intentType: 'hero_dead', code: 'HERO_DEAD' },
+            blocked: true,
+            awaitingRoll: false,
+        };
+    }
+
     if (isSessionOpeningRequest(input.playerAction, payload)) {
         penaiPipelineLog('MOTOR', 'abertura de sessão — bypass actionSense', {}, ctx);
         const mechanical = await formatMechanicalPack(input.sessionId);
@@ -153,6 +182,55 @@ export async function validateAndApply(input: PenaiMotorInput): Promise<PenaiMot
             ruleCheck: { status: 'accepted', reason: 'Abertura cinematográfica da sessão.' },
             mechanical: { ...mechanical, intentType: 'opening' },
             blocked: false,
+            awaitingRoll: false,
+        };
+    }
+
+    if (heroStats && !heroCanTakeActions({
+        hp: heroStats.hp,
+        maxHp: heroStats.maxHp,
+        heroStatus: heroStats.heroStatus,
+        deathSaves: heroStats.deathSaves,
+        conditions: heroStats.conditions,
+    })) {
+        const deathRoll = await tryOfferDeathSaveRoll(input.sessionId, input.userId, {
+            actionId: input.actionId,
+            actionSequence: input.actionSequence,
+        });
+        if (deathRoll) {
+            const stored = await savePendingPenaiRoll({
+                sessionId: input.sessionId,
+                userId: input.userId,
+                actionId: input.actionId,
+                actionSequence: input.actionSequence,
+                playerAction: 'Teste de morte',
+                roll: deathRoll,
+            });
+            const mechanical = await formatMechanicalPack(input.sessionId);
+            return {
+                intent: { type: 'free', payload: { deathSave: true } },
+                ruleCheck: { status: 'needs_roll', reason: 'Teste de morte obrigatório.' },
+                mechanical: {
+                    ...mechanical,
+                    intentType: 'death-save',
+                    playerRollRequest: stored,
+                },
+                blocked: false,
+                awaitingRoll: true,
+                playerRollRequest: stored,
+            };
+        }
+        return {
+            intent: { type: 'free', payload: {} },
+            ruleCheck: {
+                status: 'rejected',
+                reason:
+                    heroStats.heroStatus === 'stable'
+                        ? 'Você está estável e inconsciente — aguarde cura ou ajuda.'
+                        : 'Você está inconsciente e não pode agir.',
+            },
+            mechanical: { intentType: 'unconscious', heroStatus: heroStats.heroStatus },
+            blocked: true,
             awaitingRoll: false,
         };
     }

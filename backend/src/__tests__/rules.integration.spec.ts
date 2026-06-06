@@ -164,6 +164,53 @@ test('weapon attack intent metadata stays isolated across concurrent validations
     assert.equal(second.stateDelta?.pendingAttack?.damageFormula, '1d8', 'second attack metadata must stay stable');
 });
 
+test('ranged weapon attack requires ammunition in inventory', async () => {
+    const snapshotNoAmmo: RulesCharacterSnapshot = {
+        ...baseSnapshot,
+        weaponProficiencies: ['longbow'],
+        inventory: [{ index: 'longbow', name: 'Longbow', equipped: true }],
+    };
+    const rejected = await validateWeaponAttack(snapshotNoAmmo, {
+        weaponIndex: 'longbow',
+        targetArmorClass: 12,
+    });
+    assert.equal(rejected.status, 'rejected');
+    assert.match(rejected.reason ?? '', /flecha/i);
+
+    const snapshotWithAmmo: RulesCharacterSnapshot = {
+        ...snapshotNoAmmo,
+        inventory: [
+            { index: 'longbow', name: 'Longbow', equipped: true },
+            { index: 'arrow', name: 'Arrow', quantity: 20 },
+        ],
+    };
+    const accepted = await validateWeaponAttack(snapshotWithAmmo, {
+        weaponIndex: 'longbow',
+        targetArmorClass: 12,
+    });
+    assert.equal(accepted.status, 'needs_roll');
+    assert.deepEqual(accepted.rollRequest?.metadata?.resourceCosts, [
+        { kind: 'item', itemIndex: 'arrow', amount: 1 },
+    ]);
+    assert.ok(
+        accepted.rollRequest?.modifierBreakdown?.some(line => line.includes('Munição')),
+        'breakdown should mention ammunition',
+    );
+});
+
+test('melee weapon attack does not require ammunition', async () => {
+    const snapshot: RulesCharacterSnapshot = {
+        ...baseSnapshot,
+        weaponProficiencies: ['longsword'],
+    };
+    const result = await validateWeaponAttack(snapshot, {
+        weaponIndex: 'longsword',
+        targetArmorClass: 14,
+    });
+    assert.equal(result.status, 'needs_roll');
+    assert.equal(result.rollRequest?.metadata?.resourceCosts, undefined);
+});
+
 test('sanitizeGameMasterResponse ignores AI roll fallbacks quando suppressRollRequest=true', async () => {
     process.env.REDIS_URL = 'mock';
     const { sanitizeGameMasterResponse } = await import('../services/aiSanitizer.js');

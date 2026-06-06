@@ -4,6 +4,8 @@ import { WorldEntity } from '../database/entities/WorldEntity.js';
 import { GameSession } from '../database/entities/GameSession.js';
 import { SessionEntityState } from '../database/entities/SessionEntityState.js';
 import type { CharacterResourceSnapshot } from '../../rules/types.js';
+import type { DeathSaveState, HeroVitalStatus } from '../../rules/deathSaves.js';
+import { defaultDeathSaves } from '../../rules/deathSaves.js';
 
 export type PenaiCoinPurse = { pp: number; gp: number; ep: number; sp: number; cp: number };
 
@@ -14,6 +16,8 @@ export type HeroSessionStats = {
     coins: PenaiCoinPurse;
     resources: CharacterResourceSnapshot[];
     conditions: string[];
+    deathSaves: DeathSaveState;
+    heroStatus: HeroVitalStatus;
 };
 
 const DEFAULT_COINS: PenaiCoinPurse = { pp: 0, gp: 15, ep: 0, sp: 0, cp: 0 };
@@ -35,6 +39,8 @@ export function defaultHeroSessionStats(level = 1): HeroSessionStats {
             },
         ],
         conditions: [],
+        deathSaves: defaultDeathSaves(),
+        heroStatus: 'alive',
     };
 }
 
@@ -114,6 +120,22 @@ export function parseHeroSessionStats(raw: Record<string, unknown> | null): Hero
             ? (raw.resources as CharacterResourceSnapshot[])
             : base.resources,
         conditions: Array.isArray(raw.conditions) ? (raw.conditions as string[]) : base.conditions,
+        deathSaves:
+            raw.deathSaves &&
+            typeof raw.deathSaves === 'object' &&
+            typeof (raw.deathSaves as DeathSaveState).successes === 'number'
+                ? {
+                      successes: Number((raw.deathSaves as DeathSaveState).successes),
+                      failures: Number((raw.deathSaves as DeathSaveState).failures),
+                  }
+                : base.deathSaves,
+        heroStatus:
+            raw.heroStatus === 'unconscious' ||
+            raw.heroStatus === 'stable' ||
+            raw.heroStatus === 'dead' ||
+            raw.heroStatus === 'alive'
+                ? (raw.heroStatus as HeroVitalStatus)
+                : base.heroStatus,
     };
 }
 

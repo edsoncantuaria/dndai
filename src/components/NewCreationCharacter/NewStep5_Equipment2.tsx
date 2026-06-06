@@ -6,7 +6,7 @@ import { getOptionLabel } from '@/utils/creationHelpers';
 import { Dice5, Loader2, ArrowLeft, ArrowRight, Backpack } from 'lucide-react';
 import ItemCard from '../ItemCard';
 import { v4 as uuidv4 } from 'uuid';
-import { findCacheMatch, resolveEquipmentCategory, normalizeKey } from '@/utils/equipmentCacheBuilder';
+import { findCacheMatch, resolveEquipmentCategory, equipmentCategoryKey, normalizeKey } from '@/utils/equipmentCacheBuilder';
 import { translateEquipment } from '@/utils/translator'; // Importar a função de tradução
 import PremiumLoader from '@/components/ui/PremiumLoader';
 
@@ -22,8 +22,7 @@ const ItemChoiceSelector: React.FC<{
     let optionsSource: any[] = [];
     
     if (choice?.from?.equipment_category) {
-        const cat = choice.from.equipment_category;
-        categoryIndex = typeof cat === 'string' ? cat : cat?.name || cat?.index;
+        categoryIndex = equipmentCategoryKey(choice.from.equipment_category);
     } else {
         optionsSource = choice?.from?.options || [];
     }
@@ -111,7 +110,7 @@ const EquipmentChoice: React.FC<{
     if (group.choice?.from?.option_set_type === 'options_array') {
         mainOptions = group.choice.from.options || [];
     } else if (categoryFrom) {
-        const categoryKey = typeof categoryFrom === 'string' ? categoryFrom : categoryFrom.name || categoryFrom.index;
+        const categoryKey = equipmentCategoryKey(categoryFrom);
         const cacheKey = findCacheMatch(categoryKey, equipmentCategoryCache);
         const source = cacheKey ? equipmentCategoryCache[cacheKey] : lazyItems;
 
@@ -141,10 +140,18 @@ const EquipmentChoice: React.FC<{
     const mainSelectionIndex = selection?.main;
     const selectedOption = (mainSelectionIndex !== undefined && mainSelectionIndex >= 0) ? mainOptions[mainSelectionIndex] : undefined;
 
+    const choiceTitle =
+        group.choice?.desc ||
+        (categoryFrom
+            ? `Escolha: ${equipmentCategoryKey(categoryFrom)}`
+            : group.source === 'Antecedente'
+              ? 'Equipamento do antecedente'
+              : 'Equipamento da classe');
+
     return (
         <div className="rounded-3xl border border-white/5 bg-stone-950/60 p-5 space-y-4 shadow-inner shadow-black/20">
             <div className="flex items-center justify-between gap-2">
-                <h5 className="text-sm font-semibold text-stone-100">{group.choice.desc}</h5>
+                <h5 className="text-sm font-semibold text-stone-100">{choiceTitle}</h5>
                 <span className="text-xs text-stone-500">{group.source}</span>
             </div>
             <select

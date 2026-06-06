@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { penaiEnv } from '../../../config/penaiEnv.js';
 import { parseLlmJsonText, translateLlmPayload } from '../../ai/llmJsonTranslator.js';
 import { ACTION_SENSE_LLM_DICTIONARY } from '../../ai/llmJsonSchemas.js';
 import { ACTION_SENSE_RESPONSE_JSON_SCHEMA } from '../../ai/geminiSchemas.js';
@@ -10,6 +9,7 @@ import {
     inferSceneMode,
 } from '../../ai/promptComposer.js';
 import type { ActionSenseProvider, PlausibilityResult } from '../contracts.js';
+import { resolveGeminiApiKey } from './apiKey.js';
 import {
     penaiPipelineAiRequest,
     penaiPipelineAiResponse,
@@ -22,6 +22,9 @@ const ActionSenseSchema = z.object({
 });
 
 export type ActionPlausibilityResult = z.infer<typeof ActionSenseSchema>;
+
+const INFERENCE_KEY_HINT =
+    'Configure sua chave Gemini (BYOK) em Configurações ou use créditos da plataforma.';
 
 export function normalizeActionSensePayload(value: unknown): unknown {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -63,15 +66,20 @@ export async function checkActionPlausibilityGemini(opts: {
     regionSlug: string | null;
     intentType: string;
     sessionFacts?: string[];
+    userApiKey?: string;
 }): Promise<ActionPlausibilityResult> {
     return geminiActionSenseProvider.checkPlausibility(opts);
 }
 
 export const geminiActionSenseProvider: ActionSenseProvider = {
     async checkPlausibility(opts): Promise<PlausibilityResult> {
-        const apiKey = penaiEnv.GEMINI_API_KEY.trim();
+        const apiKey = resolveGeminiApiKey(opts.userApiKey).trim();
         if (!apiKey) {
-            return { acceptable: true, reason: 'Gemini desligado — heurística local.' };
+            return {
+                acceptable: false,
+                reason: 'Árbitro indisponível — chave de inferência ausente.',
+                playerFacingHint: INFERENCE_KEY_HINT,
+            };
         }
 
         try {

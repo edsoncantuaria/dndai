@@ -3,7 +3,8 @@ import type * as activities from '../activities/runTurnPipeline.js';
 
 const { runTurnPipelineActivity } = proxyActivities<typeof activities>({
     startToCloseTimeout: '3 minutes',
-    retry: { maximumAttempts: 3 },
+    /** 1 tentativa — sem reexecutar turno e queimar tokens Gemini. */
+    retry: { maximumAttempts: 1 },
 });
 
 export type NarrationWorkflowInput = {

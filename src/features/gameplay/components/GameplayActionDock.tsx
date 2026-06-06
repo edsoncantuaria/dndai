@@ -74,6 +74,9 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
     if (gate === 'LOCKED_MECHANICAL' || turnPipelinePhase === 'mechanical') {
       return 'Motor Computando Decisões…';
     }
+    if (gate === 'LOCKED_UNCONSCIOUS') {
+      return 'Inconsciente — aguarde o teste de morte ou cura.';
+    }
     return null;
   }, [gate, turnPipelinePhase, isRollPending, playerRollRequest]);
 

@@ -159,6 +159,7 @@ export async function resolvePenaiRoll(
         actionId: pending.actionId,
         actionSequence: pending.actionSequence,
         deferNarration: !shouldNarrate,
+        permanentlyDead: resolutionResult?.permanentlyDead,
         ruleCheck: {
             status: 'accepted',
             reason: rollSummary,

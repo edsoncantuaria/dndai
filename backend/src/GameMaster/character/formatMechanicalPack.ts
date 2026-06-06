@@ -106,6 +106,8 @@ export async function formatMechanicalPack(sessionId: number): Promise<Record<st
                   coins: pack.stats.coins,
                   resources: pack.stats.resources,
                   conditions: pack.stats.conditions,
+                  deathSaves: pack.stats.deathSaves,
+                  heroStatus: pack.stats.heroStatus,
                   classIndex: srdBuild.characterClass ?? srdBuild.class ?? null,
                   raceIndex: srdBuild.race ?? null,
                   subraceIndex: srdBuild.subrace ?? null,

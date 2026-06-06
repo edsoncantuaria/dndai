@@ -56,7 +56,11 @@ export async function narrateWorldPulse(input: PulseNarratorInput): Promise<Puls
 
     const apiKey = resolveGeminiApiKey(input.userApiKey);
     if (!apiKey) {
-        failWorldGemini('pulse', 'no_api_key', 'GEMINI_API_KEY ausente');
+        failWorldGemini(
+            'pulse',
+            'no_api_key',
+            'Chave de inferência indisponível (BYOK ou plataforma)',
+        );
     }
 
     const model = penaiEnv.GEMINI_MODEL;

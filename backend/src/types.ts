@@ -28,6 +28,8 @@ export interface PlayerRollRequestMetadata {
         itemId?: number;
         itemIndex?: string;
     }[];
+    deathSave?: boolean;
+    criticalHit?: boolean;
 }
 
 export interface PlayerRollRequest {

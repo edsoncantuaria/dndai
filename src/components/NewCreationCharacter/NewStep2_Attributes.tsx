@@ -127,7 +127,8 @@ const PointBuySection: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
 };
 
 const RollDiceSection: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
-    const { baseAttributes, handleRollAttributes } = hook;
+    const { baseAttributes, handleRollAttributes, isRollingAttributes, rollError, rollSessionId } = hook;
+    const hasRolled = Object.values(baseAttributes).some((value) => value !== 8);
 
     return (
         <section className="space-y-6 rounded-[32px] border border-white/5 bg-stone-950/70 p-6 shadow-2xl shadow-black/40">
@@ -135,17 +136,30 @@ const RollDiceSection: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
                 <div>
                     <p className="text-xs uppercase tracking-[0.5em] text-amber-400/80">Destino Aleatório</p>
                     <h4 className="text-2xl font-semibold text-amber-50">Role 4d6 e descarte o menor dado</h4>
-                    <p className="text-sm text-stone-400">Os resultados são aplicados automaticamente aos atributos.</p>
+                    <p className="text-sm text-stone-400">
+                        A rolagem é feita no servidor — os resultados não podem ser alterados no navegador.
+                    </p>
                 </div>
                 <button
                     type="button"
-                    onClick={handleRollAttributes}
-                    className="flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-300 hover:bg-amber-500/20"
+                    onClick={() => void handleRollAttributes()}
+                    disabled={isRollingAttributes}
+                    className="flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-300 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                    <RefreshCw className="h-4 w-4" />
-                    Rolar novamente
+                    <RefreshCw className={`h-4 w-4 ${isRollingAttributes ? 'animate-spin' : ''}`} />
+                    {isRollingAttributes ? 'Rolando…' : hasRolled ? 'Rolar novamente' : 'Rolar atributos'}
                 </button>
             </div>
+
+            {rollError ? (
+                <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-100">
+                    {rollError}
+                </p>
+            ) : null}
+
+            {hasRolled && rollSessionId ? (
+                <p className="font-ui text-xs text-stone-500">Rolagem registrada — selada no servidor.</p>
+            ) : null}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {attributeOrder.map(attr => (

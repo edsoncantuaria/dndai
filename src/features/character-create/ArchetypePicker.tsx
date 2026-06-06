@@ -10,10 +10,12 @@ export function ArchetypePicker({
   hook,
   onStartBlank,
   onApplied,
+  reserveOnboardingBar = false,
 }: {
   hook: ReturnType<typeof useCharacterCreator>;
   onStartBlank: () => void;
   onApplied: () => void;
+  reserveOnboardingBar?: boolean;
 }) {
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
@@ -28,7 +30,9 @@ export function ArchetypePicker({
   };
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-dnd-obsidian">
+    <div
+      className={`relative flex h-full min-h-0 flex-col overflow-hidden bg-dnd-obsidian${reserveOnboardingBar ? ' pt-[var(--dnd-onboarding-hero-bar,3.5rem)]' : ''}`}
+    >
       <AmbientBackground variant="cinematic" />
       <div className="relative z-10 mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col overflow-y-auto px-4 py-6 sm:px-6">
         <DndHeading variant="label" className="text-dnd-ember">

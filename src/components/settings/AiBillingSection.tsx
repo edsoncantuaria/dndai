@@ -71,7 +71,8 @@ export function AiBillingSection() {
         onChange={(e) => setDraft(e.target.value)}
       />
       <p className="font-ui text-xs text-dnd-parchment-muted -mt-2">
-        Também fica neste navegador.{' '}
+        A mesma chave alimenta a narração do Mestre e o árbitro de plausibilidade das suas ações
+        livres. Também fica neste navegador.{' '}
         <a
           href={GEMINI_STUDIO_URL}
           target="_blank"

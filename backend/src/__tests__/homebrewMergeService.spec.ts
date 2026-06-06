@@ -67,3 +67,14 @@ test('deepMergeSrd mescla objetos aninhados', () => {
     const merged = deepMergeSrd(base, patch);
     assert.deepEqual(merged, { a: 1, nested: { x: 1, y: 9, z: 3 } });
 });
+
+test('deepMergeSrd preserva starting_equipment_options oficial quando fork envia []', () => {
+    const official = {
+        index: 'acolyte',
+        starting_equipment_options: [{ choose: 1, type: 'equipment', from: { option_set_type: 'equipment_category' } }],
+    };
+    const fork = { name: 'Acólito', starting_equipment_options: [] as unknown[] };
+    const merged = deepMergeSrd(official, fork);
+    assert.equal(merged.name, 'Acólito');
+    assert.equal(merged.starting_equipment_options.length, 1);
+});

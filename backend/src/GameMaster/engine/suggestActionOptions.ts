@@ -5,6 +5,7 @@ import { suggestActionOptionsGemini } from '../adapters/gemini/actionOptions.js'
 import { formatSkillLabel } from '../ai/actionOptionsPrompt.js';
 import { penaiPipelineLog, penaiPipelineWait } from '../infra/pipelineLog.js';
 import type { PipelineCtx } from '../infra/pipelineLog.js';
+import { penaiEnv } from '../../config/penaiEnv.js';
 
 function mergeWithFallback(ai: MotorActionOption[], fallback: MotorActionOption[]): MotorActionOption[] {
     const seen = new Set(ai.map(o => o.text.toLowerCase()));
@@ -45,6 +46,16 @@ export async function suggestActionOptionsForTurn(opts: {
     }) as MotorActionOption[];
 
     if (!opts.lastNarration.trim()) {
+        return fallback;
+    }
+
+    if (!penaiEnv.PENAI_ACTION_OPTIONS_LLM) {
+        penaiPipelineLog(
+            'ACTION_OPTIONS',
+            'registry mecânico (PENAI_ACTION_OPTIONS_LLM=false)',
+            { count: fallback.length },
+            opts.ctx,
+        );
         return fallback;
     }
 

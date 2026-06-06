@@ -16,6 +16,7 @@ import {
     penaiPipelineWait,
     penaiPipelineWsIn,
 } from '../infra/pipelineLog.js';
+import { isSessionOpeningRequest } from '../ai/promptComposer.js';
 
 const CURRENT_CONTRACT_VERSION = 2;
 
@@ -126,28 +127,7 @@ async function handleWsMessage(
             });
         }
 
-        const { listSessionStoryFeed } = await import('../sessions/sessionStoryFeed.js');
-        const feed = await listSessionStoryFeed(sessionId, userId);
-        await publishWsToUser(userId, {
-            type: 'storyFeedReplay',
-            contractVersion: CURRENT_CONTRACT_VERSION,
-            sessionId,
-            locale: 'pt-BR',
-            entries: feed.entries,
-            spawnBriefing: feed.spawnBriefing,
-            pendingNarration: feed.pendingNarration,
-            pendingReason: feed.pendingReason,
-        });
-
-        if (!feed.pendingNarration) {
-            await publishWsToUser(userId, {
-                type: 'narrationComplete',
-                contractVersion: CURRENT_CONTRACT_VERSION,
-                sessionId,
-                locale: 'pt-BR',
-                reason: 'sync_idle',
-            });
-        }
+        const feed = await replayStoryFeedToUser(userId, sessionId, 'sync_idle');
 
         const { loadSessionUiState } = await import('../sessions/sessionUiState.js');
         const ui = await loadSessionUiState(sessionId);
@@ -283,6 +263,35 @@ async function queueNarration(opts: {
     });
 }
 
+async function replayStoryFeedToUser(
+    userId: number,
+    sessionId: number,
+    completeReason: 'replay_idle' | 'sync_idle' = 'replay_idle',
+) {
+    const { listSessionStoryFeed } = await import('../sessions/sessionStoryFeed.js');
+    const feed = await listSessionStoryFeed(sessionId, userId);
+    await publishWsToUser(userId, {
+        type: 'storyFeedReplay',
+        contractVersion: CURRENT_CONTRACT_VERSION,
+        sessionId,
+        locale: 'pt-BR',
+        entries: feed.entries,
+        spawnBriefing: feed.spawnBriefing,
+        pendingNarration: feed.pendingNarration,
+        pendingReason: feed.pendingReason,
+    });
+    if (!feed.pendingNarration) {
+        await publishWsToUser(userId, {
+            type: 'narrationComplete',
+            contractVersion: CURRENT_CONTRACT_VERSION,
+            sessionId,
+            locale: 'pt-BR',
+            reason: completeReason,
+        });
+    }
+    return feed;
+}
+
 async function handleProcessAction(
     userId: number,
     sessionId: number,
@@ -314,18 +323,53 @@ async function handleProcessAction(
 
     const earlyCtx = { sessionId, userId };
 
-    const lock = await GAME_MOTOR.isTurnLocked(sessionId);
-    if (lock.locked) {
-        penaiPipelineLog('TURN', `bloqueado: ${lock.reason ?? 'TURN_LOCKED'}`, undefined, earlyCtx);
+    const { isSessionEnded, isSessionHeroDead } = await import('../character/heroVitalsService.js');
+    if (await isSessionEnded(sessionId) || (await isSessionHeroDead(sessionId))) {
         await publishWsToUser(userId, {
             type: 'actionRejected',
             contractVersion: CURRENT_CONTRACT_VERSION,
             sessionId,
-            reason: lock.reason ?? 'Turno bloqueado (BG3).',
+            reason: 'O herói morreu — esta campanha terminou.',
             locale: 'pt-BR',
-            code: 'TURN_LOCKED',
+            code: 'HERO_DEAD',
         });
         return;
+    }
+
+    const isOpening = isSessionOpeningRequest(playerAction, payload);
+
+    if (isOpening) {
+        const { sessionHasPlayableNarration } = await import('../sessions/sessionStoryFeed.js');
+        if (await sessionHasPlayableNarration(sessionId)) {
+            penaiPipelineLog('TURN', 'opening ignorado — narração já persistida', undefined, earlyCtx);
+            await replayStoryFeedToUser(userId, sessionId);
+            return;
+        }
+        const openingLock = await GAME_MOTOR.isTurnLocked(sessionId);
+        if (openingLock.locked) {
+            penaiPipelineLog(
+                'TURN',
+                'opening ignorado — narração em andamento no backend',
+                { reason: openingLock.reason },
+                earlyCtx,
+            );
+            await replayStoryFeedToUser(userId, sessionId);
+            return;
+        }
+    } else {
+        const lock = await GAME_MOTOR.isTurnLocked(sessionId);
+        if (lock.locked) {
+            penaiPipelineLog('TURN', `bloqueado: ${lock.reason ?? 'TURN_LOCKED'}`, undefined, earlyCtx);
+            await publishWsToUser(userId, {
+                type: 'actionRejected',
+                contractVersion: CURRENT_CONTRACT_VERSION,
+                sessionId,
+                reason: lock.reason ?? 'Turno bloqueado (BG3).',
+                locale: 'pt-BR',
+                code: 'TURN_LOCKED',
+            });
+            return;
+        }
     }
 
     const actionSequence = await allocateActionSequence(sessionId);
@@ -524,6 +568,10 @@ async function handleSubmitRollResult(
             locale: 'pt-BR',
             playerRollRequest: resolved.playerRollRequest,
         });
+        return;
+    }
+
+    if (resolved.permanentlyDead) {
         return;
     }
 

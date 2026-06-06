@@ -2,6 +2,7 @@
 import { getSrdResource } from '../services/srdCatalogService.js';
 import { computeAbilityBonus, getAttackAbility } from './utils.js';
 import { deriveAttackModifiers } from './combat.js';
+import { resolveWeaponAmmunitionCost, countAmmoInInventory } from './ammunition.js';
 import type {
     RuleCheckResult,
     RulesCharacterSnapshot,
@@ -64,6 +65,17 @@ export async function validateWeaponAttack(
         modifierBreakdown.push(...attackModifierReport.reasons);
     }
 
+    const ammo = resolveWeaponAmmunitionCost(character, intent.weaponIndex, weapon);
+    if (ammo && 'error' in ammo) {
+        return { status: 'rejected', reason: ammo.error };
+    }
+
+    const resourceCosts = ammo ? [ammo.cost] : undefined;
+    if (ammo) {
+        const remaining = countAmmoInInventory(character, ammo.ammoIndex) - 1;
+        modifierBreakdown.push(`Munição: 1× ${ammo.label} (restam ${remaining})`);
+    }
+
     const rollFormula = attackBonus >= 0 ? `1d20+${attackBonus}` : `1d20${attackBonus}`;
     const context =
         intent.context ??
@@ -98,6 +110,7 @@ export async function validateWeaponAttack(
                     : undefined,
                 damageFormula: weapon.damage?.damage_dice ?? undefined,
                 damageType: weapon.damage?.damage_type?.name ?? undefined,
+                resourceCosts,
                 effect: 'attack',
             },
         },

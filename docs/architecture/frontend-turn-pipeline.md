@@ -1,6 +1,6 @@
 # Frontend — Turn Pipeline · GameplayShell · WS
 
-> **Última revisão:** 2026-06-06 · Ver `DESIGN_FRONTEND.md` §7–8
+> **Última revisão:** 2026-06-06 (death saves + game over) · Ver `DESIGN_FRONTEND.md` §7–8
 
 ## Resumo
 
@@ -17,9 +17,9 @@
 | `idle` | `narrationComplete`, falha, timeout 120s | Dock liberado |
 | `rolling` | `playerRollRequest` | `DiceRollModal`, gate `LOCKED_ROLLING` |
 | `mechanical` | `processAction`, `mechanicalStateUpdate` | Overlay motor; `PenaiMechanicalSync` |
-| `narrating` | `narrationQueued` (!sync, !bootstrap) | Banner Temporal, gate `LOCKED_NARRATING` |
+| `narrating` | `narrationQueued`, `storyFeedReplay` com `pendingNarration`, ou `sendProcessAction` bootstrap | Banner Temporal; gate `LOCKED_NARRATING` exceto bootstrap |
 
-**Bootstrap:** `bootstrap: true` mantém `InputGate OPEN` durante abertura.
+**Bootstrap:** `bootstrap: true` seta `narrationPending` + fase `narrating` (spinner no log), mas `InputGate` permanece `OPEN` via `bootstrapPendingRef`. **Reconnect:** `storyFeedReplay` com `pendingNarration: true` trava o dock (`LOCKED_NARRATING`). **Falha na abertura:** limpa `sessionStorage` `penaiOpening` + botão manual `retryOpening` (sem retry automático de LLM).
 
 ## Camadas de estado
 
@@ -35,6 +35,15 @@
 - `isStaleSequence` descarta `actionSequence < latest`
 - `connected` valida `contractVersion >= 2`, locale `pt-BR`
 - `narrationFailed` / `actionRejected` → `penai-turn-settled`
+- `heroPermanentlyDead` → `gameOver` no hook + `LOCKED_UNCONSCIOUS` + overlay `HeroDeathScreen`
+
+## Vitals inconsciente / game over
+
+| Sinal | Fonte | UX |
+|-------|-------|-----|
+| `deathSaves` / `heroStatus` | `mechanicalStateUpdate.character` | `PenaiMechanicalSync` → ficha; `HeroDeathSavesBanner` no log |
+| Inconsciente @ 0 HP | `setVitalsInputSignals` | `LOCKED_UNCONSCIOUS` no dock (death save tem prioridade via `LOCKED_ROLLING`) |
+| `heroPermanentlyDead` | WS | `gameOver` em `usePenaiTurnPipeline`; APIs `export-hero-to-vault` / `reset-progress` |
 
 ## sessionStorage
 
