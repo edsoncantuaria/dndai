@@ -22,21 +22,17 @@ const CURRENT_CONTRACT_VERSION = 2;
 
 function resolveWsUserId(
     app: FastifyInstance,
-    query: { userId?: string; token?: string },
+    query: { token?: string },
 ): number | null {
     if (query.token) {
         return verifyWsToken(app, query.token);
-    }
-    if (query.userId) {
-        const n = Number(query.userId);
-        return Number.isFinite(n) && n > 0 ? n : null;
     }
     return null;
 }
 
 export async function registerGameMasterWebSocket(app: FastifyInstance): Promise<void> {
     app.get('/ws', { websocket: true }, (socket, request) => {
-        const query = request.query as { userId?: string; token?: string };
+        const query = request.query as { token?: string };
         const userId = resolveWsUserId(app, query);
         if (!userId) {
             socket.send(JSON.stringify({ type: 'error', message: 'Autenticação WS requerida (token JWT).' }));

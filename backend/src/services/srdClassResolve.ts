@@ -47,8 +47,9 @@ export function resolveSrdSubclassIndex(raw: unknown): string {
         .replace(/^-|-$/g, '');
 }
 
-function levelsFromEntry(entry: { levels?: unknown[] } | null | undefined): unknown[] {
-    return entry?.levels && Array.isArray(entry.levels) ? entry.levels : [];
+function levelsFromEntry(entry: unknown): unknown[] {
+    const row = entry as { levels?: unknown[] } | null | undefined;
+    return row?.levels && Array.isArray(row.levels) ? row.levels : [];
 }
 
 /** Níveis de classe a partir do snapshot local / catálogo (sem HTTP). */
@@ -59,7 +60,7 @@ export async function loadSrdClassLevels(classIndex: string): Promise<unknown[]>
     if (fromDirect.length) return fromDirect;
 
     const all = await listSrdResources('classes');
-    const found = all.find((c: { index?: string }) => c.index === classIndex);
+    const found = all.find(c => (c as { index?: string }).index === classIndex);
     return levelsFromEntry(found);
 }
 
@@ -71,6 +72,6 @@ export async function loadSrdSubclassLevels(subclassIndex: string): Promise<unkn
     if (fromDirect.length) return fromDirect;
 
     const all = await listSrdResources('subclasses');
-    const found = all.find((s: { index?: string }) => s.index === subclassIndex);
+    const found = all.find(s => (s as { index?: string }).index === subclassIndex);
     return levelsFromEntry(found);
 }

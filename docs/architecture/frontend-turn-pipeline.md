@@ -1,6 +1,6 @@
 # Frontend — Turn Pipeline · GameplayShell · WS
 
-> **Última revisão:** 2026-06-06 (death saves + game over) · Ver `DESIGN_FRONTEND.md` §7–8
+> **Última revisão:** junho de 2026 (corte PENAI-only; `dedupeSensoryTail`; BYOK fail-closed sem billing)
 
 ## Resumo
 
@@ -8,7 +8,7 @@
 - Fases: `idle` → `rolling` → `mechanical` → `narrating` — store em `turnPipelineStore.ts`.
 - `GameplayShell` = layout puro; crônica via `PenaiStoryFeed` (não `NewNarrativeLog`).
 - Bootstrap abertura: `sessionStorage` `cda:session:{id}:penaiOpening`.
-- `dedupeSensoryTail` existe em `narrationText.ts` mas **não wired** no feed (gap P2).
+- `dedupeSensoryTail` aplicado em `PenaiStoryFeed` antes de `splitStoryParagraphs`.
 
 ## Fases do turno
 
@@ -50,7 +50,6 @@
 | Chave | Propósito |
 |-------|-----------|
 | `cda:session:{id}:penaiOpening` | Evita reenviar abertura |
-| `cda:session:{id}:penaiBootstrap` | Fallback startGame |
 | `dndai:session-opened:{id}` | Sessão aberta na aba |
 
 ## Diagrama state machine
@@ -81,4 +80,4 @@ stateDiagram-v2
 
 ## Legado
 
-Slices `useGameNarrationSlice` / `isLoading` coexistem para labels; **autoridade de fase = PENAI hook**. Preferir `useInputGate()` sobre `setIsLoading` disperso.
+**F.1 (jun/2026):** `usePenaiTurnPipeline` é o **único escritor** de `turnPipelinePhase`. `useGameNarrationSlice` deriva `isLoading` e `actionPhaseLabel` da fase; `setIsLoading` só cobre loading REST (sessão/ficha). Preferir `useInputGate()` sobre `setIsLoading` disperso.

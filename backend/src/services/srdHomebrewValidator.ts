@@ -1,5 +1,5 @@
 import createError from 'http-errors';
-import type { HomebrewContentType } from '../entities/HomebrewContent.js';
+import type { PenaiHomebrewContentType as HomebrewContentType } from '../GameMaster/database/entities/HomebrewContent.js';
 import type { HomebrewSourceKind, HomebrewSourceMeta } from '../types/homebrewSource.js';
 import {
     HOMEBREW_TYPE_TO_SRD_RESOURCE,

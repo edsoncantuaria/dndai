@@ -9,6 +9,7 @@ import {
     loadFoundryCompendium,
     normFeatureKey,
     slugify,
+    type FoundryCompendium,
     type FoundryCompendiumEntry,
 } from './foundrySrdPtBrClient.js';
 

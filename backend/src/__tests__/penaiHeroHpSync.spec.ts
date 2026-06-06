@@ -1,6 +1,6 @@
-import { describe, it, before } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ensurePenaiTestDb } from './helpers/penaiTestDb.js';
+import { penaiIntegrationDescribe } from './helpers/penaiIntegrationDescribe.js';
 import { createGameSession } from '../GameMaster/sessions/sessionService.js';
 import { startPenaiCombat } from '../GameMaster/combat/engine.js';
 import { loadHeroSessionStats, saveHeroSessionStats } from '../GameMaster/character/heroStats.js';
@@ -10,14 +10,7 @@ import { applyCharacterStateDeltaPenai } from '../GameMaster/character/applyStat
 import { getPenaiCombatState } from '../GameMaster/combat/engine.js';
 import { formatMechanicalPack } from '../GameMaster/character/formatMechanicalPack.js';
 
-const dbDescribe = process.env.DATABASE_URL ? describe : describe.skip;
-
-dbDescribe('penai hero HP single source (integration)', () => {
-    before(async () => {
-        const ok = await ensurePenaiTestDb();
-        if (!ok) throw new Error('PostgreSQL indisponível');
-    });
-
+penaiIntegrationDescribe('penai hero HP single source (integration)', () => {
     it('delta no snapshot espelha SessionCombatant e mechanical pack', async () => {
         const created = await createGameSession({
             userId: 9201,

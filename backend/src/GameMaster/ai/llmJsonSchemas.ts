@@ -1,4 +1,4 @@
-import { parseGameMasterJson } from '../../ai/responseParser.js';
+import { parseGameMasterJson } from './responseParser.js';
 import { translateLlmPayload, type LlmJsonDictionary } from './llmJsonTranslator.js';
 
 /** Contrato actionSense — chaves canônicas em inglês; modelo pode responder EN ou PT. */

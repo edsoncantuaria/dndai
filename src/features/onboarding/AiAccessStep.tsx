@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { KeyRound, Coins, ExternalLink } from 'lucide-react';
+import { KeyRound, ExternalLink } from 'lucide-react';
 import { DndButton, DndInput } from '@/components/primitives';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -58,9 +58,7 @@ export function AiAccessStep({ onContinue }: { onContinue: () => void }) {
       if (!ok) return;
     }
     if (!canProceed(aiAccess, trimmed)) {
-      setError(
-        'Configure sua chave Gemini (BYOK) ou aguarde créditos inclusos. Sem isso a mesa não narra.',
-      );
+      setError('Configure sua chave Gemini (BYOK). Sem isso a mesa não narra.');
       return;
     }
     onContinue();
@@ -73,24 +71,10 @@ export function AiAccessStep({ onContinue }: { onContinue: () => void }) {
         Google AI Studio (BYOK) — ela fica associada à sua conta para a mesa funcionar.
       </p>
 
-      {aiAccess && aiAccess.platformBillingEnabled ? (
-        <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/25 bg-emerald-950/30 px-4 py-3">
-          <Coins className="h-8 w-8 shrink-0 text-emerald-400" />
-          <div>
-            <p className="font-ui text-sm font-semibold text-dnd-parchment">
-              Créditos inclusos: {aiAccess.creditsRemaining}
-            </p>
-            <p className="font-ui text-xs text-dnd-parchment-muted">
-              Cada turno narrado consome 1 crédito quando você não usa BYOK.
-            </p>
-          </div>
-        </div>
-      ) : null}
-
       <div className="rounded-2xl border border-dnd-gold/20 bg-dnd-obsidian/60 p-4">
         <div className="mb-3 flex items-center gap-2 font-ui text-sm font-semibold text-dnd-gold">
           <KeyRound className="h-4 w-4" />
-          Chave Gemini (BYOK) — recomendado
+          Chave Gemini (BYOK)
         </div>
         <DndInput
           label="API Key"

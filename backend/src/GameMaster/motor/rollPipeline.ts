@@ -16,12 +16,15 @@ import type { PenaiRollResolveResult, PenaiRollSubmitInput } from './types.js';
 /** Rolagem autoritativa no servidor — ignora valores enviados pelo cliente. */
 function rollAuthoritative(pending: StoredPenaiRoll): { rolls: number[]; rawRoll: number; total: number } {
     const automated = executeAutomatedRoll({
-        requestId: pending.requestId,
+        reason: pending.reason ?? 'Rolagem',
         dice: pending.dice ?? '1d20',
         modifier: pending.modifier ?? 0,
         dc: pending.dc,
+        rollType: pending.rollType ?? 'check',
         advantage: pending.advantage,
         disadvantage: pending.disadvantage,
+        requestId: pending.requestId,
+        metadata: pending.metadata,
     });
     return {
         rolls: automated.diceValues,

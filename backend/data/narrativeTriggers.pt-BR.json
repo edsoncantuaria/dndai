@@ -1,0 +1,63 @@
+[
+  {
+    "id": "politics-tense",
+    "on": ["FACTION_TICK"],
+    "when": {
+      "all": [
+        { "path": "shardPoliticsState", "op": "eq", "value": "stable" },
+        { "path": "event.goal", "op": "eq", "value": "expand" },
+        { "path": "regionState.fear", "op": "gte", "value": 60 }
+      ]
+    },
+    "then": [{ "action": "setShardPolitics", "state": "tense" }]
+  },
+  {
+    "id": "politics-coup-risk",
+    "on": ["FACTION_TICK"],
+    "when": {
+      "all": [
+        { "path": "shardPoliticsState", "op": "eq", "value": "tense" },
+        { "path": "event.goal", "op": "eq", "value": "expand" },
+        { "path": "regionState.crime", "op": "gte", "value": 65 }
+      ]
+    },
+    "then": [{ "action": "setShardPolitics", "state": "coup_risk" }]
+  },
+  {
+    "id": "politics-stable",
+    "on": ["FACTION_TICK"],
+    "when": {
+      "all": [
+        { "path": "shardPoliticsState", "op": "eq", "value": "coup_risk" },
+        { "path": "regionState.fear", "op": "lt", "value": 45 },
+        { "path": "regionState.crime", "op": "lt", "value": 50 }
+      ]
+    },
+    "then": [{ "action": "setShardPolitics", "state": "stable" }]
+  },
+  {
+    "id": "high-fear-pulse",
+    "on": ["REGION_MOOD_CHANGED", "CREATURE_SLAIN", "FACTION_TICK"],
+    "once": { "perSession": true },
+    "when": {
+      "all": [{ "path": "regionState.fear", "op": "gte", "value": 70 }]
+    },
+    "then": [{ "action": "schedulePulse", "trigger": "quest_major" }]
+  },
+  {
+    "id": "hostile-faction-quest",
+    "on": ["FACTION_TICK", "FACTION_REPUTATION"],
+    "once": { "perSession": true },
+    "when": {
+      "all": [{ "path": "minFactionReputation", "op": "lte", "value": -20 }]
+    },
+    "then": [
+      {
+        "action": "startQuest",
+        "questSlug": "hostile-faction-fallout",
+        "title": "Consequências de uma reputação manchada",
+        "payload": { "kind": "local", "source": "narrative_trigger" }
+      }
+    ]
+  }
+]

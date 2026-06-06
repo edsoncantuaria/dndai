@@ -24,6 +24,7 @@ export type PenaiStoryEntry = {
     tone?: string;
     kind?: string;
     consequences?: string[];
+    consistencyNote?: string;
 };
 
 type PenaiWsPayload = Record<string, unknown> & {
@@ -379,17 +380,6 @@ export function usePenaiTurnPipeline(
                             (msg.mechanical as { playerRollRequest?: PlayerRollRequest }).playerRollRequest;
                         if (roll) {
                             prioritizePlayerRollRequest(roll);
-                        }
-                    } else {
-                        const payload = msg.payload as Record<string, unknown> | undefined;
-                        const payloadOptions = payload?.actionOptions;
-                        if (Array.isArray(payloadOptions) || Array.isArray(msg.actionOptions)) {
-                            setLastMechanical(prev => ({
-                                ...(prev ?? {}),
-                                actionOptions: (Array.isArray(msg.actionOptions)
-                                    ? msg.actionOptions
-                                    : payloadOptions) as unknown[],
-                            }));
                         }
                     }
                 }

@@ -2,9 +2,11 @@
 
 import { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Loader2, ScrollText, Volume2 } from 'lucide-react';
+import { Loader2, Scale, ScrollText, Volume2 } from 'lucide-react';
 import { DndCard } from '@/components/primitives';
 import type { PenaiStoryEntry } from '@/hooks/usePenaiTurnPipeline';
+import { dedupeSensoryTail } from '@/lib/narrationText';
+import { isDebugWsEnabled } from '@/lib/debugFlags';
 import { speakStoryParagraph } from '@/lib/penaiStoryTts';
 import {
     formatStoryTimestamp,
@@ -34,7 +36,7 @@ const paragraphMotion = {
 };
 
 function StoryEntryBlock({ entry }: { entry: PenaiStoryEntry }) {
-    const paragraphs = splitStoryParagraphs(entry.content);
+    const paragraphs = splitStoryParagraphs(dedupeSensoryTail(entry.content));
     const timeMark = formatStoryTimestamp(entry.timestamp);
     const [speaking, setSpeaking] = useState(false);
 
@@ -66,6 +68,15 @@ function StoryEntryBlock({ entry }: { entry: PenaiStoryEntry }) {
                 <span className="rounded border border-dnd-gold/20 bg-dnd-obsidian-raised/80 px-1.5 py-0.5 font-ui text-[9px] uppercase tracking-widest text-dnd-gold/90">
                     {storyEntryLabel(entry)}
                 </span>
+                {isDebugWsEnabled() && entry.consistencyNote ? (
+                    <span
+                        className="inline-flex items-center gap-1 rounded border border-amber-500/30 bg-amber-950/40 px-1.5 py-0.5 font-ui text-[9px] text-amber-200/90"
+                        title={entry.consistencyNote}
+                    >
+                        <Scale className="h-3 w-3" aria-hidden />
+                        coerência
+                    </span>
+                ) : null}
                 <button
                     type="button"
                     onClick={() => void handleSpeak()}

@@ -139,7 +139,7 @@ export const NewCharacterInfoSchema = z.object({
 export const HomebrewSourceKindSchema = z.enum(['original', 'translation', 'fork']);
 
 export const CreateHomebrewSchema = z.object({
-    type: z.enum(['race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'skill', 'translation']),
+    type: z.enum(['race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'skill', 'translation', 'trait', 'feature']),
     name: z.string().min(1, "O nome do conteúdo é obrigatório."),
     content: z.record(z.any(), z.any()).refine(val => Object.keys(val).length > 0, { message: "O conteúdo não pode estar vazio." }),
     isPublic: z.boolean().optional().default(false),
@@ -168,6 +168,7 @@ export const CreateBundleSchema = z.object({
     name: z.string().min(1, "O nome do pacote é obrigatório."),
     description: z.string().min(1, "A descrição é obrigatória."),
     contentIds: z.array(z.string()).min(1, "O pacote deve ter pelo menos um item."),
+    isPublic: z.boolean().optional().default(false),
 });
 
 export const UpdateBundleSchema = CreateBundleSchema.partial();

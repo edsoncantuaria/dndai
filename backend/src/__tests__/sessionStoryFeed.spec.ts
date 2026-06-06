@@ -1,6 +1,6 @@
-import { describe, it, before } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ensurePenaiTestDb } from './helpers/penaiTestDb.js';
+import { penaiIntegrationDescribe } from './helpers/penaiIntegrationDescribe.js';
 import { PenaiDataSource } from '../GameMaster/database/data-source.js';
 import { SessionMemory } from '../GameMaster/database/entities/SessionMemory.js';
 import { createGameSession } from '../GameMaster/sessions/sessionService.js';
@@ -9,14 +9,7 @@ import {
     listSessionWorldRegistro,
 } from '../GameMaster/sessions/sessionStoryFeed.js';
 
-const dbDescribe = process.env.DATABASE_URL ? describe : describe.skip;
-
-dbDescribe('sessionStoryFeed (integration)', () => {
-    before(async () => {
-        const ok = await ensurePenaiTestDb();
-        if (!ok) throw new Error('PostgreSQL indisponível para testes PENAI');
-    });
-
+penaiIntegrationDescribe('sessionStoryFeed (integration)', () => {
     it('listSessionStoryFeed exclui system; listSessionWorldRegistro inclui system', async () => {
         const userId = 90100;
         const created = await createGameSession({

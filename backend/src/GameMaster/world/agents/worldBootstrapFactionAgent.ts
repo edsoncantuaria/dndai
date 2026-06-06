@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { penaiEnv } from '../../../config/penaiEnv.js';
-import { parseGameMasterJson } from '../../../ai/responseParser.js';
+import { parseGameMasterJson } from '../../ai/responseParser.js';
 import { translateLlmPayload } from '../../ai/llmJsonTranslator.js';
 import { WORLD_FACTION_BOOTSTRAP_LLM_DICTIONARY } from '../../ai/llmJsonSchemas.js';
 import { WORLD_FACTION_BOOTSTRAP_RESPONSE_JSON_SCHEMA } from '../../ai/geminiSchemas.js';
@@ -63,7 +63,7 @@ export async function generateBootstrapFactionBeats(opts: {
         return { slug, displayName: e?.displayName ?? slug, description: e?.description ?? '' };
     });
 
-    penaiPipelineAiRequest('worldBootstrap:faction', {}, { model }, ctx);
+    penaiPipelineAiRequest('worldBootstrap:faction', ctx, { model });
     const t0 = Date.now();
 
     try {
@@ -110,11 +110,11 @@ export async function generateBootstrapFactionBeats(opts: {
             failWorldGemini('faction', 'empty_batch', 'Nenhum factionSlug válido na resposta');
         }
 
-        penaiPipelineAiResponse('worldBootstrap:faction', {}, { ok: true, ms: Date.now() - t0 }, ctx);
+        penaiPipelineAiResponse('worldBootstrap:faction', ctx, { ok: true, ms: Date.now() - t0 });
         return { beats, source: 'gemini' };
     } catch (err) {
         if (err instanceof Error && err.name === 'WorldGeminiGenerationError') throw err;
-        penaiPipelineAiResponse('worldBootstrap:faction', {}, { ok: false, ms: Date.now() - t0 }, ctx);
+        penaiPipelineAiResponse('worldBootstrap:faction', ctx, { ok: false, ms: Date.now() - t0 });
         failWorldGemini('faction', 'gemini_error', err instanceof Error ? err.message : String(err));
     }
 }

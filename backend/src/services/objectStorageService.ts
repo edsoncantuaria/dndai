@@ -99,7 +99,7 @@ export const offloadLargePayload = async (
   const key = `${prefix}/${new Date().toISOString().slice(0, 10)}/${randomUUID()}.json`;
   try {
     const buffer = Buffer.from(rawContent, 'utf8');
-    await minioClient.putObject(bucketName, key, buffer, {
+    await minioClient.putObject(bucketName, key, buffer, buffer.length, {
       'Content-Type': contentType,
     });
     return JSON.stringify({
@@ -151,21 +151,12 @@ export const getObjectUrl = (key: string) => {
   return buildDirectObjectUrl(key);
 };
 
-const presignObject = (key: string, expiresInSeconds: number) =>
-  new Promise<string>((resolve, reject) => {
-    if (!minioClient) return reject(new Error('MinIO client indisponível.'));
-    minioClient.presignedGetObject(bucketName, key, expiresInSeconds, (err, url) => {
-      if (err || !url) return reject(err ?? new Error('URL assinada vazia.'));
-      resolve(url);
-    });
-  });
-
 export const getSignedObjectUrl = async (key: string, expiresInSeconds = signedUrlTtlSeconds) => {
   if (!minioClient) return null;
   const ready = await ensureBucket();
   if (!ready) return null;
   try {
-    const signed = await presignObject(key, expiresInSeconds);
+    const signed = await minioClient.presignedGetObject(bucketName, key, expiresInSeconds);
     return rewriteUrlForPublicAccess(signed);
   } catch (error) {
     console.warn(`[objectStorage] Falha ao gerar URL assinada para ${key}:`, error);
@@ -197,7 +188,7 @@ export const uploadBinaryObject = async (
     (filename && filename.includes('.') ? filename.substring(filename.lastIndexOf('.') + 1) : undefined);
   const key = `${prefix}/${new Date().toISOString().slice(0, 10)}/${randomUUID()}${safeExt ? `.${safeExt}` : ''}`;
 
-  await minioClient.putObject(bucketName, key, buffer, {
+  await minioClient.putObject(bucketName, key, buffer, buffer.length, {
     'Content-Type': contentType,
   });
 
@@ -228,59 +219,35 @@ export type StoredObjectPayload = {
     size: number;
 };
 
+const streamToBuffer = async (stream: NodeJS.ReadableStream): Promise<Buffer> => {
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+};
+
 export const fetchObjectBuffer = async (key?: string | null): Promise<StoredObjectPayload | null> => {
     if (!key || !minioClient) return null;
     const ready = await ensureBucket();
     if (!ready) return null;
 
-    return new Promise(resolve => {
-        minioClient!.statObject(bucketName, key, (statErr, stat) => {
-            if (statErr || !stat) {
-                console.warn('[objectStorage] Objeto não encontrado:', key, statErr);
-                return resolve(null);
-            }
-            minioClient!.getObject(bucketName, key, (err, dataStream) => {
-                if (err || !dataStream) {
-                    console.warn('[objectStorage] Falha ao ler objeto:', key, err);
-                    return resolve(null);
-                }
-                const chunks: Buffer[] = [];
-                dataStream.on('data', chunk => chunks.push(chunk as Buffer));
-                dataStream.on('end', () => {
-                    resolve({
-                        buffer: Buffer.concat(chunks),
-                        contentType: stat.metaData?.['content-type'] ?? stat.metaData?.['Content-Type'] ?? 'application/octet-stream',
-                        size: stat.size,
-                    });
-                });
-                dataStream.on('error', streamErr => {
-                    console.warn('[objectStorage] Erro na leitura do stream:', streamErr);
-                    resolve(null);
-                });
-            });
-        });
-    });
+    try {
+        const stat = await minioClient.statObject(bucketName, key);
+        const dataStream = await minioClient.getObject(bucketName, key);
+        const buffer = await streamToBuffer(dataStream);
+        return {
+            buffer,
+            contentType: stat.metaData?.['content-type'] ?? stat.metaData?.['Content-Type'] ?? 'application/octet-stream',
+            size: stat.size,
+        };
+    } catch (error) {
+        console.warn('[objectStorage] Falha ao ler objeto:', key, error);
+        return null;
+    }
 };
 
 export const fetchObjectAsText = async (key?: string | null): Promise<string | null> => {
-  if (!key || !minioClient) return null;
-  const ready = await ensureBucket();
-  if (!ready) return null;
-  return new Promise(resolve => {
-    minioClient.getObject(bucketName, key, (err, dataStream) => {
-      if (err || !dataStream) {
-        console.warn('[objectStorage] Falha ao recuperar objeto do MinIO:', err);
-        return resolve(null);
-      }
-      const chunks: Buffer[] = [];
-      dataStream.on('data', chunk => chunks.push(chunk));
-      dataStream.on('end', () => {
-        resolve(Buffer.concat(chunks).toString('utf8'));
-      });
-      dataStream.on('error', streamErr => {
-        console.warn('[objectStorage] Erro durante leitura do objeto MinIO:', streamErr);
-        resolve(null);
-      });
-    });
-  });
+  const payload = await fetchObjectBuffer(key);
+  return payload ? payload.buffer.toString('utf8') : null;
 };

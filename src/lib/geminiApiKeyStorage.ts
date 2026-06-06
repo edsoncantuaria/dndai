@@ -1,8 +1,51 @@
-export {
-  readAiApiKey,
-  writeAiApiKey,
-  migrateAiApiKeyFromLegacySettings,
-  readGeminiApiKey,
-  writeGeminiApiKey,
-  migrateGeminiApiKeyFromLegacySettings,
-} from './aiApiKeyStorage';
+/** BYOK Gemini (Google AI Studio) — chave do jogador, só no dispositivo. */
+const STORAGE_KEY = 'dndai_gemini_byok_key';
+const LEGACY_GEMINI_KEY = 'dndai_gemini_api_key';
+const LEGACY_SETTINGS_KEY = 'userSettings';
+
+export function readGeminiApiKey(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    const current = localStorage.getItem(STORAGE_KEY)?.trim();
+    if (current) return current;
+    const legacyGemini = localStorage.getItem(LEGACY_GEMINI_KEY)?.trim();
+    return legacyGemini ?? '';
+  } catch {
+    return '';
+  }
+}
+
+export function writeGeminiApiKey(key: string): void {
+  if (typeof window === 'undefined') return;
+  const trimmed = key.trim();
+  try {
+    if (trimmed) {
+      localStorage.setItem(STORAGE_KEY, trimmed);
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(LEGACY_GEMINI_KEY);
+    }
+  } catch {
+    console.warn('Não foi possível salvar a chave de API no localStorage.');
+  }
+}
+
+export function migrateGeminiApiKeyFromLegacySettings(): string {
+  if (typeof window === 'undefined') return '';
+  const existing = readGeminiApiKey();
+  if (existing) return existing;
+
+  try {
+    const raw = localStorage.getItem(LEGACY_SETTINGS_KEY);
+    if (!raw) return '';
+    const settings = JSON.parse(raw) as { apiKey?: string };
+    const legacy = settings.apiKey?.trim();
+    if (legacy) {
+      writeGeminiApiKey(legacy);
+      return legacy;
+    }
+  } catch {
+    /* ignore */
+  }
+  return '';
+}

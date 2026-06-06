@@ -4,7 +4,7 @@ import { GameSession } from '../database/entities/GameSession.js';
 import { WorldEvent } from '../database/entities/WorldEvent.js';
 
 export type PenaiJournalEntry = {
-    id: number;
+    id: string;
     title: string;
     body: string;
     tags: string[];

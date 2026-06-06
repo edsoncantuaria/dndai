@@ -51,7 +51,7 @@ export function buildSrdPtBrTraitForks(): SrdPtBrTraitForkRow[] {
                     official_index: index,
                     name: ptName,
                     desc: ptDesc.includes('\n') ? ptDesc.split(/\n\n+/).filter(Boolean) : [ptDesc],
-                },
+                } as Record<string, unknown>,
                 sourceIndex: index,
                 sourceResource: 'traits',
             };

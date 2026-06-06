@@ -99,7 +99,6 @@ export function validateRestIntent(
             rest: {
                 type: payload.restType,
                 benefits: rules.benefits,
-                limitations: rules.limitations,
             },
             character:
                 payload.restType === 'long'

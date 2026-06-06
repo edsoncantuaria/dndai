@@ -1,4 +1,4 @@
-import type { HomebrewContentType } from '../entities/HomebrewContent.js';
+import type { PenaiHomebrewContentType as HomebrewContentType } from '../GameMaster/database/entities/HomebrewContent.js';
 
 /** Como o homebrew se relaciona com o SRD oficial (5e-srd-api). */
 export type HomebrewSourceKind = 'original' | 'translation' | 'fork';

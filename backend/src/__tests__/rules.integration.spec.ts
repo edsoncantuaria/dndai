@@ -211,17 +211,3 @@ test('melee weapon attack does not require ammunition', async () => {
     assert.equal(result.rollRequest?.metadata?.resourceCosts, undefined);
 });
 
-test('sanitizeGameMasterResponse ignores AI roll fallbacks quando suppressRollRequest=true', async () => {
-    process.env.REDIS_URL = 'mock';
-    const { sanitizeGameMasterResponse } = await import('../services/aiSanitizer.js');
-    const raw = {
-        playerRollRequest: {
-            reason: 'Teste de Atletismo',
-            dice: '1d20',
-            modifier: 1,
-            rollType: 'check',
-        },
-    };
-    const sanitized = sanitizeGameMasterResponse(raw, undefined, { suppressRollRequest: true });
-    assert.equal(sanitized.playerRollRequest, undefined);
-});

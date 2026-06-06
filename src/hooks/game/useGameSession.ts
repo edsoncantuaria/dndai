@@ -194,13 +194,6 @@ export function useGameSession(options: UseGameSessionOptions) {
             const bridge = getPenaiBridge();
             if (bridge?.active) {
                 bridge.sendProcessAction(opening, { bootstrap: true });
-                return;
-            }
-            if (typeof window !== 'undefined') {
-                sessionStorage.setItem(
-                    `cda:session:${targetSessionId}:penaiBootstrap`,
-                    '1',
-                );
             }
         },
         [sessionId],

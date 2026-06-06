@@ -71,7 +71,7 @@ export async function renderNarrationPtBr(opts: {
     userApiKey?: string;
     model?: string;
     sceneMode?: PenaiSceneMode;
-}): Promise<GeminiNarrationResult> {
+}): Promise<NarrationResult> {
     return geminiNarrationProvider.render(opts.contextPack, {
         userApiKey: opts.userApiKey,
         model: opts.model,

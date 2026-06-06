@@ -17,6 +17,7 @@ export interface PlayerRollRequestMetadata {
         id?: string;
         name?: string;
         armorClass?: number;
+        encounterId?: number;
     }[];
     damageFormula?: string;
     damageType?: string;
@@ -30,6 +31,7 @@ export interface PlayerRollRequestMetadata {
     }[];
     deathSave?: boolean;
     criticalHit?: boolean;
+    effect?: 'damage' | 'healing' | 'attack';
 }
 
 export interface PlayerRollRequest {
@@ -58,6 +60,14 @@ export type ImageLogEntryContent = {
     completedAt?: string;
 };
 
+
+export interface ShopState {
+    isOpen: boolean;
+    isHaggling: boolean;
+    name: string;
+    inventory: unknown;
+    sellPrices: unknown;
+}
 
 export interface GameMasterResponse {
     logEntries?: LogEntry[];

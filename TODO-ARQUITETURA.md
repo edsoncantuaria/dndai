@@ -34,15 +34,17 @@
 | P5.2.5 | Testes policy + chaos smoke P5 | ✅ |
 | P5.2.6 | Doc + regra Cursor (`workerPersistencePolicy`, append-only) | ✅ |
 
-### P5.1 Separação API × worker
+### P5.1 Separação API × worker *(superseded jun/2026 — ADR 0002)*
+
+Substituído por **Temporal**: `SKIP_TEMPORAL_WORKER` na API + `npm run worker:temporal`. Itens BullMQ/`narration-worker` abaixo são histórico.
 
 | ID | Tarefa | Status |
 |----|--------|--------|
-| P5.1.1 | `SKIP_NARRATION_WORKERS` no `server.ts` | ✅ |
-| P5.1.2 | `src/narrationWorkerMain.ts` | ✅ |
-| P5.1.3 | `npm run worker:narration` | ✅ |
-| P5.1.4 | `docker-compose.yml` serviço `narration-worker` | ✅ |
-| P5.1.5 | `docker-compose.dev.yml` + `SKIP` no `backend-dev` | ✅ |
+| P5.1.T | Temporal worker `penai-narration` | ✅ |
+| P5.1.T2 | `docker-compose.penai.yml` serviço temporal-worker | ✅ |
+| P5.1.1 | `SKIP_NARRATION_WORKERS` no `server.ts` | ⏸ removido |
+| P5.1.2 | `src/narrationWorkerMain.ts` | ⏸ removido |
+| P5.1.3 | `npm run worker:narration` | ⏸ removido |
 
 ### P5.3 LLM em produção
 
@@ -62,13 +64,15 @@
 | P5.4.3 | Retry LLM automático na fila | ⏸ (nota no log + evento; retry custa 2× LLM) |
 | P5.4.4 | Evento `NarrationConsistencyRejected` | ✅ |
 
-### P5.5 Snapshot Redis
+### P5.5 Snapshot *(histórico legado — PENAI não adopta)*
 
 | ID | Tarefa | Status |
 |----|--------|--------|
-| P5.5.1 | Compressão `gzip` (`gz1:`) em snapshot | ✅ |
-| P5.5.2 | Cache `region_graph:{slug}` | ✅ |
-| P5.5.3 | Teste round-trip compressão | ✅ |
+| P5.5.1 | Compressão `gzip` (`gz1:`) em snapshot | ⏸ legado removido |
+| P5.5.2 | Cache `region_graph:{slug}` | ⏸ legado removido |
+| P5.5.3 | Teste round-trip compressão | ⏸ legado removido |
+
+**PENAI canônico:** `session_snapshots` Postgres + Qdrant — ver `memory-rag.md`.
 
 ### Pós‑P5 — Hardening operacional ✅
 
@@ -294,24 +298,22 @@ Env: `MICRO_PULSE_ON_TURN` (default on). Macro-pulso **sem** LLM por turno.
 ## Comandos úteis
 
 ```bash
+# Dev local (canônico)
+npm run dev:local
+npm run penai:db:prepare --prefix backend
+cd backend && npm run dev:penai      # terminal 2
+cd backend && npm run worker:temporal # se SKIP_TEMPORAL_WORKER=true
+npm run dev                          # frontend :9002
+
+# Testes
 npm run test --prefix backend
-npm run penai:seed:srd-ptbr --prefix backend
+npm run test:frontend
+npm run penai:smoke:byok --prefix backend
 npm run session:smoke --prefix backend
-npm run chaos:smoke --prefix backend
 npm run penai:replay-projectors --prefix backend -- <sessionId>
-npm run penai:seed:canon-npcs --prefix backend -- --region <slug> --count 20
-DB_SYNC=false npm run migration:run --prefix backend
 
-# Dev local (API + worker no mesmo processo)
-npm run dev:infra && npm run dev:backend
-
-# P5.1 — processos separados
-npm run dev:infra
-SKIP_NARRATION_WORKERS=true npm run dev:backend --prefix backend
-npm run worker:narration --prefix backend
-
-# Docker produção (profile full)
-docker compose --profile full up -d --build
+# Homolog Cloudive (PENAI)
+npm run docker:up
 ```
 
-**Arquitetura P0/P4/P5 worker:** ver `.cursor/rules/dndai-architecture-and-skills.mdc`.
+**Arquitetura PENAI:** ver `.cursor/rules/dndai-architecture-and-skills.mdc` e ADR 0002.

@@ -26,8 +26,8 @@ const HIGHLIGHTS = [
   },
   {
     icon: <Shield className="h-6 w-6 text-dnd-parchment" />,
-    title: 'Sua chave ou créditos inclusos',
-    body: 'Traga sua API Gemini (BYOK) ou use créditos da plataforma — custo previsível.',
+    title: 'Sua chave Gemini (BYOK)',
+    body: 'Traga sua API do Google AI Studio — a narração usa sua chave, com custo previsível.',
   },
 ];
 
@@ -116,7 +116,7 @@ export function LandingPage({ onLogin, onRegister }: LandingPageProps) {
           </motion.div>
 
           <p className="mt-3 text-center font-ui text-[11px] text-dnd-parchment-muted sm:mt-4 sm:text-xs">
-            Créditos de narração inclusos · BYOK opcional (Google AI Studio)
+            Chave Gemini (BYOK) — Google AI Studio
           </p>
         </motion.section>
 

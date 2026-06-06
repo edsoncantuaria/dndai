@@ -7,7 +7,7 @@
 - Contas em **PostgreSQL** `penai_users` — rotas `/api/v2/auth/*`, `/api/v2/users/*`.
 - JWT `{ userId }`, 7 dias, chave `localStorage['token']` (`src/lib/authToken.ts`).
 - WS: `/ws?token=JWT` — `verifyWsToken` em `app/plugins/auth.ts`.
-- BYOK Gemini (`AIza…`) em DB + `dndai_gemini_byok_key` local; OpenRouter só legado OSS.
+- BYOK Gemini (`AIza…`) em DB + `dndai_gemini_byok_key` local (`geminiApiKeyStorage.ts`).
 - Gate produto: login → licença → `canInfer` → onboarding.
 
 ## Fluxo HTTP
@@ -21,15 +21,15 @@
 
 - URL: `buildPenaiWsUrl(token)` → `{origin}/ws?token=…`
 - Handshake: `{ type: 'connected', contractVersion: 2, locale: 'pt-BR', engine: 'penai' }`
-- **Gap P1:** `resolveWsUserId` aceita `?userId=` sem JWT (dev only)
+- Só JWT `?token=` — fallback `?userId=` removido (ADR 0002).
 
 ## BYOK e créditos
 
 | Modo | Condição |
 |------|----------|
-| `byok` | Chave usuário ou billing off + chave servidor |
-| `platform_credits` | Billing on + créditos > 0 |
-| `unavailable` | Sem via de inferência |
+| `byok` | Chave do jogador (`userApiKey` / localStorage) |
+| `platform_credits` | `AI_PLATFORM_BILLING_ENABLED=true` + créditos > 0 (usa `GEMINI_API_KEY` servidor) |
+| `unavailable` | Sem BYOK e billing off |
 
 Env: `AI_PLATFORM_BILLING_ENABLED` (default **false**), `AI_INCLUDED_CREDITS_DEFAULT` (default 30 no registro).
 

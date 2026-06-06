@@ -1,19 +1,12 @@
-import { describe, it, before } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import bcrypt from 'bcryptjs';
-import { ensurePenaiTestDb } from './helpers/penaiTestDb.js';
+import { penaiIntegrationDescribe } from './helpers/penaiIntegrationDescribe.js';
 import { PenaiDataSource } from '../GameMaster/database/data-source.js';
 import { PenaiUser } from '../GameMaster/database/entities/PenaiUser.js';
 import { registerPenaiUser, loginPenaiUser } from '../GameMaster/auth/penaiAuthService.js';
 
-const dbDescribe = process.env.DATABASE_URL ? describe : describe.skip;
-
-dbDescribe('penai auth v2 (integration)', () => {
-    before(async () => {
-        const ok = await ensurePenaiTestDb();
-        if (!ok) throw new Error('PostgreSQL indisponível');
-    });
-
+penaiIntegrationDescribe('penai auth v2 (integration)', () => {
     it('register + login retorna userId válido', async () => {
         const suffix = Date.now();
         const user = await registerPenaiUser({

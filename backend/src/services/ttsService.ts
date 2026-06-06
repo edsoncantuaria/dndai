@@ -101,9 +101,6 @@ const runPiperHttp = async (text: string, opts: SynthesizeNarrationOptions): Pro
 
 const voiceModelPaths: Partial<Record<PiperVoiceId, string>> = {
   faber: process.env.PIPER_MODEL_FABER,
-  razo: process.env.PIPER_MODEL_RAZO,
-  miro: process.env.PIPER_MODEL_MIRO,
-  dii: process.env.PIPER_MODEL_DII,
 };
 
 const resolveLocalModelPath = (voice: PiperVoiceId): string =>

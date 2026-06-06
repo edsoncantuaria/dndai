@@ -330,8 +330,8 @@ Mensagens com `actionSequence < latestActionSequenceRef` são **descartadas** (`
 | Chave | Propósito |
 |-------|-----------|
 | `localStorage token` | JWT único — `authToken.ts` |
-| `cda:session:{id}:penaiOpening` | Evita reabertura duplicada |
-| `cda:session:{id}:penaiBootstrap` | Fallback `startGame` |
+| `cda:session:{id}:penaiOpening` | Evita reabertura duplicada (bootstrap PENAI) |
+| `dndai_gemini_byok_key` | BYOK Gemini — `geminiApiKeyStorage.ts` |
 | `dndai:session-opened:{id}` | Sessão aberta na aba (`sessionDevStorage`) |
 
 WS URL: `buildPenaiWsUrl(token)` → `/ws?token=…`

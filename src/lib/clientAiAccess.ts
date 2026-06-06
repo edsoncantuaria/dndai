@@ -19,19 +19,12 @@ export function clientCanInfer(
 
   if (aiAccess?.hasByok) return true;
 
-  if (aiAccess?.platformBillingEnabled && (aiAccess.creditsRemaining ?? 0) > 0) {
-    return true;
-  }
-
   if (aiAccess?.canInfer) return true;
 
   return false;
 }
 
-export function aiKeyRequiredMessage(aiAccess?: AiAccessStatus | null): string {
-  if (aiAccess?.platformBillingEnabled && (aiAccess.creditsRemaining ?? 0) <= 0) {
-    return 'Seus créditos de narração acabaram. Adicione sua chave Gemini (BYOK) para continuar jogando.';
-  }
+export function aiKeyRequiredMessage(_aiAccess?: AiAccessStatus | null): string {
   return 'O Mestre precisa da sua chave Gemini (Google AI Studio). Ela fica associada à sua conta para a narração funcionar.';
 }
 

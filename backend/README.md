@@ -1,173 +1,86 @@
+# Backend PENAI — Crônicas de Aventuras
 
-# Crônicas de Aventuras - Backend (Refatorado)
+Runtime único do jogo: **Fastify** + **PostgreSQL** + **Temporal** + WebSocket v2.
 
-Este é o novo backend para o jogo "Crônicas de Aventuras", reconstruído para ser uma plataforma robusta e escalável, capaz de gerenciar múltiplas sessões de jogo de IA de forma isolada e paralela.
+Entrypoint: `src/penaiServer.ts` · Domínio: `src/GameMaster/` · Worker: `src/temporalWorkerMain.ts`
 
-## Tecnologias
+> Corte legado (MySQL/BullMQ/Express): **ADR 0002** · Ecossistema: [`docs/ECOSSISTEMA.md`](../docs/ECOSSISTEMA.md)
 
-- **Node.js**: Ambiente de execução JavaScript.
-- **Express.js**: Framework para a construção da API REST.
-- **TypeScript**: Para um código mais seguro e manutenível.
-- **TypeORM**: ORM (Object-Relational Mapper) para interagir com o banco de dados.
-- **MySQL**: Banco de dados relacional para persistência de dados.
-- **Genkit (Google Gemini)**: Para a geração de conteúdo narrativo pela IA.
-- **dotenv**: Para gerenciamento de variáveis de ambiente.
-1
-## Pipeline de IA em alto nível
+## Stack
 
-- **Prompt rico + memória estruturada:** cada turno envia o log condensado, timeline, resumos, grafo de memória (`MEMORIA_GRAFO=...`) e um snippet real (`EXEMPLO_STATE/NARRATIVE`) obtido de execuções anteriores (`scenario_examples`). Isso garante que a IA tenha o mesmo contexto que o jogador.
-- **Playbooks por cenário:** regras em `scenarioPlaybooks.ts` limitam o que cada fase pode fazer (combate não termina sem hostis, loja não abre durante luta, revisão exige XP, etc.). Se o modelo quebrar a regra, o guard impede a resposta e pede retry com o hint correto.
-- **Templates oficiais:** combatentes referenciam `enemy_templates` (persistidos no banco com CRUD/seed). Sempre que recebemos um combate, stats/HP/dano são normalizados com base nesses templates.
-- **Sanitizadores + validadores semânticos:** corrigimos loot/XP/relógio, mantemos apenas deltas, e verificamos coerência (hostis vivos, motivo de rolagem com perícia, iniciativa válida). Problemas geram retries automáticos.
-- **Feedback persistente:** avisos (ex.: `state_guard_retry`) são gravados em `ai_feedback_notes`; o próximo turno daquele cenário recebe automaticamente um `validationFeedback` explicando o erro.
-- **Observabilidade e métricas:** cada warning incrementa contadores em `logs/metrics/warnings.log` e expomos `/metrics/warnings` para Prometheus/ELK.
-- **Fallback resiliente:** se o modelo insiste em errar, geramos uma resposta mínima válida, registramos snapshots em `logs/phase-debug` e o jogador nunca vê estado quebrado.
+| Camada | Tecnologia |
+|--------|------------|
+| HTTP/WS | Fastify 5, `@fastify/websocket`, JWT |
+| ORM | TypeORM → PostgreSQL (`PenaiDataSource`) |
+| Fila narração | Temporal workflow `penai-narration` |
+| IA | Google Gemini (BYOK jogador + adapters em `GameMaster/adapters/gemini/`) |
+| Cache | Redis (SRD cache, WS pub/sub) |
+| Vetor | Qdrant (memória narrativa, opcional) |
 
-Esse pipeline garante consistência de sessão, combate, inventário, quests e memórias mesmo usando um modelo generativo externo.
+## Dev local
 
-## Como Iniciar
-
-### 1. Pré-requisitos
-
-- Node.js (versão 20 ou superior)
-- NPM
-- Um servidor de banco de dados MySQL ou MariaDB acessível.
-
-### 2. Instalação
-
-Na raiz da pasta `backend`, execute o comando para instalar todas as dependências:
+Na **raiz** do monorepo:
 
 ```bash
-npm install
+npm run dev:local                    # Postgres :5433, Redis :6381, Temporal
+npm run penai:db:prepare --prefix backend
+cd backend && npm run dev:penai      # API :8071
+cd backend && npm run worker:temporal   # se SKIP_TEMPORAL_WORKER=true no .env
 ```
 
-### 3. Configuração do Banco de Dados
+Ou tudo junto: `npm run dev:all` (Docker hot reload).
 
-1.  Ainda na pasta `backend`, renomeie o arquivo `.env.example` para `.env`.
-2.  Abra o novo arquivo `.env` e substitua os valores de exemplo pelas suas credenciais do banco de dados MySQL/MariaDB:
+## Configuração
 
-    ```env
-    # Configurações do Banco de Dados MySQL
-    DB_HOST=localhost
-    DB_PORT=3306
-    DB_USER=seu_usuario_aqui
-    DB_PASSWORD=sua_senha_aqui
-    DB_NAME=cda_db
+Copie `backend/.env.penai.example` → `backend/.env` (ou use vars da raiz via `scripts/loadEnv`).
 
-    # Porta do servidor
-    PORT=8071
-    ```
+Essenciais:
 
-### 4. Iniciando o Servidor de Desenvolvimento
+```env
+DATABASE_URL=postgresql://penai:penai@localhost:5433/penai
+REDIS_URL=redis://localhost:6381
+TEMPORAL_ADDRESS=localhost:7233
+JWT_SECRET=...
+SKIP_TEMPORAL_WORKER=false   # true = narração síncrona no processo API (testes)
+AI_PLATFORM_BILLING_ENABLED=false   # BYOK — chave Gemini do jogador na UI
+```
 
-Execute o comando abaixo. O servidor iniciará em modo de desenvolvimento com `ts-node-dev`, reiniciando automaticamente a cada alteração no código.
+Licença dev: `npm run seed:penai-license --prefix backend -- TESTE-1`
+
+## Scripts npm
+
+| Script | Uso |
+|--------|-----|
+| `dev:penai` | API com hot reload (`tsx watch`) |
+| `worker:temporal` | Worker Temporal (narração, pulso, canon) |
+| `penai:db:prepare` | Migrations + seed mundo |
+| `penai:migration:run` | Só migrations Postgres |
+| `penai:smoke` / `penai:smoke:byok` | Smoke HTTP/WS |
+| `test` | Unitários (+ integração se Postgres up) |
+| `test:all` | Suite completa |
+
+## Testes
 
 ```bash
-npm run dev
+REDIS_URL=mock npm test --prefix backend
 ```
 
-Em **desenvolvimento** (`DB_SYNC=true`, padrão), o TypeORM cria/atualiza o schema a partir das entidades.
+Integração Postgres: sobe `npm run dev:local` ou exporte `DATABASE_URL` apontando para `:5433`. Sem Postgres, specs `*(integration)*` são **skipped** automaticamente.
 
-Em **produção** (`NODE_ENV=production`, `DB_SYNC=false`), aplique migrações antes de subir o servidor:
+## API v2 (resumo)
+
+- Auth: `POST /api/v2/auth/register`, `login`, `GET /me`
+- Sessões: `POST /api/v2/sessions`, WS `/ws?token=<jwt>`
+- SRD/homebrew: `GET /api/v2/data/*`, `/api/v2/homebrew/*`
+- Health: `GET /api/v2/health`
+
+Contrato WS: mensagens planas v2 (`mechanicalStateUpdate`, `gameStateUpdate` com `mechanical`, `storyFeed`, …) — ver `docs/architecture/ws-pipeline-temporal.md`.
+
+## Seeds
 
 ```bash
-npm run migration:run
+npm run penai:seed:srd-ptbr --prefix backend
+npm run seed:penai-world --prefix backend
 ```
 
-Migrações ficam em `src/database/migrations/`. O container Docker executa `migration:run` automaticamente no entrypoint.
-
-O servidor estará rodando em `http://localhost:8071`.
-
-### 5. Populando o Banco de Dados (Seeding)
-
-**Path ativo (PENAI / Postgres):**
-
-```bash
-npm run penai:seed:srd-ptbr
-```
-
-Opcional — extrair textos PT do Livro do Jogador (Biblioteca Élfica) para `backend/data/srdPtBr/overrides/`:
-
-```bash
-pdftotext backend/.tmp/phb-ptbr.pdf backend/.tmp/phb-ptbr.txt
-npm run penai:extract:phb-overrides
-npm run penai:seed:srd-ptbr
-```
-
-Ver **`docs/DATA_SRD.md`** — toda leitura SRD na UI passa por `GET /api/v2/data`.
-
-**Legado MySQL:** `npm run seed:data` está **deprecated** (exige `ALLOW_LEGACY_MYSQL_SEED=1`). Migração one-shot: `npm run penai:migrate:homebrew-mysql`.
-
-### 6. Templates oficiais de inimigos
-
-Os combates usam fichas persistidas na tabela `enemy_templates`. Para carregar os templates padrão e habilitar o CRUD:
-
-```bash
-npm run seed:enemy-templates
-```
-
-- O servidor sincroniza o cache com o banco durante o startup.
-- Há rotas autenticadas em `/api/ai/enemy-templates` (GET/POST/PUT/DELETE) para gerenciar novas fichas.
-- O sanitizador referencia esses templates automaticamente ao normalizar combatentes.
-
-## Testando a API (Exemplos)
-
-Você pode usar ferramentas como o [Postman](https://www.postman.com/), [Insomnia](https://insomnia.rest/) ou `curl` para testar os endpoints.
-
-### 1. Criar uma nova sessão de jogo
-
-Primeiro, você precisa criar uma sessão de jogo. Note que você precisa de uma chave de API válida do Google AI Studio para isso.
-
-**Request (`curl`):**
-
-```bash
-curl -X POST http://localhost:8071/api/sessoes \
--H "Content-Type: application/json" \
--d '{
-  "nome": "Aventuras na Montanha do Eco",
-  "apiKey": "SUA_CHAVE_DE_API_DO_GOOGLE_AI_AQUI"
-}'
-```
-
-**Resposta de Sucesso:**
-
-```json
-{
-    "message": "Sessão criada com sucesso!",
-    "sessao": {
-        "nome": "Aventuras na Montanha do Eco",
-        "apiKey": "SUA_CHAVE_DE_API_DO_GOOGLE_AI_AQUI",
-        "logs": [],
-        "id": 1,
-        "createdAt": "2024-01-01T00:00:00.000Z",
-        "updatedAt": "2024-01-01T00:00:00.000Z"
-    }
-}
-```
-
-Anote o `id` da sessão criada (neste caso, `1`).
-
-### 2. Enviar um prompt para a IA narrar
-
-Agora, use o `id` da sessão para enviar um prompt e obter uma resposta da IA.
-
-**Request (`curl`):**
-
-```bash
-# Substitua :sessionId pelo ID da sua sessão (ex: 1)
-curl -X POST http://localhost:8071/api/narrar/1 \
--H "Content-Type: application/json" \
--d '{
-  "prompt": "Eu entro na taverna com aparência sombria e peço a bebida mais forte que eles tiverem."
-}'
-```
-
-**Resposta de Sucesso:**
-
-```json
-{
-    "response": "O taverneiro, um homem robusto com um olho de vidro, te encara por um momento antes de pegar uma garrafa escura e empoeirada de debaixo do balcão. Ele serve um líquido âmbar em um copo sujo e o desliza em sua direção. 'Por sua conta e risco, forasteiro', ele grunhe. O cheiro de álcool forte e algo vagamente medicinal enche suas narinas. O que você faz?"
-}
-```
-
-A cada chamada para este endpoint, a interação é salva no banco de dados e associada à sessão correta.
+Detalhe SRD PT-BR: [`docs/DATA_SRD.md`](../docs/DATA_SRD.md).

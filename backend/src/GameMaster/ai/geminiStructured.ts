@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { extractResponseText } from '../../ai/responseParser.js';
+import { extractResponseText } from './responseParser.js';
 import { penaiEnv } from '../../config/penaiEnv.js';
 
 export type GeminiStructuredRequest = {

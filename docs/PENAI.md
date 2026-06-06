@@ -127,6 +127,7 @@ Exemplo canônico (48 h base, terreno 1):
 | **Memória com proveniência** | `provenanceMemory.ts` + evento `FACT_RECORDED`; macro-pulso não grava `memoryFacts` Gemini |
 | **Livro de missões** | `session_quests.payload` com `regionSlug`, `kind` (`local` \| `travel`); progresso por `TRAVEL_COMPLETED`; UI `QuestTrackerCard` |
 | **P10–P12** | Ticks event-only + projectors; KG via `kgProjector`; cadeia `SUPPLY_SHORTAGE`; shard Temporal + campanha; `penai:replay-projectors` |
+| **Triggers narrativos** | `data/narrativeTriggers.pt-BR.json` + `narrative/triggerEngine.ts` — pós-`applyEventProjection`; dedup `NARRATIVE_TRIGGER_FIRED` |
 | **Anti-RAG narração** | `PENAI_NARRATION_TO_GLOBAL_RAG=false` (default) — narração só em `session_memory` com `importanceScore` baixo; fatos via `[FATO]` |
 | **Facções** | Catálogo fixo — IA só gera boatos sobre slugs descobertos, nunca slug novo |
 | **Structured output** | `ai/geminiSchemas.ts` — narração, opções, NPC batch, facção, economia, **pulso**, **quests** |

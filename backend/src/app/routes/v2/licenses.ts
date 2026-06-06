@@ -4,13 +4,10 @@ import {
     activatePenaiLicense,
     getPenaiLicenseStatus,
 } from '../../../GameMaster/auth/penaiLicenseService.js';
-import createError from 'http-errors';
+import { sendHttpError } from '../../httpErrorReply.js';
 
 function sendErr(reply: FastifyReply, err: unknown) {
-    if (createError.isHttpError(err)) {
-        return reply.status(err.statusCode).send({ message: err.message, error: err.message });
-    }
-    throw err;
+    return sendHttpError(reply, err);
 }
 
 export async function licenseRoutes(app: FastifyInstance): Promise<void> {

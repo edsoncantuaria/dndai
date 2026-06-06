@@ -1,3 +1,4 @@
+import { IsNull } from 'typeorm';
 import { PenaiDataSource } from '../database/data-source.js';
 import { KgNode } from '../database/entities/KgNode.js';
 import { KgEdge } from '../database/entities/KgEdge.js';
@@ -19,7 +20,7 @@ export async function upsertKgNode(opts: {
 }): Promise<KgNode> {
     const repo = PenaiDataSource.getRepository(KgNode);
     const where = {
-        shardId: opts.shardId ?? null,
+        shardId: opts.shardId == null ? IsNull() : opts.shardId,
         nodeType: opts.nodeType,
         slug: opts.slug,
     };

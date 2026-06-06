@@ -100,7 +100,7 @@ function buildResponseSchema(npcCount: number) {
 function failNpcBatch(reason: string, detail: string, ctx: PipelineCtx, ms?: number): never {
     penaiPipelineLog('WORLD_AGENT:npc', `${reason}: ${detail}`, undefined, ctx);
     if (ms !== undefined) {
-        penaiPipelineAiResponse('worldBootstrap:npc', {}, { ok: false, ms, parsed: reason }, ctx);
+        penaiPipelineAiResponse('worldBootstrap:npc', ctx, { ok: false, ms, parsed: reason });
     }
     failWorldGemini('npc', reason, detail);
 }
@@ -147,7 +147,7 @@ export async function generateBootstrapNpcs(opts: {
         );
     }
 
-    penaiPipelineAiRequest('worldBootstrap:npc', {}, { model, inputSummary: 'npc-batch' }, ctx);
+    penaiPipelineAiRequest('worldBootstrap:npc', ctx, { model, inputSummary: 'npc-batch' });
     const t0 = Date.now();
 
     try {
@@ -252,7 +252,7 @@ export async function generateBootstrapNpcs(opts: {
             };
         });
 
-        penaiPipelineAiResponse('worldBootstrap:npc', {}, { ok: true, ms: Date.now() - t0, parsed: String(npcs.length) }, ctx);
+        penaiPipelineAiResponse('worldBootstrap:npc', ctx, { ok: true, ms: Date.now() - t0, parsed: String(npcs.length) });
         return {
             npcs,
             regionBlurb: zod.data.regionBlurb?.trim(),
@@ -261,12 +261,7 @@ export async function generateBootstrapNpcs(opts: {
     } catch (err) {
         if (err instanceof WorldGeminiGenerationError) throw err;
         const msg = err instanceof Error ? err.message : String(err);
-        penaiPipelineAiResponse(
-            'worldBootstrap:npc',
-            {},
-            { ok: false, ms: Date.now() - t0, error: msg },
-            ctx,
-        );
+        penaiPipelineAiResponse('worldBootstrap:npc', ctx, { ok: false, ms: Date.now() - t0, error: msg });
         failNpcBatch('gemini_error', msg, ctx);
     }
 }

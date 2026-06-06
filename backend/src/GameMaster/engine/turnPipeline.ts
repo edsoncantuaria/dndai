@@ -231,6 +231,35 @@ export async function runTurnPipeline(input: TurnPipelineInput): Promise<TurnPip
         });
     }
 
+    const mechanical = await formatMechanicalPack(input.sessionId);
+    let consistencyNote: string | undefined;
+
+    const { checkNarrationConsistency } = await import('../narration/consistencyCheck.js');
+    const consistency = checkNarrationConsistency({
+        narration,
+        mechanical,
+        regionSlug: session.currentRegionSlug,
+    });
+    if (!consistency.ok) {
+        narration = consistency.remediatedText ?? narration;
+        consistencyNote = consistency.consistencyNote;
+        await appendWorldEvent({
+            type: 'NarrationConsistencyRejected',
+            sessionId: input.sessionId,
+            payload: {
+                actionId: input.actionId,
+                actionSequence: input.actionSequence,
+                issues: consistency.issues,
+            },
+        });
+        penaiPipelineLog(
+            'NARRATION',
+            'consistência narrativa — remediação determinística',
+            { issues: consistency.issues },
+            ctx,
+        );
+    }
+
     const storyTone =
         input.intentType === 'opening' || sceneMode === 'opening' ? 'opening' : tone;
     const memoryRow = await storeSessionMemory({
@@ -272,7 +301,6 @@ export async function runTurnPipeline(input: TurnPipelineInput): Promise<TurnPip
         }).catch(() => undefined);
     }
 
-    const mechanical = await formatMechanicalPack(input.sessionId);
     const char = mechanical.character as {
         skillProficiencies?: string[];
         spells?: string[];
@@ -330,6 +358,7 @@ export async function runTurnPipeline(input: TurnPipelineInput): Promise<TurnPip
                 tone: storyTone,
                 kind: 'narration',
                 consequences: [],
+                ...(consistencyNote ? { consistencyNote } : {}),
             },
         ],
     });

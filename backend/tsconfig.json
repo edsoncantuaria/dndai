@@ -4,8 +4,8 @@
     "target": "ESNext",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "rootDir": "./src",
-    "outDir": "./dist",
+  "rootDir": "./",
+  "outDir": "./dist",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
@@ -16,8 +16,9 @@
     "resolveJsonModule": true
   },
   "include": [
-    "src/**/*"
-, "src/tests"  ],
+    "src/**/*",
+    "data/**/*.ts"
+  ],
   "exclude": [
     "node_modules",
     "**/*.spec.ts"

@@ -52,12 +52,13 @@ Overrides versionados: `backend/data/srdPtBr/overrides/{resource}/{index}.json`
 
 **Fonte recomendada:** [decito/dnd5e-pt-br](https://github.com/decito/dnd5e-pt-br) — tradução SRD CC BY 4.0 para Foundry VTT (campos mecânicos: idade, tendência, tamanho, idiomas). Lore longa do Livro do Jogador não faz parte do SRD; alternativa futura: [Artifício RPG SRD 5.2 PT](https://artificiorpg.com/dd/dnd-srd-52-portugues-download/).
 
-## Legado MySQL (deprecated)
+## Legado MySQL (removido jun/2026)
 
-| Comando antigo | Substituto |
-|----------------|------------|
-| `npm run seed:data` | `npm run penai:seed:srd-ptbr` |
-| homebrew em MySQL | `npm run penai:migrate:homebrew-mysql` (one-shot) |
+Stack MySQL/`seed:data` foi **removida** do repositório (ADR 0002). Use apenas:
+
+```bash
+npm run penai:seed:srd-ptbr --prefix backend
+```
 
 ## Cofre de heróis vs campanha
 

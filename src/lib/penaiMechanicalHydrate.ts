@@ -86,10 +86,5 @@ export function mergePenaiMechanicalMessage(msg: Record<string, unknown>): Recor
         mech.actionOptions = msg.actionOptions;
     }
 
-    const payload = msg.payload as Record<string, unknown> | undefined;
-    if (Array.isArray(payload?.actionOptions)) {
-        mech.actionOptions = payload.actionOptions;
-    }
-
     return mech;
 }

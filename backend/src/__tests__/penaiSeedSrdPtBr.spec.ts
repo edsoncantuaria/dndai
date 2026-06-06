@@ -7,7 +7,7 @@ import { TRANSLATIONS_SPELLS } from '../../data/TranslatorSpells.js';
 import { TRANSLATIONS_EQUIPMENT } from '../../data/TranslatorEquipments.js';
 import { TRANSLATIONS_BASE } from '../../data/TranslatorPTBR.js';
 import { SRD_PTBR_CORE_BUNDLE_NAME } from '../GameMaster/database/seed/seedSrdPtBrHomebrew.js';
-import { ensurePenaiTestDb } from './helpers/penaiTestDb.js';
+import { penaiIntegrationReady } from './helpers/penaiIntegrationDescribe.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const backgroundsPath = join(__dirname, '../../data/backgrounds.json');
@@ -59,9 +59,8 @@ test('buildSrdPtBrTraitForks gera overlays PT', async () => {
 });
 
 test('seedSrdPtBrHomebrew popula bundle no Postgres (integração)', async t => {
-    const ready = await ensurePenaiTestDb();
-    if (!ready) {
-        t.skip('DATABASE_URL não configurado');
+    if (!penaiIntegrationReady) {
+        t.skip('PostgreSQL PENAI indisponível');
         return;
     }
     const { seedSrdPtBrHomebrew, getSrdPtBrCoreBundleId } = await import(

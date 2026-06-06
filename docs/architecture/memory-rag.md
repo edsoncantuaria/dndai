@@ -8,7 +8,8 @@
 - Embeddings produção: **Gemini `gemini-embedding-001`** — não OpenRouter (drift doc antiga).
 - Recall progressivo: fatos mandatados → embed query → Qdrant → merge max 8 fatos.
 - Escrita pós-narração: `storeSessionMemory` + opcional RAG global + compaction Temporal.
-- Snapshot Redis (`gz1:`) só via path legado órfão — PENAI não usa.
+- **Snapshot de campanha:** Postgres `session_snapshots` (aggregate JSONB por `actionSequence`) — não Redis.
+- **Redis PENAI:** apenas pub/sub WS multi-réplica (`wsPubSub.ts`); sem snapshot `gz1:` no hot path.
 
 ## PENAI — leitura (pré-narração)
 
@@ -69,6 +70,5 @@ flowchart TB
 | `GameMaster/memory/recallMemoryForTurn.ts` | Pré-narração |
 | `GameMaster/memory/storeSessionMemory.ts` | Pós-narração |
 | `GameMaster/adapters/gemini/embeddings.ts` | Embed produção |
-| `services/vectorMemoryService.ts` | Legado órfão turno |
-| `services/sessionFactService.ts` | MySQL facts |
-| `services/narrativeSnapshotService.ts` | Redis gz1 legado |
+| `GameMaster/sessions/sessionAggregate.ts` | Aggregate + `saveSessionAggregateSnapshot` |
+| `GameMaster/database/entities/SessionSnapshot.ts` | Snapshot Postgres por turno |

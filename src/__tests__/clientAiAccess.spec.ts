@@ -41,13 +41,3 @@ test('clientCanInfer: servidor com BYOK salvo (hasByok)', () => {
     true,
   );
 });
-
-test('clientCanInfer: créditos da plataforma', () => {
-  assert.equal(
-    clientCanInfer(
-      baseAccess({ platformBillingEnabled: true, creditsRemaining: 5, canInfer: true }),
-      '',
-    ),
-    true,
-  );
-});

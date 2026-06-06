@@ -2,13 +2,13 @@
 
 > **Documento canônico** para revisão sênior, onboarding e agentes de IA. Descreve o sistema **como está implementado** (maio/2026). Complemento visual: **DESIGN_FRONTEND.md**. Índice de revisão: **VALIDACAO_SENIOR.md**.
 >
-> **Última revisão:** junho de 2026 (consumo de munição em ataque à distância; PENAI canônico; módulos em `docs/architecture/`)
+> **Última revisão:** junho de 2026 (corte PENAI-only — ADR 0002; MySQL/BullMQ/Express removidos do código)
 
 ---
 
 ## PENAI (motor greenfield — maio/2026)
 
-> Documento dedicado: **[PENAI.md](./PENAI.md)**. Bootstrap recomendado: **`npm run dev:all`** (Docker hot reload) ou `npm run dev:penai` (API local) — **não** `dev:legacy`.
+> Documento dedicado: **[PENAI.md](./PENAI.md)**. Bootstrap: **`npm run dev:all`** ou `npm run dev:local` + `dev:penai` + `worker:temporal`.
 
 ### Camadas GameMaster (Core → Rules → World → Adapters)
 
@@ -24,17 +24,17 @@ flowchart TB
 
 **Regra de dependência:** `motor/`, `world/`, `character/` **não** importam `adapters/gemini/*` diretamente — só via `adapters/contracts.ts` ou `adapters/index.ts` (`defaultProviders`).
 
-| Aspecto | PENAI | Legado Express |
-|---------|-------|----------------|
-| Banco sessão | PostgreSQL `game_sessions` | MySQL `SessaoIA` |
-| Fila narração | Temporal `penai-narration` | BullMQ (legado) |
-| WS | `/ws?token=` contract v2 | `/` com JWT |
-| Viagem | `canonical_region_links` km/tempo fixo | `regionService` MySQL |
-| Hot path | `GAME_MOTOR` (`PENAI_MOTOR` deprecated) + `structuredApply` | `processAction` Express |
-| Inventário / loja / descanso | Postgres `hero_inventory_items` + `shop/shopService` | MySQL `character_items` (legado) |
-| IA | Adapters Gemini — narração + embeddings + actionSense opcional | OSS/BullMQ legado |
+| Aspecto | Runtime PENAI (único) |
+|---------|------------------------|
+| Banco sessão | PostgreSQL `game_sessions` |
+| Fila narração | Temporal `penai-narration` |
+| WS | `/ws?token=` contract v2 |
+| Viagem | `canonical_region_links` km/tempo fixo |
+| Hot path | `GAME_MOTOR` + `structuredApply` |
+| Inventário / loja / descanso | Postgres `hero_inventory_items` + `shop/shopService` |
+| IA | Adapters Gemini — narração + embeddings + actionSense opcional (BYOK) |
 
-**Regra:** sessões **novas** = PENAI greenfield. Combate e simulação por campanha — ver **Campanha vs Canon** abaixo.
+> **ADR 0002:** stack Express/MySQL/BullMQ foi **removido** do repositório (jun/2026). Seções §4.1, §5.1–5.3 e Apêndice C abaixo são **referência histórica** apenas.
 
 ### Campanha vs Canon (P7 — RPG, não MMO)
 
@@ -101,7 +101,7 @@ flowchart LR
 
 **Deep-dives por domínio (jun/2026):** [`docs/architecture/README.md`](./architecture/README.md) — WS/Temporal, IA Gemini, auth, memória, motor, frontend.
 
-> **Atenção:** §4–5, §9 e Apêndice C descrevem **legado Express/MySQL/BullMQ**. Runtime ativo de sessões novas = **PENAI** (topo deste doc + módulos architecture).
+> **Atenção:** §4.1, §5.1–5.3 e Apêndice C são **histórico** (Express/MySQL/BullMQ — removidos jun/2026, ADR 0002). Runtime = **PENAI** (topo + [`architecture/`](./architecture/)).
 
 ---
 
@@ -141,16 +141,16 @@ O jogador **vê números e estado** antes do parágrafo longo. A IA **não** é 
 | Camada | Tecnologia |
 |--------|------------|
 | Frontend | Next.js 15, React 18, Tailwind — mesa V3 PENAI (`usePenaiTurnPipeline`) |
-| API ativa | **Fastify PENAI** (`penaiServer.ts`) + WS v2 `/ws` |
-| API legada | Express + `ws`, TypeORM (MySQL) — manutenção |
-| Postgres | Sessões PENAI, combate, memória narrativa |
-| MySQL | Sessões legado, personagens, facts, backlog vetorial |
-| Redis | Pub/sub WS relay (`penai:ws:user`), cache, snapshot legado |
-| Qdrant | `penai_session_memories` (ativo) + `session_memories` (legado) |
-| Fila narração | **Temporal** `penai-narration` (ativo); BullMQ legado |
-| LLM | **Gemini** structured (BYOK ou plataforma); OSS legado OpenRouter |
+| API | **Fastify PENAI** (`penaiServer.ts`) + WS v2 `/ws?token=` |
+| Postgres | Sessões, combate, memória, homebrew (`PenaiDataSource`) |
+| Redis | Pub/sub WS relay (`penai:ws:user`), cache SRD |
+| Qdrant | `penai_session_memories` (memória narrativa) |
+| Fila narração | **Temporal** `penai-narration` + `worker:temporal` |
+| LLM | **Gemini** structured — BYOK jogador; billing plataforma opcional |
 | Embed | **Gemini** `gemini-embedding-001` |
 | Auth | JWT v2 (`penai_users`) — ver §19 |
+
+> Stack Express/MySQL/BullMQ **removido** (ADR 0002). Seções históricas abaixo não descrevem runtime ativo.
 
 ---
 
@@ -161,11 +161,11 @@ Se você quer “achar o detalhe técnico” rápido:
 - **Protocolo WS (mensagens + payloads JSON)**: §8 + Apêndice A — **PENAI v2:** [`architecture/ws-pipeline-temporal.md`](./architecture/ws-pipeline-temporal.md)
 - **Schemas (ProcessAction, GameMasterResponse, minimal OSS JSON)**: §11 + Apêndice B
 - **Prompts / IA Gemini e actionSense**: §10 + [`architecture/ai-gemini-penai.md`](./architecture/ai-gemini-penai.md) + ADR `0001-action-sense-vs-motor.md`
-- **Fila narrativa (Temporal PENAI; BullMQ legado)**: §9 + [`architecture/ws-pipeline-temporal.md`](./architecture/ws-pipeline-temporal.md) + Apêndice C *(legado)*
+- **Fila narrativa Temporal**: [`architecture/ws-pipeline-temporal.md`](./architecture/ws-pipeline-temporal.md) — §9 e Apêndice C são histórico BullMQ
 - **Motor + combate FSM**: §6–7 + [`architecture/motor-combat-dm.md`](./architecture/motor-combat-dm.md)
 - **RAG / embeddings / Qdrant**: §14 + [`architecture/memory-rag.md`](./architecture/memory-rag.md) + Apêndice D
 - **Auth / BYOK / créditos**: §19 + [`architecture/auth-billing-byok.md`](./architecture/auth-billing-byok.md)
-- **Redis snapshot (`gz1:`)**: §13 + Apêndice E *(legado turno)*
+- **Redis (PENAI):** pub/sub WS — §13 · Apêndice E = **histórico legado** (`gz1:` BullMQ/MySQL removidos)
 - **Homebrew / tradução (merge e limites)**: §15 + Apêndice F
 - **Frontend turn pipeline**: [`architecture/frontend-turn-pipeline.md`](./architecture/frontend-turn-pipeline.md) + `DESIGN_FRONTEND.md` §7–8
 
@@ -185,19 +185,20 @@ Evolução **sem feature flags** de arquitetura no `.env` — comportamento úni
 | **P0.4** | Combate implícito na IA | FSM `combatPhase` no motor |
 | **P0.5** | `webSocketServer` monolítico | `action-pipeline/` handlers |
 | **P1** | Cegueira operacional | Latências em `/api/admin/ai-metrics` |
-| **P2** | Narração bloqueando API | BullMQ + worker |
+| **P2** | Narração bloqueando API | Temporal + worker dedicado |
+| **P5.1** | API + worker mesmo processo | `SKIP_TEMPORAL_WORKER` + `worker:temporal` |
 | **P4.1** | Narração fora de ordem | `actionSequence` por sessão |
 | **P4.2** | Retry duplicando log | `narration_completions` + claim |
 | **P4.3** | Jobs fantasma na fila | Cancel + `narrationCancelled` |
 | **P4.4** | Debug E2E difícil | `pipelineTrace` |
 | **P4.5** | Contexto IA caro | Snapshot Redis |
 | **P4.6** | Stream confundindo cliente | Stream não canônico |
-| **P4.8** | REST divergente do WS | `restNarrationEnqueue` |
-| **P5.1** | API + worker mesmo processo | `SKIP_NARRATION_WORKERS` + container worker |
-| **P5.2** | Worker regravando combate | `executionSource` + append-only |
+| **P4.8** | REST divergente do WS | *(removido — PENAI WS-only)* |
+| **P5.2** | Worker regravando combate | Motor autoritativo + Temporal append-only |
 | **P5.3** | JSON quebrado silencioso | `json_repair_alert` |
-| **P5.4** | Prosa vs motor | `narrativeConsistencyValidator` |
-| **P5.5** | Redis I/O pesado | Snapshot `gz1:` + cache `region_graph` |
+| **P5.4** | Prosa vs motor | `consistencyCheck.ts` + evento `NarrationConsistencyRejected` |
+| **P5.5** | Snapshot legado Redis | Histórico — PENAI usa `session_snapshots` Postgres |
+| **Triggers** | Narrativa data-driven | `narrative/triggerEngine.ts` pós-`applyEventProjection` |
 
 **Adiado:** P5.6 lock Redis; P5.4.3 retry LLM automático; Session Actor / Kafka / MMO.
 
@@ -1425,13 +1426,11 @@ Prioridade do embed:
 
 Evita recomputar resumo/timeline/grafo/facts a cada job de narração.
 
-### E.2 Compressão `gz1:`
+### E.2 Compressão `gz1:` *(histórico — stack legado removido jun/2026)*
 
-Quando o payload passa de um limiar (~2KB), ele é armazenado como:
+PENAI canônico: [`SessionSnapshot`](backend/src/GameMaster/database/entities/SessionSnapshot.ts) Postgres JSONB via `saveSessionAggregateSnapshot`.
 
-- `gz1:` + base64(gzip(json))
-
-Isso reduz custo de I/O e parsing, e protege o event loop contra strings enormes.
+Legado (referência): payload > ~2KB era `gz1:` + base64(gzip(json)).
 
 ### E.3 Cache regional
 

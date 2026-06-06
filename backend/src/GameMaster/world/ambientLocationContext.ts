@@ -20,7 +20,7 @@ const seedRegionBySlug = new Map(
 );
 
 const seedPoiBySlug = new Map(
-    (graph.pointsOfInterest ?? []).map(poi => [slugify(poi.slug), poi]),
+    (graph.pois ?? []).map(poi => [slugify(poi.slug), poi]),
 );
 
 export type AmbientLocationContext = {
@@ -42,7 +42,7 @@ function climateTags(climate: unknown): string[] {
     return [];
 }
 
-function poiSeedTags(poiSeed: (typeof graph.pointsOfInterest)[number] | undefined): string[] {
+function poiSeedTags(poiSeed: (typeof graph.pois)[number] | undefined): string[] {
     if (!poiSeed) return [];
     const tags: string[] = [];
     const poiType = slugify(poiSeed.type ?? '');

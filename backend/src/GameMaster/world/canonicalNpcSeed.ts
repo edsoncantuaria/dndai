@@ -138,7 +138,7 @@ export async function materializeCanonicalNpcs(opts: {
                 personality: {
                     goals: [{ id: 'g-canon-seed', description: draft.goal, priority: 'medium' }],
                 },
-                createdByUserId: opts.userId ?? null,
+                createdByUserId: opts.userId,
                 entityTier: draft.tier,
             });
         } else {
@@ -164,7 +164,7 @@ export async function materializeCanonicalNpcs(opts: {
                     personality: {
                         goals: [{ id: 'g-bootstrap', description: draft.goal, priority: 'medium' }],
                     },
-                    createdByUserId: opts.userId ?? null,
+                    createdByUserId: opts.userId,
                     entityTier: draft.tier,
                 });
             }
@@ -182,18 +182,7 @@ export async function materializeCanonicalNpcs(opts: {
             entity = row;
         }
 
-        const cast = npcCastFromEntity(entity);
-        results.push({
-            entityId: entity.id,
-            displayName: entity.displayName,
-            givenName: cast.givenName,
-            roleTitle: cast.roleTitle,
-            level: cast.level,
-            vida: cast.vida,
-            vidaMax: cast.vidaMax,
-            role: cast.role,
-            reused,
-        });
+        results.push(formatCanonNpcSeedRow(draft, sheet, entity.id, reused));
     }
 
     return results;

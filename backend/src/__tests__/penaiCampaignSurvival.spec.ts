@@ -2,7 +2,7 @@ import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { isGoapEligibleTier } from '../GameMaster/database/entities/types/EntityTier.js';
 import { defaultEntityTierForType } from '../GameMaster/world/campaignGc.js';
-import { ensurePenaiTestDb } from './helpers/penaiTestDb.js';
+import { penaiIntegrationDescribe } from './helpers/penaiIntegrationDescribe.js';
 import { PenaiDataSource } from '../GameMaster/database/data-source.js';
 import { SessionMemory } from '../GameMaster/database/entities/SessionMemory.js';
 import { SessionKnowledge } from '../GameMaster/database/entities/SessionKnowledge.js';
@@ -36,14 +36,7 @@ describe('P7 campaign survival (unit)', () => {
     });
 });
 
-const dbDescribe = process.env.DATABASE_URL ? describe : describe.skip;
-
-dbDescribe('P7 campaign survival (integration)', () => {
-    before(async () => {
-        const ok = await ensurePenaiTestDb();
-        if (!ok) throw new Error('PostgreSQL indisponível');
-    });
-
+penaiIntegrationDescribe('P7 campaign survival (integration)', () => {
     it('decaySessionMemories marca memórias abaixo do limiar', async () => {
         const sessionId = 99001;
         const repo = PenaiDataSource.getRepository(SessionMemory);

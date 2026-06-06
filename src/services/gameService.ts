@@ -1,91 +1,15 @@
-// src/services/gameService.ts
+// src/services/gameService.ts — facade PENAI v2 (preferir penaiApi para gameplay novo)
 import { apiClient } from './apiClient';
 import type { NewCharacterInfo, SessaoIA, Character } from '@/types';
-import type { RegionDTO, RegionPoiDTO, RegionTravelMode } from './regionClient';
-
-export interface SessionFactsResponse {
-    storySummary: string | null;
-    timelineFacts: string | null;
-    recentEvents: Array<{
-        turn: number;
-        timestamp: string;
-        action: string;
-        summary: string;
-        notes?: string;
-    }>;
-    activeNPCs: Array<{
-        npcId?: string;
-        name: string;
-        status: string;
-        affinity: number;
-        description?: string;
-        quests: Array<{ id: string; title: string; status: string }>;
-    }>;
-    activeQuests: Array<{
-        id: string;
-        title: string;
-        status: string;
-        source: string;
-        summary?: string;
-    }>;
-    atomicFacts?: Array<{
-        id: string;
-        category: string;
-        subject?: string | null;
-        fact: string;
-        regionSlug?: string | null;
-    }>;
-}
-
-export interface SessionReplayResponse {
-    fileName: string;
-    markdown: string;
-}
-
-export interface WorldMapRegion extends RegionDTO {
-    isDiscovered?: boolean;
-    isCurrent?: boolean;
-    pointsOfInterest?: Array<RegionPoiDTO & { isDiscovered?: boolean }>;
-}
-
-export interface WorldMapMarker {
-    id: string;
-    type: 'player' | 'npc' | 'quest';
-    label: string;
-    regionSlug: string;
-    poiSlug?: string | null;
-    status?: string | null;
-    description?: string | null;
-    relatedNpcId?: string | null;
-    questId?: string | null;
-    isDiscovered: boolean;
-}
-
-export interface WorldMapLink {
-    fromSlug: string;
-    toSlug: string;
-    travelMode: RegionTravelMode;
-    travelTimeMinutes?: number;
-    difficulty?: string | null;
-    isLocked: boolean;
-    metadata?: Record<string, any>;
-    discovered: boolean;
-    /** Pelo menos um extremo visitado — exibir no mapa com névoa parcial. */
-    reachable?: boolean;
-    /** Rota partindo da região atual. */
-    fromCurrent?: boolean;
-}
-
-export interface WorldMapSnapshot {
-    currentRegionSlug: string | null;
-    currentPoiSlug: string | null;
-    visitedRegions: string[];
-    visitedPois: Array<{ regionSlug: string; poiSlug: string; name?: string | null }>;
-    regions: WorldMapRegion[];
-    links: WorldMapLink[];
-    markers: WorldMapMarker[];
-    updatedAt: string;
-}
+export type {
+    SessionFactsResponse,
+    SessionReplayResponse,
+    WorldMapRegion,
+    WorldMapMarker,
+    WorldMapLink,
+    WorldMapSnapshot,
+} from '@/types/worldMap';
+import type { SessionFactsResponse, SessionReplayResponse, WorldMapSnapshot } from '@/types/worldMap';
 
 // --- Character Management ---
 

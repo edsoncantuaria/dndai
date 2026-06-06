@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useGameLog } from '@/hooks/useGameLog';
-import { setTurnPipelinePhase } from '@/hooks/game/turnPipelineStore';
+import { setTurnPipelinePhase, type TurnPipelinePhase } from '@/hooks/game/turnPipelineStore';
 import { useTurnPipeline } from '@/hooks/game/useTurnPipeline';
 import type { GameActionPipelineRefs } from './useGameActionPipelineRefs';
 
@@ -11,24 +11,38 @@ type NarrationSliceOpts = {
     hasPendingRoll: boolean;
 };
 
-/** F.2 — log, loading, erros e fase do turno narrativo. */
+function phaseToLabel(phase: TurnPipelinePhase): string | null {
+    switch (phase) {
+        case 'rolling':
+            return 'Aguardando sua rolagem...';
+        case 'mechanical':
+            return 'Aplicando resultado mecânico…';
+        case 'narrating':
+            return 'Aguarde o Mestre…';
+        default:
+            return null;
+    }
+}
+
+/** F.2 — log, loading, erros e fase do turno narrativo. F.1: fase PENAI = autoridade de loading. */
 export function useGameNarrationSlice({ pipelineRefs, hasPendingRoll }: NarrationSliceOpts) {
-    const [isLoading, setIsLoading] = useState(false);
+    const [apiLoading, setApiLoading] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
-    const [actionPhaseLabel, setActionPhaseLabel] = useState<string | null>(null);
     const logState = useGameLog();
     const turnPipelinePhase = useTurnPipeline();
+
+    const isLoading = apiLoading || turnPipelinePhase !== 'idle';
+    const actionPhaseLabel = useMemo(() => phaseToLabel(turnPipelinePhase), [turnPipelinePhase]);
 
     const { pendingActionsRef, actionTimeoutsRef } = pipelineRefs;
 
     const clearApiError = useCallback(() => setApiError(null), []);
 
-    const resetActionPipeline = useCallback((label: string | null = null) => {
+    const resetActionPipeline = useCallback((_label: string | null = null) => {
         pendingActionsRef.current.clear();
         actionTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
         actionTimeoutsRef.current.clear();
-        setIsLoading(false);
-        setActionPhaseLabel(label);
+        setApiLoading(false);
         setTurnPipelinePhase('idle');
     }, [pendingActionsRef, actionTimeoutsRef]);
 
@@ -41,13 +55,21 @@ export function useGameNarrationSlice({ pipelineRefs, hasPendingRoll }: Narratio
                 clearTimeout(timer);
                 actionTimeoutsRef.current.delete(actionId);
             }
-            setIsLoading(pendingActionsRef.current.size > 0);
             if (pendingActionsRef.current.size === 0 && !hasPendingRoll) {
-                setActionPhaseLabel(null);
+                setTurnPipelinePhase('idle');
             }
         },
         [hasPendingRoll, pendingActionsRef, actionTimeoutsRef],
     );
+
+    /** Compat REST (useGameSession) — não controla fase do turno PENAI. */
+    const setIsLoading = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+        setApiLoading(prev => (typeof value === 'function' ? value(prev) : value));
+    }, []);
+
+    const setActionPhaseLabel = useCallback((_label: string | null) => {
+        /* no-op — label derivado de turnPipelinePhase */
+    }, []);
 
     return {
         isLoading,

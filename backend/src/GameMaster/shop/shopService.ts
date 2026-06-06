@@ -9,6 +9,7 @@ import {
     validateSellItemIntent,
     validateCloseShopIntent,
 } from '../../rules/shopMotor.js';
+import type { CombatState } from '../../schemas/gameSchemas.js';
 import type { RuleCheckResult } from '../../rules/types.js';
 import { loadHeroSessionStats, saveHeroSessionStats } from '../character/heroStats.js';
 import { getSessionHeroEntityId } from '../character/heroStats.js';
@@ -31,7 +32,7 @@ export async function openShopPenai(
 ): Promise<RuleCheckResult> {
     const combat = await getPenaiCombatState(sessionId);
     const check = validateOpenShopIntent(
-        combat.isActive ? { isActive: true } : { isActive: false },
+        combat.isActive ? ({ isActive: true } as CombatState) : null,
         payload as { inventory?: Array<Record<string, unknown>> },
     );
     if (check.status !== 'accepted') return check;

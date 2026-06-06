@@ -1,4 +1,4 @@
-import type { ApiSpell } from '@/types';
+type ApiSpell = Record<string, unknown>;
 
 export const TRANSLATIONS_SPELLS: Record<string, any> = {
   "Acid Arrow": {
@@ -3899,22 +3899,24 @@ export const TRANSLATIONS_SPELLS: Record<string, any> = {
 export const translateSpell = (spell: ApiSpell): ApiSpell => {
     if (!spell) return spell;
 
-    const translatedSpell = { ...spell };
+    const translatedSpell = { ...spell } as Record<string, unknown>;
 
-    const spellTranslation = TRANSLATIONS_SPELLS[spell.name];
+    const spellTranslation = TRANSLATIONS_SPELLS[String(spell.name ?? '')];
 
     translatedSpell.name = spellTranslation?.name || spell.name;
     translatedSpell.desc = spellTranslation?.desc || spell.desc;
     translatedSpell.higher_level = spellTranslation?.higher_level || spell.higher_level;
     translatedSpell.material = spellTranslation?.material || spell.material;
 
-    if (translatedSpell.school?.name) {
-        translatedSpell.school.name = translatedSpell.school.name;
+    const school = translatedSpell.school as { name?: string } | undefined;
+    if (school?.name) {
+        school.name = school.name;
     }
 
-    if (translatedSpell.damage?.damage_type?.name) {
-        translatedSpell.damage.damage_type.name = translatedSpell.damage.damage_type.name;
+    const damage = translatedSpell.damage as { damage_type?: { name?: string } } | undefined;
+    if (damage?.damage_type?.name) {
+        damage.damage_type.name = damage.damage_type.name;
     }
 
-    return translatedSpell;
+    return translatedSpell as ApiSpell;
 };

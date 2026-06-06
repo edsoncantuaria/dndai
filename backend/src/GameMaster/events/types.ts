@@ -34,6 +34,7 @@ export const WORLD_EVENT_TYPES = [
     'WORLD_PULSE_RENDERED',
     'RUMOR_FADED',
     'POLITICS_STATE_CHANGED',
+    'NARRATIVE_TRIGGER_FIRED',
 ] as const;
 
 export type WorldEventType = (typeof WORLD_EVENT_TYPES)[number];

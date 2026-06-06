@@ -242,7 +242,7 @@ export const useInteractionManager = () => {
             turn: 0,
             initiativeOrder: ['player', 'goblin-1', 'goblin-2'],
             combatants: [
-                { id: 'player', name: character?.name ?? 'Herói', isPlayer: true, hp: { current: 45, max: 50 }, ac: 16, initiative: 18, hasMoved: false, hasActed: false, actionPoints: 3, bonusActionPoints: 1, conditions: [], rollHistory: [] },
+                { id: 'player', name: character?.name ?? 'Herói', isPlayer: true, hp: { current: 45, max: 50 }, ac: 16, initiative: 18, hasMoved: false, hasActed: false, actionPoints: 3, bonusActionPoints: 1, conditions: [], rollHistory: [], isDead: false },
                 { id: 'goblin-1', name: 'Goblin Batedor', hp: { current: 7, max: 7 }, ac: 13, initiative: 12, hasMoved: false, hasActed: false, actionPoints: 3, bonusActionPoints: 1, conditions: [], rollHistory: [], isDead: false },
                 { id: 'goblin-2', name: 'Goblin Arqueiro', hp: { current: 5, max: 7 }, ac: 13, initiative: 10, hasMoved: false, hasActed: false, actionPoints: 3, bonusActionPoints: 1, conditions: [], rollHistory: [], isDead: false },
             ],

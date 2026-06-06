@@ -175,14 +175,14 @@ export async function runPostMechanicalEntityLifecycle(opts: {
         sessionId: opts.sessionId,
         userId: opts.userId,
         playerAction: opts.playerAction,
-        regionSlug: session?.currentRegionSlug ?? null,
+        regionSlug: typeof session?.currentRegionSlug === 'string' ? session.currentRegionSlug : null,
     });
     if (decision === 'noop') return;
     await applyEntityLifecycle(decision, {
         sessionId: opts.sessionId,
         userId: opts.userId,
         playerAction: opts.playerAction,
-        regionSlug: session?.currentRegionSlug ?? null,
+        regionSlug: typeof session?.currentRegionSlug === 'string' ? session.currentRegionSlug : null,
     });
 }
 

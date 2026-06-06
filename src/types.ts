@@ -325,6 +325,15 @@ export interface ShopItem extends InventoryItem {
     };
 }
 
+export interface ShopState {
+    isOpen: boolean;
+    isHaggling: boolean;
+    name: string;
+    inventory: ShopItem[];
+    sellPrices: Record<string, number>;
+    merchantName?: string;
+}
+
 export interface LootOffer {
     items: InventoryItem[];
     currency: {
@@ -400,12 +409,19 @@ export interface Character {
         summary?: string;
         references?: string[];
     };
+    /** Campos opcionais hidratados do mechanical pack PENAI */
+    features?: unknown[];
+    classFeatures?: unknown[];
+    racialTraits?: unknown[];
+    backgroundFeatures?: unknown[];
+    equipment?: unknown[];
 }
 
 export interface CharacterAttributes extends Attributes {
     id: number;
     characterId: number;
     hp?: number; // Para compatibilidade com o backend
+    maxHp?: number;
     ac?: number; // Para compatibilidade com o backend
     conditions?: any[]; // Para compatibilidade com o backend
 }
@@ -423,6 +439,8 @@ export interface CharacterSpell {
     id: number;
     characterId: number;
     spellName: string;
+    level?: number;
+    prepared?: boolean;
 }
 
 export interface LogEntry {

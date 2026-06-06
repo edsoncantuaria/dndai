@@ -90,7 +90,7 @@ export async function applyStructuredPenaiIntent(input: {
             const check = validateRestIntent(
                 snapshot,
                 { restType } as RestIntentPayload,
-                combat.isActive ? { isActive: true } : null,
+                combat.isActive ? ({ isActive: true } as import('../../types.js').CombatState) : null,
             );
             if (check.status === 'accepted' && check.stateDelta) {
                 await applyResultingStateDeltaPenai(input.sessionId, check.stateDelta);

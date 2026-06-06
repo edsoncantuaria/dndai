@@ -6,7 +6,7 @@ import {
     validateEquipItemIntent,
     resolveEquipItemKey,
 } from '../rules/inventoryMotor.js';
-import { computeCarryingCapacity, reconcileCurrency } from '../services/inventoryService.js';
+import { computeCarryingCapacityLb } from '../GameMaster/character/inventoryWeight.js';
 
 test('validateEquipItemIntent aceita equipar item legado numérico', () => {
     const result = validateEquipItemIntent({ itemId: 12, equipped: true });
@@ -43,12 +43,6 @@ test('validateClaimLootIntent autoriza coleta', () => {
     assert.equal(result.status, 'accepted');
 });
 
-test('computeCarryingCapacity usa força x 15', () => {
-    assert.equal(computeCarryingCapacity(16), 240);
-});
-
-test('reconcileCurrency prioriza valores do servidor', () => {
-    const merged = reconcileCurrency({ gp: 50 }, { gp: 10, sp: 5 });
-    assert.equal(merged.gp, 50);
-    assert.equal(merged.sp, 5);
+test('computeCarryingCapacityLb usa força x 15', () => {
+    assert.equal(computeCarryingCapacityLb(16), 240);
 });

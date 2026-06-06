@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/hooks/usePenaiTurnPipeline.ts",
+    "src/hooks/usePenaiWorldBootstrap.ts",
+    "src/hooks/game/turnPipelineStore.ts",
+    "src/hooks/game/useTurnPipeline.ts",
+    "src/hooks/game/slices/useGameNarrationSlice.ts",
+    "src/lib/penai*.ts",
+    "src/features/gameplay/story/Penai*.tsx",
+    "src/lib/debugFlags.ts",
+    "src/lib/narrationText.ts",
+    "src/lib/authToken.ts",
+    "src/services/penaiApi.ts",
+    "src/services/authService.ts",
+    "src/types.ts",
+    "src/types/**/*.ts"
+  ]
+}

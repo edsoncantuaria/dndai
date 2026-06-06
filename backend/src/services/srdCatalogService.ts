@@ -1,14 +1,12 @@
-// backend/src/services/srdCatalogService.ts
 import fs from 'fs';
 import path from 'path';
-import { AppDataSource } from '../database/data-source.js';
-import { SrdResource } from '../entities/SrdResource.js';
 import { resolveSnapshotDir } from '../utils/srdSnapshotPaths.js';
 
 type ResourceName =
     | 'races'
     | 'subraces'
     | 'classes'
+    | 'subclasses'
     | 'backgrounds'
     | 'equipment'
     | 'equipment-categories'
@@ -21,7 +19,7 @@ type ResourceName =
     | 'rule-sections'
     | 'skills';
 
-const fileCache = new Map<ResourceName, any[]>();
+const fileCache = new Map<ResourceName, unknown[]>();
 
 function resolveNormalizedDir(): string {
     return (
@@ -30,7 +28,7 @@ function resolveNormalizedDir(): string {
     );
 }
 
-function loadFromFile(resource: ResourceName) {
+function loadFromFile(resource: ResourceName): unknown[] {
     if (fileCache.has(resource)) return fileCache.get(resource)!;
     const filePath = path.join(resolveNormalizedDir(), `${resource}.json`);
     if (!fs.existsSync(filePath)) {
@@ -38,28 +36,19 @@ function loadFromFile(resource: ResourceName) {
         fileCache.set(resource, []);
         return [];
     }
-    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as unknown[];
     fileCache.set(resource, data);
     return data;
 }
 
-export async function listSrdResources(resource: ResourceName): Promise<any[]> {
-    if (AppDataSource.isInitialized) {
-        const repo = AppDataSource.getRepository(SrdResource);
-        const rows = await repo.find({ where: { resource } });
-        if (rows.length) {
-            return rows.map(row => row.payload);
-        }
-    }
+export async function listSrdResources(resource: ResourceName): Promise<unknown[]> {
     return loadFromFile(resource);
 }
 
-export async function getSrdResource(resource: ResourceName, index: string): Promise<any | null> {
-    if (AppDataSource.isInitialized) {
-        const repo = AppDataSource.getRepository(SrdResource);
-        const row = await repo.findOne({ where: { resource, index } });
-        if (row) return row.payload;
-    }
-    const fallback = loadFromFile(resource);
-    return fallback.find(entry => entry.index === index) ?? null;
+export async function getSrdResource(resource: ResourceName, index: string): Promise<unknown | null> {
+    const rows = await listSrdResources(resource);
+    const hit = rows.find(
+        row => row && typeof row === 'object' && (row as { index?: string }).index === index,
+    );
+    return hit ?? null;
 }

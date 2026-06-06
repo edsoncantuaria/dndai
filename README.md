@@ -1,11 +1,11 @@
 # Crônicas de Aventuras: Uma Plataforma de RPG com IA
 # 1.0
 
-Bem-vindo ao "Crônicas de Aventuras", uma experiência de RPG de mesa solo e imersiva, onde suas escolhas moldam uma história épica, guiada por um Mestre de Jogo de Inteligência Artificial. Construído com Next.js, Genkit e um robusto backend Node.js, este projeto combina a nostalgia do Dungeons & Dragons 5ª Edição com o poder da IA generativa.
+Bem-vindo ao "Crônicas de Aventuras", uma experiência de RPG de mesa solo e imersiva, onde suas escolhas moldam uma história épica, guiada por um Mestre de Jogo de Inteligência Artificial. Construído com Next.js e backend PENAI (Fastify + PostgreSQL + Temporal), combina D&D 5e com IA generativa (Gemini BYOK).
 
 ## Core Features
 
-- **Backend Dedicado com Gerenciamento de Sessão:** A lógica do jogo é centralizada em um servidor Node.js/Express, garantindo persistência de dados, segurança e uma plataforma escalável.
+- **Backend PENAI:** Fastify + PostgreSQL + Temporal (`penaiServer.ts`, porta 8071). Ver [`docs/ECOSSISTEMA.md`](docs/ECOSSISTEMA.md).
 - **Cofre de Heróis e Personagens Persistentes:** Crie múltiplos personagens que são salvos em sua conta. Leve seus heróis em diferentes aventuras, mantendo seu progresso e história.
 - **Mestre de Jogo com IA (Gemini):** O coração do jogo. Uma IA generativa que atua como Mestre, descrevendo o mundo, interpretando NPCs, gerenciando combates e apresentando consequências narrativas.
 - **Jogabilidade Interativa Baseada em Turnos:** As decisões são tomadas através de opções de ação dinâmicas ou ações personalizadas digitadas pelo jogador, em um fluxo de jogo estruturado que garante coerência.
@@ -37,39 +37,35 @@ O sistema de criação de personagens é uma das partes mais sofisticadas do fro
 
 ## Arquitetura e Tecnologias
 
-O projeto é construído sobre uma stack moderna, priorizando a componentização e a separação de responsabilidades.
+| Camada | Stack |
+|--------|--------|
+| Frontend | Next.js 15, React 18, TypeScript, Tailwind |
+| Backend | Fastify 5, TypeORM, PostgreSQL (`penaiServer.ts`) |
+| Fila | Temporal (`penai-narration`) + Redis pub/sub WS |
+| IA | Google Gemini structured — BYOK do jogador |
+| Dados SRD | Snapshot local + homebrew Postgres — ver `docs/DATA_SRD.md` |
 
-- **Frontend**: [Next.js](https://nextjs.org/) com [React](https://reactjs.org/) e [TypeScript](https://www.typescriptlang.org/).
-- **UI**: [Tailwind CSS](https://tailwindcss.com/) com componentes de [ShadCN UI](https://ui.shadcn.com/) para uma interface moderna e responsiva.
-- **Backend**: [Node.js](https://nodejs.org/) com [Express.js](https://expressjs.com/) para a API REST.
-- **Banco de Dados**: [MySQL](https://www.mysql.com/) com [TypeORM](https://typeorm.io/) para persistência de dados de usuários, personagens e sessões.
-- **Cache**: [Redis](https://redis.io/) para cache de chamadas de API externas e otimização.
-- **IA Generativa**: [Genkit (Google AI)](https://firebase.google.com/docs/genkit) para orquestrar as chamadas ao modelo de linguagem Gemini.
-- **API de D&D**: A [D&D 5th Edition API](https://www.dnd5eapi.co/) é utilizada como fonte de dados para raças, classes, magias, etc., com cache no backend.
-
-**Nota Crítica sobre a API Externa:** O arquivo `openapi.yaml` na raiz do projeto documenta a estrutura exata da D&D 5e API. **Este arquivo DEVE ser consultado SEMPRE** antes de fazer qualquer modificação que envolva a busca de dados externos, para garantir que as URLs e os schemas estejam corretos.
+Documentação canônica: [`docs/ECOSSISTEMA.md`](docs/ECOSSISTEMA.md) · [`docs/PENAI.md`](docs/PENAI.md) · [`backend/README.md`](backend/README.md)
 
 ### Estrutura de Diretórios Principal
 
 ```
 /
-|-- /backend/      # (Servidor Node.js, API e lógica de negócios)
-|-- /src/          # (Aplicação Frontend Next.js)
-`-- /data/         # (Arquivos de dados para modificações e customizações)
+|-- backend/       # API PENAI (Fastify, GameMaster, Temporal worker)
+|-- src/           # Frontend Next.js
+|-- data/          # Snapshots SRD e traduções PT-BR (somente leitura)
+|-- docs/          # Documentação viva + ADRs
 ```
 
-**Nota Importante:** O diretório `/data/` é destinado a conter arquivos de dados (como JSONs customizados) que podem ser modificados para customizar o jogo. Não deve ser alterado de outras formas para não quebrar a lógica da aplicação.
+## Como Funciona o Loop do Jogo (PENAI)
 
-## Como Funciona o Loop do Jogo
+1. **Ação do jogador** — dock ou texto livre; `InputGate` bloqueia durante roll/narração.
+2. **WebSocket v2** — `processAction` com JWT; motor aplica mecânica (`mechanicalStateUpdate`).
+3. **Narração** — Temporal enfileira Gemini; worker publica `gameStateUpdate` + `storyFeed`.
+4. **Persistência** — Postgres (`game_sessions`, overlays `session_*`); memória Qdrant opcional.
+5. **UI** — `usePenaiTurnPipeline` sincroniza ficha, combate e crônica (`PenaiStoryFeed`).
 
-1.  **Ação do Jogador**: O jogador seleciona uma opção de ação ou digita uma ação personalizada na UI.
-2.  **WebSocket (`processAction`)**: O frontend envia a ação via WebSocket autenticado para o backend.
-3.  **Motor de Regras**: Intents estruturados (ataque, magia, perícia, etc.) são validados e deltas aplicados *antes* da IA.
-4.  **Narração (IA)**: O `narrarService` monta o contexto e chama o Gemini; a IA só narra o que o motor já decidiu.
-5.  **Persistência**: Estado do personagem, logs e `stateVersion` são salvos no MySQL.
-6.  **Atualização da UI**: Eventos `actionResolution` e `gameStateUpdate` sincronizam o cliente.
-
-> **Nota:** O gameplay usa **WebSocket**, não REST. Configure `NEXT_PUBLIC_API_URL` e `NEXT_PUBLIC_WS_URL` no `.env.local` para desenvolvimento local (padrão: `http://localhost:8071`).
+Configure `.env.local`: `NEXT_PUBLIC_API_URL=http://localhost:8071/api`, `NEXT_PUBLIC_WS_URL=ws://localhost:8071/`, `NEXT_PUBLIC_PENAI_UI=true`.
 
 ## Setup com Docker
 
@@ -89,12 +85,10 @@ Configure `.env.local` com `NEXT_PUBLIC_API_URL=http://localhost:8071/api`, `NEX
 
 Detalhes: [`docs/PENAI.md`](docs/PENAI.md) · [`docs/DATA_SRD.md`](docs/DATA_SRD.md).
 
-**Stack legada MySQL** (deprecated): use apenas se mantiver código antigo — prefira PENAI acima.
-
-**Stack completa em container** (só para testar deploy; precisa `--build` ao mudar código):
+**Stack legada MySQL/BullMQ/Express** foi **removida** (jun/2026, ADR 0002). Homolog Cloudive:
 
 ```bash
-npm run docker:up              # docker compose --profile full up -d --build
+npm run docker:up              # PENAI + frontend homolog
 ```
 
 Documentação viva: [`docs/VALIDACAO_SENIOR.md`](docs/VALIDACAO_SENIOR.md) (índice) · [`docs/ECOSSISTEMA.md`](docs/ECOSSISTEMA.md) · [`docs/DESIGN_FRONTEND.md`](docs/DESIGN_FRONTEND.md) · [`docs/README.md`](docs/README.md).
@@ -111,21 +105,16 @@ Variável no `backend/.env` (padrão: `narration_only`):
 
 Detalhes: [`docs/AI_PIPELINE.md`](docs/AI_PIPELINE.md). Checklist de QA: [`docs/VALIDATION_CHECKLIST.md`](docs/VALIDATION_CHECKLIST.md).
 
-## Migrações TypeORM (produção)
-
-| Ambiente | `DB_SYNC` | Comando |
-|----------|-----------|---------|
-| Desenvolvimento | `true` (padrão) | Schema via entidades |
-| Produção | `false` | `cd backend && npm run migration:run` |
-
-Migrações incrementais em `backend/src/database/migrations/`.
-
-## Testes e CI
+## Dev local e testes
 
 ```bash
-cd backend && npm test              # motor, SRD, IA, WS (REDIS_URL=mock)
-npm run typecheck && npm run lint   # frontend
-node scripts/verify-srd-snapshot.js # snapshot offline
+npm run dev:local                    # Postgres :5433, Redis, Temporal
+npm run penai:db:prepare --prefix backend
+cd backend && npm run dev:penai
+npm run dev                          # frontend :9002
+
+npm run test --prefix backend
+npm run test:frontend
 ```
 
-GitHub Actions: `.github/workflows/ci.yml` (push/PR em `main`, `develop`).
+Migrações Postgres: `npm run penai:migration:run --prefix backend`. GitHub Actions: `.github/workflows/ci.yml`.

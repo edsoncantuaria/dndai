@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { penaiEnv } from '../../../config/penaiEnv.js';
-import { parseGameMasterJson } from '../../../ai/responseParser.js';
+import { parseGameMasterJson } from '../../ai/responseParser.js';
 import { translateLlmPayload } from '../../ai/llmJsonTranslator.js';
 import { WORLD_ECONOMY_BOOTSTRAP_LLM_DICTIONARY } from '../../ai/llmJsonSchemas.js';
 import { WORLD_ECONOMY_BOOTSTRAP_RESPONSE_JSON_SCHEMA } from '../../ai/geminiSchemas.js';
@@ -58,7 +58,7 @@ export async function generateBootstrapEconomy(opts: {
         failWorldGemini('economy', 'no_model', 'GEMINI_GENERATION_MODEL ausente');
     }
 
-    penaiPipelineAiRequest('worldBootstrap:economy', {}, { model }, ctx);
+    penaiPipelineAiRequest('worldBootstrap:economy', ctx, { model });
     const t0 = Date.now();
 
     try {
@@ -95,7 +95,7 @@ export async function generateBootstrapEconomy(opts: {
             failWorldGemini('economy', 'zod_fail', detail);
         }
 
-        penaiPipelineAiResponse('worldBootstrap:economy', {}, { ok: true, ms: Date.now() - t0 }, ctx);
+        penaiPipelineAiResponse('worldBootstrap:economy', ctx, { ok: true, ms: Date.now() - t0 });
         return {
             marketSummary: zod.data.marketSummary.trim(),
             items: zod.data.items,
@@ -103,7 +103,7 @@ export async function generateBootstrapEconomy(opts: {
         };
     } catch (err) {
         if (err instanceof Error && err.name === 'WorldGeminiGenerationError') throw err;
-        penaiPipelineAiResponse('worldBootstrap:economy', {}, { ok: false, ms: Date.now() - t0 }, ctx);
+        penaiPipelineAiResponse('worldBootstrap:economy', ctx, { ok: false, ms: Date.now() - t0 });
         failWorldGemini('economy', 'gemini_error', err instanceof Error ? err.message : String(err));
     }
 }

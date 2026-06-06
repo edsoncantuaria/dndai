@@ -2,7 +2,7 @@
 
 Registro **operacional** de riscos e melhorias — detalhe de design continua em `docs/ECOSSISTEMA.md`, módulos `docs/architecture/` e roadmap em `TODO-ARQUITETURA.md`.
 
-**Última revisão:** 2026-06-06 (BYOK árbitro actionSense)
+**Última revisão:** 2026-06-06 (triggers + BYOK UI + poda Redis snapshot)
 
 ---
 
@@ -17,27 +17,11 @@ Registro **operacional** de riscos e melhorias — detalhe de design continua em
 
 | Sev | Área | Gap | Evidência / nota |
 |-----|------|-----|------------------|
-| **P1** | Docs | §4–5, §9, ApC descrevem BullMQ; runtime PENAI usa Temporal | `penaiServer.ts` vs ECOSSISTEMA legado — ver `architecture/ws-pipeline-temporal.md` |
-| **P1** | Código | `backend/src/websocket/`, `queue/`, `action-pipeline/` ausentes em `src/` | Imports legados quebrados; relay atual = `wsPubSub.ts` |
-| **P1** | Memória | Dois stacks paralelos PENAI Postgres vs MySQL legado | `turnPipeline.ts` vs `vectorMemoryService.ts`; coleções Qdrant distintas |
-| **P1** | Memória | `buildNarrationContext` / `persistNarrationTurn` órfãos no hot path | Zero callers no turno PENAI |
-| **P1** | Auth/WS | Fallback `?userId=` sem JWT | `wsHandlers.ts` `resolveWsUserId` — impersonação dev |
-| **P1** | Motor | Dois stacks PENAI vs Express `actionService` | Persistência Postgres vs MySQL |
-| **P2** | Docs | MOM `ia-gemini-adjudication.md` aponta paths inexistentes | Real: `adapters/gemini/actionSense.ts` — ADR 0001 |
-| **P2** | IA | Retry Gemini empilhava tokens (429 × 12 × 3 × 3) | **Mitigado jun/2026:** `GEMINI_MAX_ATTEMPTS=1`, Temporal `maximumAttempts: 1`, `isStaleNarrationTurn` |
-| **P2** | WS relay | Doc/MOM citam `wsUserRelay`; produção usa `wsPubSub` | Canal `penai:ws:user` vs `dndai:ws:user` |
-| **P2** | Protocolo | Apêndice A assume envelope `{type,payload}` v1 | PENAI mensagem plana v2 |
-| **P2** | Docs | Apêndice D / §14 citam OpenRouter embed | Implementação Gemini-only |
-| **P2** | Frontend | `dedupeSensoryTail` não wired no feed | Só `narrationText.spec.ts` |
-| **P2** | Frontend | Dupla fonte loading: slices + PENAI phase | `newUseGameState` vs `usePenaiTurnPipeline` |
-| **P2** | Frontend | Duas chaves sessionStorage bootstrap | `penaiOpening` vs `penaiBootstrap` |
-| **P2** | Auth | UI BYOK vs debit créditos se billing on | `AiBillingSection` vs `turnPipeline.ts` |
-| **P2** | Auth | `authService.ts` MySQL duplicado sem uso v2 | Rotas v2 → `penaiAuthService` |
+| **P2** | Docs | §4–5, §9, ApC ECOSSISTEMA — histórico BullMQ/MySQL | Podar quando estável; runtime descrito no topo + `architecture/` |
 | **P2** | Dev UX | `.next/` root-owned Docker | `NEXT_DIST_DIR=.next-dev` |
-| **P3** | Memória | Snapshot Redis não integrado PENAI | `narrativeSnapshotService` via path órfão |
-| **P3** | API | `atomicFacts` REST lê MySQL; turno PENAI grava Postgres | Painel campanha desatualizado |
-| **P3** | Frontend | `turnPipelineStore` pub/sub manual vs XState | Skill F.1 |
-| **P3** | BYOK | Três fontes: localStorage + DB + legado settings | Consolidar |
+| **P3** | Frontend | `turnPipelineStore` pub/sub manual vs XState | Skill F.1 — parcialmente endereçado |
+| **P3** | Frontend | `gameService.ts` facade vs `penaiApi` direto | Tipos movidos para `src/types/worldMap.ts`; migrar imports gradualmente |
+| **P3** | Frontend | `tsc --noEmit` — ~261 erros fora paths PENAI | Gate `typecheck:penai` verde; dívida legado utils/SRD |
 
 ---
 
@@ -45,14 +29,26 @@ Registro **operacional** de riscos e melhorias — detalhe de design continua em
 
 | Data | Gap | Resolução |
 |------|-----|-----------|
-| 2026-06-06 | actionSense ignorava BYOK do jogador | `resolveInferenceApiKey` no motor + adapter; fail-closed free/social sem `canInfer` |
-| 2026-06-06 | Sem death saves / game over — HP clampava em 0 sem inconsciência | `rules/deathSaves.ts`, `heroVitalsService`, `HeroDeathScreen`, WS `heroPermanentlyDead` |
-| 2026-06-06 | Retry LLM empilhava requisições Gemini | `penaiEnv` single-attempt + stale turn skip + actionOptions registry default |
-| 2026-06-06 | Doc sistema fragmentado / desatualizado vs PENAI | Módulos `docs/architecture/*` + §19 ECOSSISTEMA + ADR 0001 |
-| 2026-05-29 | Worker WS sem relay API | `wsPubSub.ts` (PENAI); legado `wsUserRelay` removido de `src/` |
-| 2026-05-29 | `sendMessage` ausente no WS hook | Import corrigido (legado) |
-| 2026-05-29 | `authToken` vs `token` no Settings | `src/lib/authToken.ts` |
-| 2026-05-29 | MOM adjudicação Gemini monolítica | **Retificado:** ADR 0001 — actionSense × motor; MOM entry superseded |
+| 2026-06-06 | UI BYOK vs billing créditos | UI BYOK-only; `clientAiAccess` sem ramo platform credits |
+| 2026-06-06 | Snapshot Redis não integrado PENAI | Won't fix — Postgres `session_snapshots` + Qdrant; Redis só pub/sub WS |
+| 2026-06-06 | Dupla fonte loading F.1 | `isLoading` derivado de `turnPipelinePhase`; removido `setIsLoading` PENAI |
+| 2026-06-06 | Backend `tsc --noEmit` | 0 erros via `npm run build --prefix backend` |
+| 2026-06-06 | `backend/README.md` desatualizado (Express/MySQL) | Reescrito PENAI-only |
+| 2026-06-06 | Testes falhavam sem Postgres local | `penaiIntegrationDescribe` + fix path `penaiTestDb` |
+| 2026-06-06 | actionSense usava GEMINI_API_KEY com billing off | `resolveGeminiApiKey` fail-closed BYOK |
+| 2026-06-06 | `queue/`, `action-pipeline/`, `websocket/` ausentes | Removidos imports legados; relay = `wsPubSub.ts` |
+| 2026-06-06 | Dois stacks memória MySQL vs Postgres | MySQL stack removido; memória = Postgres + Qdrant PENAI |
+| 2026-06-06 | Fallback WS `?userId=` | `wsHandlers.ts` — só JWT `?token=` |
+| 2026-06-06 | `authService.ts` MySQL duplicado | Rotas v2 → `penaiAuthService` / Postgres |
+| 2026-06-06 | Frontend `dedupeSensoryTail` não wired | `PenaiStoryFeed.tsx` |
+| 2026-06-06 | Duas chaves sessionStorage bootstrap | Removido `penaiBootstrap`; canônico `penaiOpening` |
+| 2026-06-06 | Protocolo WS v1 `msg.payload` no frontend | Removido de `usePenaiTurnPipeline` / `penaiMechanicalHydrate` |
+| 2026-06-06 | BYOK três fontes (OpenRouter legado) | `geminiApiKeyStorage` único; removido `aiApiKeyStorage` |
+| 2026-06-06 | Docker profile `full` MySQL | Compose PENAI-only + Cloudive homolog |
+| 2026-06-06 | actionSense ignorava BYOK do jogador | `resolveInferenceApiKey` no motor + adapter |
+| 2026-06-06 | Death saves / game over | `rules/deathSaves.ts`, `HeroDeathScreen` |
+| 2026-06-06 | Retry LLM empilhava Gemini | single-attempt + stale turn skip |
+| 2026-06-06 | Doc fragmentado vs PENAI | Módulos `docs/architecture/*` + ADR 0001/0002 |
 
 ---
 
@@ -66,3 +62,4 @@ Registro **operacional** de riscos e melhorias — detalhe de design continua em
 | Memória RAG | `architecture/memory-rag.md` |
 | Motor/Combate | `architecture/motor-combat-dm.md` |
 | Frontend turno | `architecture/frontend-turn-pipeline.md` |
+| Corte legado | `adr/0002-penai-only-cut.md` |

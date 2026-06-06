@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import createError from 'http-errors';
+import { sendHttpError } from '../../httpErrorReply.js';
 import {
     CreateHomebrewSchema,
     CreateBundleSchema,
@@ -13,10 +13,7 @@ import { HOMEBREW_TYPE_TO_SRD_RESOURCE } from '../../../types/homebrewSource.js'
 import type { PenaiHomebrewContentType } from '../../../GameMaster/database/entities/HomebrewContent.js';
 
 function sendErr(reply: FastifyReply, err: unknown) {
-    if (createError.isHttpError(err)) {
-        return reply.status(err.statusCode).send({ message: err.message, error: err.message });
-    }
-    throw err;
+    return sendHttpError(reply, err);
 }
 
 function optionalAuth(app: FastifyInstance) {
@@ -112,7 +109,7 @@ export async function homebrewRoutes(app: FastifyInstance): Promise<void> {
     app.get('/api/v2/homebrew/srd/:resource/:index', async (request, reply) => {
         const { resource, index } = request.params as { resource: string; index: string };
         try {
-            const detail = await SrdApi.fetchSrdResourceDetail(resource, index);
+            const detail = await SrdApi.get(resource, index);
             return detail;
         } catch (err) {
             return sendErr(reply, err);
@@ -122,7 +119,7 @@ export async function homebrewRoutes(app: FastifyInstance): Promise<void> {
     app.get('/api/v2/homebrew/srd/:resource', async (request, reply) => {
         const { resource } = request.params as { resource: string };
         try {
-            const list = await SrdApi.fetchSrdResourceList(resource);
+            const list = await SrdApi.list(resource);
             return list;
         } catch (err) {
             return sendErr(reply, err);

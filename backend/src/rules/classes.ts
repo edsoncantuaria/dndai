@@ -1,5 +1,6 @@
 // backend/src/rules/classes.ts
 import { getSrdResource, listSrdResources } from '../services/srdCatalogService.js';
+import { asSrdRecord } from './srdRecord.js';
 
 export interface ClassLevelProgression {
     level: number;
@@ -46,20 +47,24 @@ function normalizeClassLevel(levelEntry: any): ClassLevelProgression {
 }
 
 export async function getNormalizedClass(index: string): Promise<NormalizedClass | null> {
-    const classData = await getSrdResource('classes', index);
+    const classData = asSrdRecord(await getSrdResource('classes', index));
     if (!classData) return null;
-    const levels = Array.isArray(classData.levels)
-        ? classData.levels.map(normalizeClassLevel)
+    const c = classData as Record<string, unknown>;
+    const levels = Array.isArray(c.levels)
+        ? (c.levels as unknown[]).map(normalizeClassLevel)
         : [];
+    const multiClassing = c.multi_classing as { prerequisites?: Array<{ ability_score?: { index?: string } }> } | undefined;
+    const savingThrows = (c.saving_throws as Array<{ index?: string }> | undefined) ?? [];
+    const spellcasting = c.spellcasting as { spellcasting_ability?: { index?: string } } | undefined;
     return {
-        index: classData.index,
-        name: classData.name,
-        hitDie: Number(classData.hit_die) || 0,
-        primaryAbility: classData.multi_classing?.prerequisites
-            ?.map((pre: any) => pre.ability_score?.index)
-            ?.filter(Boolean) ?? [],
-        savingThrows: (classData.saving_throws ?? []).map((save: any) => save.index),
-        spellcastingAbility: classData.spellcasting?.spellcasting_ability?.index ?? null,
+        index: String(c.index ?? index),
+        name: String(c.name ?? index),
+        hitDie: Number(c.hit_die) || 0,
+        primaryAbility: multiClassing?.prerequisites
+            ?.map(pre => pre.ability_score?.index)
+            ?.filter(Boolean) as string[] ?? [],
+        savingThrows: savingThrows.map(save => String(save.index ?? '')).filter(Boolean),
+        spellcastingAbility: spellcasting?.spellcasting_ability?.index ?? null,
         levels,
     };
 }
@@ -68,7 +73,7 @@ export async function listNormalizedClasses(): Promise<NormalizedClass[]> {
     const classes = await listSrdResources('classes');
     const normalized: NormalizedClass[] = [];
     for (const classEntry of classes) {
-        const entry = await getNormalizedClass(classEntry.index);
+        const entry = await getNormalizedClass(String(asSrdRecord(classEntry)?.index ?? ''));
         if (entry) normalized.push(entry);
     }
     return normalized;

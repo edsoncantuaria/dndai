@@ -27,11 +27,12 @@ export async function buildPenaiApp() {
     await registerGameMasterWebSocket(app);
 
     app.setErrorHandler((error, _request, reply) => {
-        const status = error.statusCode ?? 500;
-        app.log.error(error);
+        const err = error as Error & { statusCode?: number };
+        const status = err.statusCode ?? 500;
+        app.log.error(err);
         reply.status(status).send({
-            error: status >= 500 ? 'Erro interno do servidor' : error.message,
-            message: error.message,
+            error: status >= 500 ? 'Erro interno do servidor' : err.message,
+            message: err.message,
         });
     });
 

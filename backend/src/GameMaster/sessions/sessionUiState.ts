@@ -117,7 +117,7 @@ export async function saveLastActionOptions(
     options: MotorActionOption[],
 ): Promise<void> {
     const repo = PenaiDataSource.getRepository(GameSession);
-    await repo.update({ id: sessionId }, { lastActionOptions: options as unknown as Record<string, unknown>[] });
+    await repo.update({ id: sessionId }, { lastActionOptions: options as never });
 }
 
 export async function saveWorldPulseSnapshot(
@@ -129,10 +129,10 @@ export async function saveWorldPulseSnapshot(
         { id: sessionId },
         {
             worldPulseSnapshot: {
-                headline: snapshot.headline,
+                headline: snapshot.headline ?? '',
                 events: snapshot.events,
                 updatedAt: snapshot.updatedAt ?? new Date().toISOString(),
-            },
+            } as never,
         },
     );
 }

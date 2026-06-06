@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { penaiEnv } from '../../../config/penaiEnv.js';
-import { parseGameMasterJson } from '../../../ai/responseParser.js';
+import { parseGameMasterJson } from '../../ai/responseParser.js';
 import { translateLlmPayload } from '../../ai/llmJsonTranslator.js';
 import { WORLD_PULSE_NARRATOR_LLM_DICTIONARY } from '../../ai/llmJsonSchemas.js';
 import { WORLD_PULSE_NARRATOR_RESPONSE_JSON_SCHEMA } from '../../ai/geminiSchemas.js';
@@ -68,7 +68,7 @@ export async function narrateWorldPulse(input: PulseNarratorInput): Promise<Puls
         failWorldGemini('pulse', 'no_model', 'GEMINI_MODEL ausente');
     }
 
-    penaiPipelineAiRequest('worldPulse:narrator', {}, { model }, ctx);
+    penaiPipelineAiRequest('worldPulse:narrator', ctx, { model });
     const t0 = Date.now();
 
     try {
@@ -117,7 +117,7 @@ export async function narrateWorldPulse(input: PulseNarratorInput): Promise<Puls
             mood: zod.data.mood,
         };
 
-        penaiPipelineAiResponse('worldPulse:narrator', {}, { ok: true, ms: Date.now() - t0 }, ctx);
+        penaiPipelineAiResponse('worldPulse:narrator', ctx, { ok: true, ms: Date.now() - t0 });
         return {
             presentation,
             memoryFacts: zod.data.memoryFacts.map(f => f.trim()),
@@ -131,7 +131,7 @@ export async function narrateWorldPulse(input: PulseNarratorInput): Promise<Puls
             { error: err instanceof Error ? err.message : String(err) },
             ctx,
         );
-        penaiPipelineAiResponse('worldPulse:narrator', {}, { ok: false, ms: Date.now() - t0 }, ctx);
+        penaiPipelineAiResponse('worldPulse:narrator', ctx, { ok: false, ms: Date.now() - t0 });
         failWorldGemini('pulse', 'gemini_error', err instanceof Error ? err.message : String(err));
     }
 }

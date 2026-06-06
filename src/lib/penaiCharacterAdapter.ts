@@ -1,6 +1,5 @@
 import type { Character, CharacterSpell, InventoryItem, ProgressionFeedItem, SessaoIA } from '@/types';
 import { markSessionAsPenai } from '@/lib/penaiEngine';
-import { calculateWeight, getXpThreshold } from '@/utils/characterUtils';
 import { COIN_WEIGHT } from '@/utils/currency';
 import type { ApiClassLevel } from '@/types';
 import {
@@ -12,6 +11,23 @@ import {
 
 type MechanicalPack = Record<string, unknown>;
 
+const XP_THRESHOLDS: Record<number, number> = {
+    1: 300, 2: 900, 3: 2700, 4: 6500, 5: 14000, 6: 23000, 7: 34000, 8: 48000, 9: 64000,
+    10: 85000, 11: 100000, 12: 120000, 13: 140000, 14: 165000, 15: 195000, 16: 225000,
+    17: 265000, 18: 305000, 19: 355000, 20: Infinity,
+};
+
+function getXpThreshold(level: number): number {
+    return XP_THRESHOLDS[level] ?? Infinity;
+}
+
+function calculateInventoryWeightLb(inventory: InventoryItem[]): number {
+    return inventory.reduce(
+        (sum, item) => sum + (Number(item.weight ?? 0) * Math.max(1, item.quantity ?? 1)),
+        0,
+    );
+}
+
 function asRecord(v: unknown): Record<string, unknown> | null {
     return v && typeof v === 'object' ? (v as Record<string, unknown>) : null;
 }
@@ -20,22 +36,26 @@ function abilityMod(score: number): number {
     return Math.floor((score - 10) / 2);
 }
 
-function normalizeSpells(raw: unknown): CharacterSpell[] | string[] {
+function normalizeSpells(raw: unknown): CharacterSpell[] {
     if (!Array.isArray(raw)) return [];
-    return raw.map(entry => {
-        if (typeof entry === 'string') return entry;
+    return raw.flatMap(entry => {
+        if (typeof entry === 'string') {
+            return [{ id: 0, characterId: 0, spellName: entry }];
+        }
         if (entry && typeof entry === 'object') {
             const o = entry as Record<string, unknown>;
             const index = String(o.spellName ?? o.index ?? o.name ?? '');
-            return {
-                id: Number(o.id ?? 0),
-                characterId: 0,
-                spellName: index,
-                level: Number(o.level ?? 0),
-                prepared: Boolean(o.prepared ?? true),
-            } satisfies CharacterSpell;
+            return [
+                {
+                    id: Number(o.id ?? 0),
+                    characterId: 0,
+                    spellName: index,
+                    level: Number(o.level ?? 0),
+                    prepared: Boolean(o.prepared ?? true),
+                },
+            ];
         }
-        return String(entry);
+        return [{ id: 0, characterId: 0, spellName: String(entry) }];
     });
 }
 
@@ -97,7 +117,7 @@ export function mechanicalPackToCharacter(
     };
     const coinCount = Object.values(currencyFromCoins).reduce((s, n) => s + n, 0);
     const coinWeight = coinCount * COIN_WEIGHT;
-    const inventoryWeight = calculateWeight(inventory);
+    const inventoryWeight = calculateInventoryWeightLb(inventory);
     const computedWeight = Math.round((inventoryWeight + coinWeight) * 100) / 100;
     const packWeight = Number(ch?.currentWeight);
     const currentWeight = Number.isFinite(packWeight) ? packWeight : computedWeight;

@@ -42,7 +42,7 @@ export function validateEquipItemIntent(payload: EquipItemPayload): RuleCheckRes
         status: 'accepted',
         reason: payload.equipped ? 'Equipar item autorizado.' : 'Desequipar item autorizado.',
         authoritativeSignature: `equip:${key}:${payload.equipped}`,
-        data: payload,
+        data: { ...payload } as Record<string, unknown>,
     };
 }
 

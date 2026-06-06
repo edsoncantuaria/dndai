@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import createError from 'http-errors';
+import { sendHttpError } from '../../httpErrorReply.js';
 import { getUnifiedDetails, getUnifiedList } from '../../../GameMaster/homebrew/unifiedDataService.js';
 
 async function resolveDataUserId(app: FastifyInstance, request: FastifyRequest): Promise<number> {
@@ -11,10 +11,7 @@ async function resolveDataUserId(app: FastifyInstance, request: FastifyRequest):
 }
 
 function sendErr(reply: FastifyReply, err: unknown) {
-    if (createError.isHttpError(err)) {
-        return reply.status(err.statusCode).send({ message: err.message });
-    }
-    throw err;
+    return sendHttpError(reply, err);
 }
 
 export async function dataRoutes(app: FastifyInstance): Promise<void> {

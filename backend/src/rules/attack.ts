@@ -3,6 +3,7 @@ import { getSrdResource } from '../services/srdCatalogService.js';
 import { computeAbilityBonus, getAttackAbility } from './utils.js';
 import { deriveAttackModifiers } from './combat.js';
 import { resolveWeaponAmmunitionCost, countAmmoInInventory } from './ammunition.js';
+import { asSrdRecord } from './srdRecord.js';
 import type {
     RuleCheckResult,
     RulesCharacterSnapshot,
@@ -13,7 +14,7 @@ export async function validateWeaponAttack(
     character: RulesCharacterSnapshot,
     intent: WeaponAttackIntent
 ): Promise<RuleCheckResult> {
-    const weapon = await getSrdResource('equipment', intent.weaponIndex);
+    const weapon = asSrdRecord(await getSrdResource('equipment', intent.weaponIndex));
     if (!weapon) {
         return {
             status: 'rejected',
@@ -65,6 +66,9 @@ export async function validateWeaponAttack(
         modifierBreakdown.push(...attackModifierReport.reasons);
     }
 
+    const w = weapon;
+    const damage = w.damage as { damage_dice?: string; damage_type?: { name?: string } } | undefined;
+    const properties = (w.properties as Array<{ name?: string }> | undefined) ?? [];
     const ammo = resolveWeaponAmmunitionCost(character, intent.weaponIndex, weapon);
     if (ammo && 'error' in ammo) {
         return { status: 'rejected', reason: ammo.error };
@@ -95,8 +99,8 @@ export async function validateWeaponAttack(
                     kind: 'weapon',
                     index: weapon.index,
                     name: weapon.name,
-                    damageDice: weapon.damage?.damage_dice,
-                    damageType: weapon.damage?.damage_type?.name,
+                    damageDice: damage?.damage_dice,
+                    damageType: damage?.damage_type?.name,
                 },
                 targets: intent.targetArmorClass
                     ? [
@@ -108,8 +112,8 @@ export async function validateWeaponAttack(
                           },
                       ]
                     : undefined,
-                damageFormula: weapon.damage?.damage_dice ?? undefined,
-                damageType: weapon.damage?.damage_type?.name ?? undefined,
+                damageFormula: damage?.damage_dice ?? undefined,
+                damageType: damage?.damage_type?.name ?? undefined,
                 resourceCosts,
                 effect: 'attack',
             },
@@ -118,8 +122,8 @@ export async function validateWeaponAttack(
             weapon: {
                 index: weapon.index,
                 name: weapon.name,
-                damage: weapon.damage,
-                properties: weapon.properties?.map((prop: any) => prop.name) ?? [],
+                damage: damage,
+                properties: properties.map(prop => prop.name).filter(Boolean) as string[],
             },
             ability,
             proficient,
@@ -127,8 +131,8 @@ export async function validateWeaponAttack(
         stateDelta: {
             pendingAttack: {
                 weapon: weapon.name,
-                damageFormula: weapon.damage?.damage_dice ?? '1d6',
-                damageType: weapon.damage?.damage_type?.name ?? 'físico',
+                damageFormula: damage?.damage_dice ?? '1d6',
+                damageType: damage?.damage_type?.name ?? 'físico',
             },
         },
     };

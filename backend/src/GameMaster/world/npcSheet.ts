@@ -92,12 +92,12 @@ export type BuiltNpcSheet = {
 };
 
 const ARCHETYPE_ATTRS: Record<NpcArchetype, NpcSrdBuild['attributes']> = {
-    commoner: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
-    guard: { str: 14, dex: 12, con: 13, int: 10, wis: 11, cha: 10 },
-    expert: { str: 12, dex: 10, con: 12, int: 13, wis: 11, cha: 10 },
-    scout: { str: 10, dex: 14, con: 11, int: 12, wis: 12, cha: 10 },
-    acolyte: { str: 10, dex: 10, con: 11, int: 12, wis: 14, cha: 12 },
-    veteran: { str: 15, dex: 12, con: 14, int: 11, wis: 12, cha: 11 },
+    commoner: { strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10 },
+    guard: { strength: 14, dexterity: 12, constitution: 13, intelligence: 10, wisdom: 11, charisma: 10 },
+    expert: { strength: 12, dexterity: 10, constitution: 12, intelligence: 13, wisdom: 11, charisma: 10 },
+    scout: { strength: 10, dexterity: 14, constitution: 11, intelligence: 12, wisdom: 12, charisma: 10 },
+    acolyte: { strength: 10, dexterity: 10, constitution: 11, intelligence: 12, wisdom: 14, charisma: 12 },
+    veteran: { strength: 15, dexterity: 12, constitution: 14, intelligence: 11, wisdom: 12, charisma: 11 },
 };
 
 const ARCHETYPE_HIT_DIE: Record<NpcArchetype, number> = {

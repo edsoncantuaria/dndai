@@ -152,7 +152,7 @@ export async function createNpcEntity(opts: {
             visual: {},
             poiId: opts.poiId ?? null,
             createdByUserId: opts.createdByUserId ?? null,
-            source: process.env.PENAI_SKIP_NPC_EMBED === 'true' ? 'cursor-auto' : 'ai_generated',
+            source: 'ai_generated',
             locale: 'pt-BR',
         }),
     );

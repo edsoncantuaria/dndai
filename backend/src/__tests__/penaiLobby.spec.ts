@@ -1,17 +1,10 @@
-import { describe, it, before } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ensurePenaiTestDb } from './helpers/penaiTestDb.js';
+import { penaiIntegrationDescribe } from './helpers/penaiIntegrationDescribe.js';
 import { listGameSessions, createGameSession, getGameSession } from '../GameMaster/sessions/sessionService.js';
 import { formatMechanicalPack } from '../GameMaster/character/formatMechanicalPack.js';
 
-const dbDescribe = process.env.DATABASE_URL ? describe : describe.skip;
-
-dbDescribe('penai lobby v2 (integration)', () => {
-    before(async () => {
-        const ok = await ensurePenaiTestDb();
-        if (!ok) throw new Error('PostgreSQL indisponível para testes PENAI');
-    });
-
+penaiIntegrationDescribe('penai lobby v2 (integration)', () => {
     it('createGameSession + listGameSessions retorna sessão do usuário', async () => {
         const userId = 9001;
         const created = await createGameSession({

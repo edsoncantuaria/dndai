@@ -12,6 +12,7 @@ Decisões arquiteturais irreversíveis ou controversas vivem aqui — **não** d
 | ADR | Status | Resumo |
 |-----|--------|--------|
 | [0001-action-sense-vs-motor.md](./0001-action-sense-vs-motor.md) | Accepted | actionSense LLM ≠ motor SRD; sem schema adjudicação monolítica |
+| [0002-penai-only-cut.md](./0002-penai-only-cut.md) | Accepted | Remoção MySQL/BullMQ/Express; runtime único PENAI |
 
 ## Regra
 

@@ -4,6 +4,9 @@ import assert from 'node:assert/strict';
 const sampleByok = `AIzaSyD${'x'.repeat(30)}`;
 
 test('geminiActionSenseProvider — sem chave retorna acceptable=false', async () => {
+    const prevBilling = process.env.AI_PLATFORM_BILLING_ENABLED;
+    process.env.AI_PLATFORM_BILLING_ENABLED = 'false';
+
     const { geminiActionSenseProvider } = await import(
         '../GameMaster/adapters/gemini/actionSense.js'
     );
@@ -16,6 +19,9 @@ test('geminiActionSenseProvider — sem chave retorna acceptable=false', async (
     assert.equal(r.acceptable, false);
     assert.match(r.reason, /indisponível|ausente/i);
     assert.ok(r.playerFacingHint?.includes('BYOK') || r.playerFacingHint?.includes('Configurações'));
+
+    if (prevBilling !== undefined) process.env.AI_PLATFORM_BILLING_ENABLED = prevBilling;
+    else delete process.env.AI_PLATFORM_BILLING_ENABLED;
 });
 
 test('resolveGeminiApiKey — BYOK tem prioridade e alimenta árbitro', async () => {

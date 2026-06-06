@@ -95,12 +95,12 @@ export function usePenaiWorldBootstrap(sessionId: number | null, enabled: boolea
                     return result;
                 }
 
-                if (result.async && result.worldBootstrap.status !== 'ready') {
+                if (result.async) {
                     await pollUntilReady(sid);
                     return result;
                 }
 
-                setReady(result.worldBootstrap.status === 'ready');
+                setReady(false);
                 return result;
             } catch (err) {
                 const msg = err instanceof Error ? err.message : 'Falha ao criar o mundo';

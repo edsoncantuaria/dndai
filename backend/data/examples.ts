@@ -1,7 +1,7 @@
 // backend/data/examples.ts
-import { HomebrewContentType } from '../src/services/homebrewService.js';
+import type { PenaiHomebrewContentType } from '../src/GameMaster/database/entities/HomebrewContent.js';
 
-export const EXAMPLES: Record<HomebrewContentType, any> = {
+export const EXAMPLES: Record<PenaiHomebrewContentType, any> = {
   race: {
     "name": "Anão",
     "speed": 25,
@@ -285,5 +285,9 @@ export const EXAMPLES: Record<HomebrewContentType, any> = {
       "• Escalar não custa movimento extra.",
       "• Você pode fazer um salto em distância ou em altura com corrida após percorrer apenas 1,5 metro a pé, em vez de 3 metros."
     ]
-  }
+  },
+  translation: { name: 'Tradução exemplo', locale: 'pt-BR', sourceIndex: 'human', content: {} },
+  skill: { name: 'Percepção', index: 'perception', desc: ['Exemplo de perícia.'] },
+  trait: { name: 'Traço exemplo', desc: ['Descrição de traço racial.'] },
+  feature: { name: 'Recursos exemplo', desc: ['Descrição de feature de classe.'] },
 };

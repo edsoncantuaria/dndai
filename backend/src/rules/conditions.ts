@@ -1,5 +1,6 @@
 // backend/src/rules/conditions.ts
 import { listSrdResources } from '../services/srdCatalogService.js';
+import { asSrdRecord } from './srdRecord.js';
 
 export interface ConditionEffect {
     speedMultiplier?: number;
@@ -101,13 +102,15 @@ export const CONDITION_MAP: Record<string, ConditionEffect> = {
 
 export async function getNormalizedConditions(): Promise<NormalizedCondition[]> {
     const rawConditions = await listSrdResources('conditions');
-    return rawConditions.map(condition => {
-        const normalizedIndex = condition.index;
+    return rawConditions.map(raw => {
+        const condition = asSrdRecord(raw)!;
+        const normalizedIndex = String(condition.index ?? '');
         const effects = CONDITION_MAP[normalizedIndex] ?? {};
+        const desc = condition.desc;
         return {
             index: normalizedIndex,
-            name: condition.name,
-            description: condition.desc ?? [],
+            name: String(condition.name ?? normalizedIndex),
+            description: Array.isArray(desc) ? desc.map(String) : [],
             effects,
         };
     });

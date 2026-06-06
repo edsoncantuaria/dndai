@@ -57,8 +57,8 @@ function entryToDraft(entry: AutoCanonNpcMockEntry): BootstrapNpcDraft {
         role: entry.role.trim(),
         description: entry.description.trim(),
         goal: entry.goal.trim(),
-        tier: entry.tier,
-        maxHp: entry.maxHp,
+        tier: entry.tier ?? 'common',
+        maxHp: entry.maxHp ?? 10,
         aiSheet,
     };
 }

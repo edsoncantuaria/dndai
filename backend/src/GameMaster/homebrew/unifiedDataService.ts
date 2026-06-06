@@ -150,8 +150,8 @@ export async function invalidateUserCache(userId: number) {
                 cursor = scanResult.cursor;
                 const keysToDelete = scanResult.keys;
 
-                if (keysToDelete.length > 0) {
-                    await redisClient.del(...keysToDelete);
+                if (keysToDelete.length > 0 && redisClient) {
+                    await redisClient.del(keysToDelete);
                     console.log(`[Cache] Invalidadas ${keysToDelete.length} chaves de cache antigas para o usuário ${userId}.`);
                 }
             } while (cursor !== '0');
@@ -168,7 +168,7 @@ async function getOfficialList(resource: string): Promise<any[]> {
   const listKey = globalKey(resource);
   const useCache = redisClient && redisClient.isOpen;
 
-  if (useCache) {
+  if (useCache && redisClient) {
     try {
       const cached = await redisClient.get(listKey);
       if (cached) {
@@ -185,10 +185,7 @@ async function getOfficialList(resource: string): Promise<any[]> {
 
   // 🔧 Aqui está o ponto crítico:
   // Asseguramos que o método seja chamado corretamente independente da exportação
-  const getListFn =
-    DndApi.getResourceList ||
-    DndApi.getList ||
-    (typeof DndApi === 'function' ? DndApi : null);
+  const getListFn = DndApi.getResourceList;
 
   if (!getListFn) {
     throw new Error('[UnifiedDataService] Erro: DndApi.getResourceList não está definido.');
@@ -197,7 +194,7 @@ async function getOfficialList(resource: string): Promise<any[]> {
   const data = await getListFn.call(DndApi, resource);
   const results = data?.results || [];
 
-  if (useCache && data) {
+  if (useCache && redisClient && data) {
     try {
       await redisClient.set(listKey, JSON.stringify(data));
       console.log(`[Cache] SET persistente: ${listKey}`);
@@ -218,7 +215,7 @@ async function getOfficialDetails(resource: string, index: string): Promise<any 
   const key = globalKey(normalizedResource, normalizedIndex);
   const useCache = redisClient && redisClient.isOpen;
 
-  if (useCache) {
+  if (useCache && redisClient) {
     try {
       const cached = await redisClient.get(key);
       if (cached && cached !== 'null' && cached !== '{}') {
@@ -245,7 +242,7 @@ async function getOfficialDetails(resource: string, index: string): Promise<any 
 
   const data = await getDetailsFn.call(DndApi, resource, index);
 
-  if (useCache && data && isValidResourceDetail(normalizedResource, normalizedIndex, data)) {
+  if (useCache && redisClient && data && isValidResourceDetail(normalizedResource, normalizedIndex, data)) {
     try {
       await redisClient.set(key, JSON.stringify(data));
     } catch (err) {

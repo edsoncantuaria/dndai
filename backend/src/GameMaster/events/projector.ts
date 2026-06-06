@@ -141,15 +141,6 @@ const projectTravelCompleted: ProjectorFn = async event => {
 const projectFactionTickCombined: ProjectorFn = async event => {
     await projectFactionDelta(event);
     await projectFactionInfluence(event);
-    const { resolveSessionShardId } = await import('../world/shardResolver.js');
-    const { maybeTransitionPoliticsAfterFactionTick } = await import('../world/politicsState.js');
-    const shardId = await resolveSessionShardId(event.sessionId);
-    await maybeTransitionPoliticsAfterFactionTick({
-        sessionId: event.sessionId,
-        shardId,
-        regionSlug: String(event.payload.regionSlug ?? ''),
-        goal: String(event.payload.goal ?? ''),
-    });
 };
 
 const projectRegionMood: ProjectorFn = async event => {
@@ -270,6 +261,7 @@ export async function projectSessionWorldState(sessionId: number): Promise<Proje
 }
 
 export async function applyEventProjection(event: WorldEvent): Promise<void> {
+    if (event.sessionId == null) return;
     const ctx = {
         type: event.type,
         sessionId: event.sessionId,
@@ -281,4 +273,11 @@ export async function applyEventProjection(event: WorldEvent): Promise<void> {
         await projector(ctx);
     }
     await projectEventToKnowledgeGraph(ctx);
+
+    const { evaluateNarrativeTriggers } = await import('../narrative/triggerEngine.js');
+    await evaluateNarrativeTriggers({
+        sessionId: event.sessionId,
+        eventType: event.type,
+        eventPayload: event.payload ?? {},
+    });
 }

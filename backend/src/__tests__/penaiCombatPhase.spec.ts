@@ -1,18 +1,11 @@
-import { describe, it, before } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ensurePenaiTestDb } from './helpers/penaiTestDb.js';
+import { penaiIntegrationDescribe } from './helpers/penaiIntegrationDescribe.js';
 import { createGameSession } from '../GameMaster/sessions/sessionService.js';
 import { startPenaiCombat, getPenaiCombatState } from '../GameMaster/combat/engine.js';
 import { normalizePenaiCombatPhase } from '../GameMaster/combat/phaseGate.js';
 
-const dbDescribe = process.env.DATABASE_URL ? describe : describe.skip;
-
-dbDescribe('penai combat FSM (integration)', () => {
-    before(async () => {
-        const ok = await ensurePenaiTestDb();
-        if (!ok) throw new Error('PostgreSQL indisponível');
-    });
-
+penaiIntegrationDescribe('penai combat FSM (integration)', () => {
     it('startPenaiCombat persiste iniciativa d20 e fases canônicas', async () => {
         const created = await createGameSession({
             userId: 9101,

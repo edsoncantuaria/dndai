@@ -53,31 +53,35 @@ function mapMemoryToWorldRegistroEntry(row: SessionMemory): WorldRegistroEntry {
 /** Desbloqueia turno se a narração falhou no worker (actionCursor preso). */
 export async function reconcileStaleNarrationLock(sessionId: number): Promise<boolean> {
     const session = await getGameSession(sessionId);
-    if (!session || session.actionSequence <= session.actionCursor) return false;
+    if (!session) return false;
+    const actionSequence = Number(session.actionSequence ?? 0);
+    const actionCursor = Number(session.actionCursor ?? 0);
+    if (actionSequence <= actionCursor) return false;
 
     const memRepo = PenaiDataSource.getRepository(SessionMemory);
     const narrationCount = await memRepo.count({
         where: { sessionId, storyKind: 'narration', decayedAt: IsNull() },
     });
 
-    if (narrationCount >= session.actionSequence) {
-        await completePenaiTurnNarration(sessionId, session.actionSequence);
+    if (narrationCount >= actionSequence) {
+        await completePenaiTurnNarration(sessionId, actionSequence);
         penaiPipelineLog(
             'NARRATION',
             'actionCursor recuperado (narrações já persistidas)',
-            { actionSequence: session.actionSequence, actionCursor: session.actionCursor },
+            { actionSequence, actionCursor },
             { sessionId },
         );
         return true;
     }
 
-    const staleMs = Date.now() - new Date(session.updatedAt).getTime();
+    const updatedAt = session.updatedAt;
+    const staleMs = Date.now() - new Date(String(updatedAt ?? Date.now())).getTime();
     if (staleMs > 5 * 60 * 1000) {
-        await rollbackPenaiTurnOnNarrationFailure(sessionId, session.actionSequence);
+        await rollbackPenaiTurnOnNarrationFailure(sessionId, actionSequence);
         penaiPipelineLog(
             'NARRATION',
             'lock stale revertido — narração nunca concluiu (sem auto-complete)',
-            { actionSequence: session.actionSequence, staleMs },
+            { actionSequence, staleMs },
             { sessionId },
         );
         return true;

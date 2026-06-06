@@ -6,7 +6,7 @@
 
 | # | Documento | O que valida |
 |---|-----------|--------------|
-| 1 | **[ECOSSISTEMA.md](./ECOSSISTEMA.md)** | Motor, DM, IA/OSS, filas P4/P5, WS, MySQL, Redis, Qdrant, RAG, snapshot, homebrew, schemas, deploy |
+| 1 | **[ECOSSISTEMA.md](./ECOSSISTEMA.md)** | Motor PENAI, DM, IA Gemini, Temporal, WS v2, Postgres, Redis, Qdrant, RAG, homebrew, deploy |
 | 2 | **[DESIGN_FRONTEND.md](./DESIGN_FRONTEND.md)** | UI v2, tokens WotC-adjacent, GameplayShell, pipeline visual do turno, homebrew UI |
 | 3 | **[MOM_DESENVOLVIMENTO.md](./MOM_DESENVOLVIMENTO.md)** | MOM **só para dev/docs** (pasta `mom/`) — não é runtime da partida |
 | 4 | **`TODO-ARQUITETURA.md`** (raiz) | Pendências e comandos operacionais |
@@ -99,36 +99,34 @@
 
 ## Checklist de validação (marcar na revisão)
 
-### Arquitetura core
+### Arquitetura core (PENAI)
 
-- [ ] `narration_only` — campos mecânicos do LLM descartados antes de persistir
-- [ ] `executionSource: worker` — `shouldSkipMechanicalPersistence` em combate/ficha
-- [ ] `submitRollResult` aplica pós-roll no síncrono; worker só narra
-- [ ] `actionSequence` incrementado no dispatch; stale abort no worker
-- [ ] Idempotência `narration_completions` em retry BullMQ
-- [ ] `SKIP_NARRATION_WORKERS` + container `narration-worker` no Compose
+- [ ] `GAME_MOTOR.validateAndApply` autoritativo — IA não persiste HP/inventário
+- [ ] Narração via Temporal `penai-narration` (ou síncrona se `TEMPORAL_DISABLED`)
+- [ ] `submitRollResult` aplica pós-roll no motor; worker só narra
+- [ ] `actionSequence` monotônico; `isStaleNarrationTurn` aborta fila obsoleta
+- [ ] Worker Temporal separado: `npm run worker:temporal` quando `SKIP_TEMPORAL_WORKER=true`
 
 ### Dados e memória
 
-- [ ] SessionFact append-only; recall por região/NPC/quest
-- [ ] Qdrant `session_memories` + backlog MySQL se embed falha
-- [ ] Snapshot Redis com `gz1:` acima de ~2KB
+- [ ] Postgres `game_sessions` + overlays `session_*` por campanha
+- [ ] Qdrant via `adapters/qdrant/vectorStore.ts`; fallback SQL
 - [ ] MOM **não** chamado em runtime de partida
 
 ### IA
 
-- [ ] OSS minimal JSON + registry de `actionOptions`
-- [ ] `json_repair_alert` em `/api/admin/ai-metrics`
-- [ ] Consistência heurística sem retry LLM automático (custo)
-- [ ] Risco documentado: `:free` + `OSS_MAX_API_ATTEMPTS=1` → fallback genérico
+- [ ] Gemini structured JSON; `GEMINI_MAX_ATTEMPTS=1`
+- [ ] actionOptions do registry mecânico (default; LLM opcional)
+- [ ] BYOK: `resolveGeminiApiKey` fail-closed sem billing de plataforma
+- [ ] actionSense heurísticas locais + Gemini opcional via adapter
 
 ### Frontend
 
-- [ ] Tokens `dnd.*` (ember/gold/obsidian) vs legado stone/amber
-- [ ] `turnPipeline`: idle → rolling → mechanical → narrating
-- [ ] **InputGate (BG3-like):** ações state-changing bloqueadas até `narrationComplete` (dock + free actions)
+- [ ] Tokens `dnd.*` (ember/gold/obsidian)
+- [ ] Fases PENAI: `idle` → `rolling` → `mechanical` → `narrating`
+- [ ] **InputGate:** dock bloqueado em roll/narrating; bootstrap abertura liberado
 - [ ] `latestActionSequenceRef` descarta WS antigo
-- [ ] Homebrew: instalar na sessão reflete em listas unificadas
+- [ ] `dedupeSensoryTail` no `PenaiStoryFeed`
 
 ---
 
@@ -137,9 +135,9 @@
 ### Aceite mínimo (para liberar staging)
 
 - **Sem race mecânico:** nenhuma escrita de combate/ficha pelo worker em cenários de spam de ações/rolagens.
-- **Ordem e cancelamento:** `actionSequence` monotônico; `narrationCancelled` limpa loading; cliente não “volta no tempo”.
-- **Degradação segura:** sem Redis, o sistema falha de forma explícita ou narra inline sem corromper estado.
-- **Deploy split:** API sobe com `SKIP_NARRATION_WORKERS=true` e o worker consome a fila separadamente.
+- **Ordem e cancelamento:** `actionSequence` monotônico; `narrationFailed` limpa loading; cliente não “volta no tempo”.
+- **Degradação segura:** sem Redis/Temporal, narração inline ou erro explícito sem corromper estado.
+- **Deploy split:** API + `worker:temporal` (ou `dev:all` Docker).
 
 ### Aceite para produção “de verdade”
 

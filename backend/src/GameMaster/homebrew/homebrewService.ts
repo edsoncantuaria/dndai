@@ -111,9 +111,9 @@ export const createHomebrewFromSrd = async (authorId: number, data: z.infer<type
         sourceKind: data.sourceKind,
         sourceResource: data.sourceResource,
         sourceIndex: data.sourceIndex,
-        locale: data.locale,
+        locale: data.locale ?? 'pt-BR',
         dependencies: data.dependencies,
-    });
+    } as z.infer<typeof CreateHomebrewSchema>);
 };
 
 export const updateHomebrewContent = async (contentId: string, authorId: number, data: z.infer<typeof CreateHomebrewSchema>) => {
@@ -416,7 +416,7 @@ export const importBundle = async (
 
     for (const item of manifest.contents) {
         const saved = await createHomebrewContent(authorId, {
-            type: item.type as HomebrewContentType,
+            type: item.type as z.infer<typeof CreateHomebrewSchema>['type'],
             name: item.name,
             content: item.content,
             isPublic: false,
@@ -425,7 +425,7 @@ export const importBundle = async (
             sourceIndex: item.sourceIndex,
             locale: item.locale ?? 'pt-BR',
             dependencies: [],
-        });
+        } as unknown as z.infer<typeof CreateHomebrewSchema>);
         created.push(saved);
         idByKey.set(item.exportKey, saved.id);
     }

@@ -93,7 +93,7 @@ export function usePenaiMechanicalSync() {
             const next: Character = { ...prev };
 
             if (nome != null && String(nome).trim()) {
-                next.nome = String(nome);
+                next.name = String(nome);
             }
             if (level != null && Number.isFinite(Number(level))) {
                 next.level = Number(level);

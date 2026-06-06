@@ -50,6 +50,7 @@ export interface RollRequestMetadata {
     damageType?: string;
     resourceCosts?: RollResourceCost[];
     effect?: RollEffect;
+    attackerEntityId?: string;
 }
 
 export interface RollRequest {

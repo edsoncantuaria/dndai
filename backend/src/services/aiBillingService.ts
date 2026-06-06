@@ -1,10 +1,6 @@
-import { AppDataSource } from '../database/data-source.js';
-import { User } from '../entities/User.js';
-import { PenaiDataSource } from '../GameMaster/database/data-source.js';
 import { AI_PRODUCT } from '../config/aiProductDefaults.js';
 import {
     isGoogleApiKey,
-    resolveGeminiApiKey,
     hasResolvableGeminiKey,
 } from '../GameMaster/ai/apiKeyResolve.js';
 
@@ -20,6 +16,12 @@ export type AiAccessStatus = {
     creditsUsed: number;
     platformBillingEnabled: boolean;
     includedCreditsPerSignup: number;
+};
+
+type CreditUser = {
+    aiCreditsRemaining?: number | null;
+    aiCreditsUsed?: number | null;
+    apiKey?: string | null;
 };
 
 const toBoolean = (value: string | undefined, fallback = false) =>
@@ -43,7 +45,7 @@ export function isGeminiEngineEnabled(): boolean {
 }
 
 export function buildAiAccessStatus(
-    user: Pick<User, 'aiCreditsRemaining' | 'aiCreditsUsed'>,
+    user: Pick<CreditUser, 'aiCreditsRemaining' | 'aiCreditsUsed'>,
     userKey?: string | null,
 ): AiAccessStatus {
     const platformBillingEnabled = isPlatformBillingEnabled();
@@ -82,20 +84,10 @@ export function buildAiAccessStatus(
 }
 
 export async function resolveInferenceApiKey(userId: number): Promise<string | null> {
-    if (PenaiDataSource.isInitialized) {
-        const { resolvePenaiInferenceApiKey } = await import(
-            '../GameMaster/auth/penaiAiBillingService.js'
-        );
-        const penaiKey = await resolvePenaiInferenceApiKey(userId);
-        if (penaiKey) return penaiKey;
-    }
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOne({ where: { id: userId } });
-    if (!user) return null;
-    const status = buildAiAccessStatus(user, user.apiKey);
-    if (!status.canInfer) return null;
-    const key = resolveGeminiApiKey(user.apiKey);
-    return key || null;
+    const { resolvePenaiInferenceApiKey } = await import(
+        '../GameMaster/auth/penaiAiBillingService.js'
+    );
+    return resolvePenaiInferenceApiKey(userId);
 }
 
 export function hasResolvableInferenceKey(userKey?: string | null): boolean {
@@ -103,29 +95,13 @@ export function hasResolvableInferenceKey(userKey?: string | null): boolean {
 }
 
 export async function getAiAccessForUser(userId: number): Promise<AiAccessStatus | null> {
-    if (PenaiDataSource.isInitialized) {
-        const { getPenaiAiAccess } = await import('../GameMaster/auth/penaiAiBillingService.js');
-        const penai = await getPenaiAiAccess(userId);
-        if (penai) return penai;
-    }
-    const user = await AppDataSource.getRepository(User).findOne({ where: { id: userId } });
-    if (!user) return null;
-    return buildAiAccessStatus(user, user.apiKey);
+    const { getPenaiAiAccess } = await import('../GameMaster/auth/penaiAiBillingService.js');
+    return getPenaiAiAccess(userId);
 }
 
 export async function consumePlatformNarrationCredit(userId: number): Promise<boolean> {
-    if (PenaiDataSource.isInitialized) {
-        const { consumePenaiNarrationCredit } = await import(
-            '../GameMaster/auth/penaiAiBillingService.js'
-        );
-        return consumePenaiNarrationCredit(userId);
-    }
-    if (!isPlatformBillingEnabled()) return true;
-    const repo = AppDataSource.getRepository(User);
-    const user = await repo.findOne({ where: { id: userId } });
-    if (!user || (user.aiCreditsRemaining ?? 0) <= 0) return false;
-    user.aiCreditsRemaining = Math.max(0, (user.aiCreditsRemaining ?? 0) - 1);
-    user.aiCreditsUsed = (user.aiCreditsUsed ?? 0) + 1;
-    await repo.save(user);
-    return true;
+    const { consumePenaiNarrationCredit } = await import(
+        '../GameMaster/auth/penaiAiBillingService.js'
+    );
+    return consumePenaiNarrationCredit(userId);
 }

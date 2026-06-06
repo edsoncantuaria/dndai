@@ -47,8 +47,6 @@ export const useNewGameState = () => {
             }
             interactionState.clearTransientInteractions();
             interactionState.setActionOptions([]);
-            narration.setActionPhaseLabel('Aguarde o Mestre…');
-            narration.setIsLoading(true);
             if (structured) {
                 bridge.sendStructuredIntent(structured, playerAction);
             } else {
@@ -69,8 +67,6 @@ export const useNewGameState = () => {
                 });
                 return;
             }
-            narration.setActionPhaseLabel('Resolvendo rolagem…');
-            narration.setIsLoading(true);
             bridge.submitRollResult(request, result);
         },
         [narration, toast],
@@ -98,29 +94,11 @@ export const useNewGameState = () => {
     const isRollPending = Boolean(interactionState.playerRollRequest);
 
     useEffect(() => {
-        if (interactionState.playerRollRequest) {
-            narration.setActionPhaseLabel('Aguardando sua rolagem...');
-        } else if (pipelineRefs.pendingActionsRef.current.size === 0) {
-            narration.setActionPhaseLabel(prev => (prev?.includes('rolagem') ? null : prev));
-        }
-    }, [interactionState.playerRollRequest, narration.setActionPhaseLabel, pipelineRefs.pendingActionsRef]);
-
-    useEffect(() => {
         if (session.sessionId) {
             pipelineRefs.latestActionSequenceRef.current = 0;
             narration.resetActionPipeline(null);
         }
     }, [session.sessionId, narration.resetActionPipeline, pipelineRefs.latestActionSequenceRef]);
-
-    /** PENAI: sendMotorAction liga isLoading/label legado — liberar ao fim do turno WS. */
-    useEffect(() => {
-        const onSettled = () => {
-            narration.setIsLoading(false);
-            narration.setActionPhaseLabel(null);
-        };
-        window.addEventListener('penai-turn-settled', onSettled);
-        return () => window.removeEventListener('penai-turn-settled', onSettled);
-    }, [narration.setIsLoading, narration.setActionPhaseLabel]);
 
     const applyLevelUp = useCallback(
         async (selections: LevelUpSelections) => {

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import createError from 'http-errors';
+import { sendHttpError } from '../../httpErrorReply.js';
 import { PenaiDataSource } from '../../../GameMaster/database/data-source.js';
 import {
     createGameSession,
@@ -91,10 +91,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
                 memoryValidation,
             };
         } catch (err: unknown) {
-            if (createError.isHttpError(err)) {
-                return reply.status(err.statusCode).send({ message: err.message });
-            }
-            throw err;
+            return sendHttpError(reply, err);
         }
     });
 
@@ -180,10 +177,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
                 actionOptions: after.actionOptions,
             };
         } catch (err: unknown) {
-            if (createError.isHttpError(err)) {
-                return reply.status(err.statusCode).send({ message: err.message });
-            }
-            throw err;
+            return sendHttpError(reply, err);
         }
     });
 
@@ -198,10 +192,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
         try {
             return await listSessionStoryFeed(id, request.userId);
         } catch (err: unknown) {
-            if (createError.isHttpError(err)) {
-                return reply.status(err.statusCode).send({ message: err.message });
-            }
-            throw err;
+            return sendHttpError(reply, err);
         }
     });
 
@@ -216,10 +207,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
         try {
             return await listSessionWorldRegistro(id, request.userId);
         } catch (err: unknown) {
-            if (createError.isHttpError(err)) {
-                return reply.status(err.statusCode).send({ message: err.message });
-            }
-            throw err;
+            return sendHttpError(reply, err);
         }
     });
 
@@ -251,10 +239,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
             await assertSessionOwner(id, request.userId);
             return await loadSessionCampaignView(id);
         } catch (err: unknown) {
-            if (createError.isHttpError(err)) {
-                return reply.status(err.statusCode).send({ message: err.message });
-            }
-            throw err;
+            return sendHttpError(reply, err);
         }
     });
 
@@ -322,10 +307,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
             const character = await exportSessionHeroToVault(request.userId, id);
             return { character };
         } catch (err: unknown) {
-            if (createError.isHttpError(err)) {
-                return reply.status(err.statusCode).send({ message: err.message });
-            }
-            throw err;
+            return sendHttpError(reply, err);
         }
     });
 
@@ -341,10 +323,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
             const session = await clonePenaiSession(id, request.userId);
             return reply.status(201).send(session);
         } catch (err: unknown) {
-            if (createError.isHttpError(err)) {
-                return reply.status(err.statusCode).send({ message: err.message });
-            }
-            throw err;
+            return sendHttpError(reply, err);
         }
     });
 
@@ -359,10 +338,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
         try {
             return await buildPenaiSessionCast(id, request.userId);
         } catch (err: unknown) {
-            if (createError.isHttpError(err)) {
-                return reply.status(err.statusCode).send({ message: err.message });
-            }
-            throw err;
+            return sendHttpError(reply, err);
         }
     });
 
@@ -379,10 +355,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
         try {
             return await updatePenaiCastMember(id, request.userId, memberId, body);
         } catch (err: unknown) {
-            if (createError.isHttpError(err)) {
-                return reply.status(err.statusCode).send({ message: err.message });
-            }
-            throw err;
+            return sendHttpError(reply, err);
         }
     });
 
@@ -398,10 +371,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
             const entries = await listPenaiJournalEntries(id, request.userId);
             return { sessionId: id, entries };
         } catch (err: unknown) {
-            if (createError.isHttpError(err)) {
-                return reply.status(err.statusCode).send({ message: err.message });
-            }
-            throw err;
+            return sendHttpError(reply, err);
         }
     });
 
@@ -453,16 +423,18 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
             const markdown = await buildPenaiSessionReplayMarkdown(id, request.userId);
             return reply.type('text/markdown; charset=utf-8').send(markdown);
         } catch (err: unknown) {
-            if (createError.isHttpError(err)) {
-                return reply.status(err.statusCode).send({ message: err.message });
-            }
-            throw err;
+            return sendHttpError(reply, err);
         }
     });
 
     app.patch('/api/v2/sessions/:id/modules', auth, async (request, reply) => {
         const id = Number((request.params as { id: string }).id);
-        const body = request.body as { moduleId?: string; action?: 'install' | 'uninstall' };
+        const body = request.body as {
+            moduleId?: string;
+            action?: 'install' | 'uninstall';
+            version?: string;
+            kind?: 'translation' | 'race' | 'spellbook' | 'rule_patch';
+        };
         if (!body.moduleId || !body.action) {
             return reply.status(400).send({ message: 'moduleId e action são obrigatórios.' });
         }
@@ -481,10 +453,11 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
                 '../../../GameMaster/homebrew/moduleResolver.js'
             );
             const version = String(body.version ?? '1.0.0');
+            const kind = body.kind ?? 'rule_patch';
             const compat = await validateModuleInstall(id, {
                 moduleId: body.moduleId,
                 version,
-                kind: 'homebrew',
+                kind,
             });
             if (!compat.ok) {
                 return reply.status(409).send({ message: compat.reason ?? 'Conflito de módulos.' });
@@ -494,7 +467,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
                     sessionId: id,
                     moduleId: body.moduleId,
                     version,
-                    kind: 'homebrew',
+                    kind,
                     payload: {},
                 }),
             );

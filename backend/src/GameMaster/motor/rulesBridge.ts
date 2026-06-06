@@ -113,6 +113,7 @@ export async function validatePenaiSpellIntent(opts: {
         try {
             const result = await validateSpellAttack(snapshot, {
                 spellIndex,
+                ability: 'intelligence',
                 targetArmorClass: targetAc,
                 targetName: targets[0]?.name,
                 targetId: targets[0]?.id,
@@ -154,7 +155,7 @@ export async function validatePenaiSpellIntent(opts: {
             metadata: {
                 effect: 'attack',
                 damageFormula: '2d6+3',
-                source: { name: spellIndex || 'Magia' },
+                source: { kind: 'spell', name: spellIndex || 'Magia' },
                 targets: targets.length ? targets : undefined,
             },
         },
@@ -268,7 +269,7 @@ export async function validatePenaiCombatIntent(opts: {
             metadata: {
                 effect: 'attack',
                 damageFormula: '1d8+3',
-                source: { name: 'Ataque' },
+                source: { kind: 'weapon', name: 'Ataque' },
                 targets: targets.length ? targets : undefined,
             },
         },

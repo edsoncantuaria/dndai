@@ -8,18 +8,7 @@ import {
     updatePenaiUserHomebrewInstallation,
     updatePenaiUserSettings,
 } from '../../../GameMaster/auth/penaiUserService.js';
-import createError from 'http-errors';
-
-function sendHttpError(reply: FastifyReply, err: unknown) {
-    if (createError.isHttpError(err)) {
-        return reply.status(err.statusCode).send({
-            message: err.message,
-            error: err.message,
-            errors: (err as { errors?: unknown }).errors,
-        });
-    }
-    throw err;
-}
+import { sendHttpError } from '../../httpErrorReply.js';
 
 export async function userRoutes(app: FastifyInstance): Promise<void> {
     const auth = { preHandler: [app.authenticate] };

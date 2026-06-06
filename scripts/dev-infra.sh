@@ -3,9 +3,8 @@ set -e
 cd "$(dirname "$0")/.."
 
 echo "▶ Subindo infraestrutura PENAI (Postgres, Redis, Temporal, Temporal UI, Qdrant)…"
-docker compose -f docker-compose.penai.yml --profile penai up -d postgres redis temporal temporal-ui qdrant
-docker compose up -d srd-db srd-cache srd-api minio piper 2>/dev/null || \
-  docker compose up -d redis qdrant minio piper 2>/dev/null || true
+docker compose -p dndai-penai -f docker-compose.penai.yml --profile penai up -d postgres redis temporal temporal-ui qdrant
+docker compose up -d srd-db srd-cache srd-api minio piper
 
 echo "▶ Garantindo namespace Temporal 'penai'…"
 if docker compose -f docker-compose.penai.yml --profile penai ps -q temporal 2>/dev/null | grep -q .; then

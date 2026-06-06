@@ -193,9 +193,12 @@ export async function updatePenaiCastMember(
 
     if (patch.vitals) {
         const combatantRepo = PenaiDataSource.getRepository(SessionCombatant);
-        const row = await combatantRepo.findOne({
-            where: { sessionId, entityKey: memberId },
-        });
+        const row = await combatantRepo
+            .createQueryBuilder('c')
+            .innerJoin('c.encounter', 'e')
+            .where('e.sessionId = :sessionId', { sessionId })
+            .andWhere('c.entityKey = :memberId', { memberId })
+            .getOne();
         if (row) {
             if (patch.vitals === 'dead') row.hpCurrent = 0;
             if (patch.vitals === 'alive' && row.hpCurrent <= 0) row.hpCurrent = Math.max(1, row.hpMax);

@@ -1,4 +1,4 @@
-import type { ActionIntent } from '../../rules/actionIntentService.js';
+import type { ActionIntent } from '../../rules/actionIntentTypes.js';
 import { listNormalizedSkills } from '../../rules/skills.js';
 import type { SkillCheckIntentPayload } from '../../rules/types.js';
 import {

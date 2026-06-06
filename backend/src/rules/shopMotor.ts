@@ -1,7 +1,11 @@
-import createError from 'http-errors';
 import type { RuleCheckResult } from './types.js';
 import type { CombatState } from '../schemas/gameSchemas.js';
-import { assertShopAllowedDuringCombat } from '../services/shopMotorService.js';
+
+function assertShopAllowedDuringCombat(combatActive: boolean): void {
+    if (combatActive) {
+        throw new Error('Loja indisponível durante combate.');
+    }
+}
 
 export type OpenShopPayload = {
     name?: string;

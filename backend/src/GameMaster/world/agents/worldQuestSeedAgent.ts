@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { penaiEnv } from '../../../config/penaiEnv.js';
-import { parseGameMasterJson } from '../../../ai/responseParser.js';
+import { parseGameMasterJson } from '../../ai/responseParser.js';
 import { translateLlmPayload } from '../../ai/llmJsonTranslator.js';
 import { WORLD_QUEST_SEED_LLM_DICTIONARY } from '../../ai/llmJsonSchemas.js';
 import { WORLD_QUEST_SEED_RESPONSE_JSON_SCHEMA } from '../../ai/geminiSchemas.js';
@@ -77,7 +77,7 @@ export async function generateBootstrapQuests(opts: {
         failWorldGemini('quest', 'no_model', 'GEMINI_GENERATION_MODEL ausente');
     }
 
-    penaiPipelineAiRequest('worldBootstrap:quests', {}, { model }, ctx);
+    penaiPipelineAiRequest('worldBootstrap:quests', ctx, { model });
     const t0 = Date.now();
 
     try {
@@ -133,7 +133,7 @@ export async function generateBootstrapQuests(opts: {
             failWorldGemini('quest', 'empty_batch', 'Gemini não devolveu missões com regionSlug válido');
         }
 
-        penaiPipelineAiResponse('worldBootstrap:quests', {}, { ok: true, ms: Date.now() - t0 }, ctx);
+        penaiPipelineAiResponse('worldBootstrap:quests', ctx, { ok: true, ms: Date.now() - t0 });
         return { quests, source: 'gemini' };
     } catch (err) {
         if (err instanceof Error && err.name === 'WorldGeminiGenerationError') throw err;
@@ -143,7 +143,7 @@ export async function generateBootstrapQuests(opts: {
             { error: err instanceof Error ? err.message : String(err) },
             ctx,
         );
-        penaiPipelineAiResponse('worldBootstrap:quests', {}, { ok: false, ms: Date.now() - t0 }, ctx);
+        penaiPipelineAiResponse('worldBootstrap:quests', ctx, { ok: false, ms: Date.now() - t0 });
         failWorldGemini('quest', 'gemini_error', err instanceof Error ? err.message : String(err));
     }
 }
