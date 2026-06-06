@@ -12,10 +12,18 @@ Pasta **enxuta** — quatro documentos vivos + screenshots. Tudo o resto foi arq
 | **[ECOSSISTEMA.md](./ECOSSISTEMA.md)** | extenso | Motor, DM, IA/OSS, WS, MySQL, Redis, Qdrant, RAG, P0–P5, schemas, diagramas mermaid |
 | **[DESIGN_FRONTEND.md](./DESIGN_FRONTEND.md)** | extenso | WotC-adjacent, tokens, GameplayShell, turn pipeline, homebrew UI |
 | **[MOM_DESENVOLVIMENTO.md](./MOM_DESENVOLVIMENTO.md)** | curto | MOM só para dev/docs — não runtime da partida |
+| **[architecture/README.md](./architecture/README.md)** | modular | Deep-dives: WS, IA, auth, memória, motor, frontend |
 
 Roadmap tático: **`../TODO-ARQUITETURA.md`**
 
-Agentes Cursor: **`.cursor/rules/dndai-documentation-hub.mdc`**
+Agentes Cursor:
+
+- **`.cursor/rules/dndai-documentation-hub.mdc`** — índice skills + docs vivos
+- **`.cursor/rules/dndai-documentation-architect.mdc`** — Arquiteto Oficial (DoD: código + doc + diagrama + ADR)
+
+Decisões formais: **`adr/README.md`** · Gaps: **`architecture/gaps.md`** · **Módulos:** **`architecture/README.md`**
+
+Contexto agentes (MOM): **`mom/context/INDEX.md`** · Prompt: **`.cursor/prompts/mom-maintain-context.md`**
 
 ---
 

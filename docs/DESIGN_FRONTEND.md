@@ -4,7 +4,7 @@
 >
 > **Referência de atmosfera (não copiar assets):** [Dungeons & Dragons — site oficial](https://www.dungeonsanddragons.com/)
 >
-> **Última revisão:** maio de 2026 (V3 PENAI-only — remoção legado UI + sync mecânico WS v2)
+> **Última revisão:** junho de 2026 (V3 PENAI-only — `usePenaiTurnPipeline`; deep-dive: [`architecture/frontend-turn-pipeline.md`](./architecture/frontend-turn-pipeline.md))
 
 ---
 
@@ -240,28 +240,34 @@ Intent `equip-item` com `inventoryItemId` (UUID) ou `itemKey`; UI com botões ex
 
 ## 7. Pipeline visual do turno (BG3-like)
 
-> **Mesa PENAI** (`NEXT_PUBLIC_PENAI_WS=true`): mesmo pipeline via `usePenaiTurnPipeline` + WS v2 — ver [`PENAI.md`](./PENAI.md) §12. **Lobby:** nova aventura/continuar usa `POST/GET /api/v2/sessions` + `/mechanical` (`usePenaiGameSession`, `penaiCharacterAdapter`) — sem fetch MySQL de ficha no load.
+> **Caminho canônico V3:** `usePenaiTurnPipeline` + `turnPipelineStore` — **não** `useGameWebSocket` como autoridade de fase. Detalhe: [`architecture/frontend-turn-pipeline.md`](./architecture/frontend-turn-pipeline.md).
 
-Espelha o backend (ECOSSISTEMA §5).
+Espelha o backend PENAI (ECOSSISTEMA §8 + architecture/ws-pipeline-temporal).
 
 ```mermaid
 stateDiagram-v2
     [*] --> idle
     idle --> rolling: playerRollRequest
-    rolling --> mechanical: submitRollResult ack
-    idle --> mechanical: intent sem rolagem
-    mechanical --> narrating: narrationQueued
+    rolling --> mechanical: submitRollResult
+    idle --> mechanical: processAction (não bootstrap)
+    mechanical --> narrating: narrationQueued (!sync)
     rolling --> narrating: após roll + queue
-    narrating --> idle: narrationComplete
-    narrating --> idle: narrationCancelled
+    narrating --> idle: narrationComplete | falha | timeout 120s
+    narrating --> rolling: rollPriorityRef
 ```
 
-| Fase UI | Comportamento |
-|---------|---------------|
-| `idle` | Dock ativo; usuário pode agir |
-| `rolling` | Modal `DiceRollModal` + dice-box 3D |
-| `mechanical` | Toast / patch ficha visível |
-| `narrating` | “Motor validou” + DM narrando; dock e ações state-changing bloqueadas |
+| Fase UI | Gatilho (código) | Comportamento |
+|---------|------------------|---------------|
+| `idle` | `narrationComplete`, falha, reconnect | Dock e texto livre liberados |
+| `rolling` | `playerRollRequest`, `pendingRollState` | `DiceRollModal`; gate `LOCKED_ROLLING`; `rollPriorityRef` impede salto para `narrating` |
+| `mechanical` | `processAction`, `mechanicalStateUpdate` | Overlay motor; `PenaiMechanicalSync` patch ficha/combate |
+| `narrating` | `narrationQueued` (não-`sync`, fora bootstrap) | Banner Temporal em `PenaiStoryFeed`; gate `LOCKED_NARRATING` |
+
+### 7.0 Bootstrap de abertura
+
+- `sessionStorage` `cda:session:{id}:penaiOpening` evita reenviar prompt de abertura após hydrate.
+- `processAction` com `{ bootstrap: true }` mantém **`InputGate OPEN`** — jogador explora mapa enquanto LLM responde.
+- `narrationQueued` com `sync: true` ou durante bootstrap **não** trava fase.
 
 ### 7.1 InputGate (hard-lock até `narrationComplete`)
 
@@ -278,51 +284,70 @@ Estado `InputGate` (derivado do pipeline + sinais WS):
 
 **Regra de ouro:** liberar input state-changing **apenas** em `narrationComplete` (ou falha final + `stopLoading`).
 
-**Regra:** nunca commitar `gameStateUpdate` com `actionSequence` menor que `latestActionSequenceRef`.
+**Regra:** nunca commitar merge WS com `actionSequence` menor que `latestActionSequenceRef` (`usePenaiTurnPipeline`).
+
+### 7.2 Dedupe sensory (pendente)
+
+`dedupeSensoryTail` em `src/lib/narrationText.ts` remove âncora sensorial repetida no final da prosa — **testado**, ainda **não aplicado** em `PenaiStoryFeed` (gap P2).
 
 ---
 
 ## 8. Estado React e WebSocket
 
-### 8.1 Camadas de estado
+### 8.1 Camadas de estado (V3)
 
 | Camada | Responsabilidade |
 |--------|------------------|
-| `GameStateProvider` | Sessão ativa, personagem, log, combate |
-| `useNewGameState` | Agregador gameplay |
-| `useGameActions` | `processPlayerAction`, intents |
-| `useGameWebSocket` | Listeners WS |
-| `turnPipelineStore` | Fase UI do turno |
-| `InputGate` | “Hard-lock” do input state-changing |
-| `SettingsContext` | API key, TTS, modelo |
+| `PenaiGameplayContext` | WS ao vivo: `storyFeed`, `phase`, `lastMechanical`, envio ação |
+| `GameStateProvider` / `newUseGameState` | Ficha, combate, modais; `penaiBridge` para motor |
+| `usePenaiTurnPipeline` | **Autoridade de fase** — WS lifecycle, stale sequence filter |
+| `turnPipelineStore` | Pub/sub global `TurnPipelinePhase` + `InputGate` |
+| `useTurnPipeline` / `useInputGate` | Hooks reativos ao store |
+| `PenaiMechanicalSync` | Efeito: aplica `lastMechanical` na ficha/combate |
+| `SettingsContext` / `AuthContext` | Preferências, JWT `token`, `aiAccess` |
 
-### 8.2 Eventos WS ouvidos (mesa)
+Slices legados (`useGameNarrationSlice`, `isLoading`) coexistem para labels — **não** duplicar gate de fase.
+
+### 8.2 Eventos WS PENAI (handler principal: `usePenaiTurnPipeline`)
 
 | Evento | Efeito UI |
 |--------|-----------|
-| `mechanicalStateUpdate` | Patch HP/inventário/combate; fase `mechanical` |
-| `narrationQueued` | Fase `narrating` |
-| `narrationCancelled` | Libera loading ação antiga |
-| `gameStateUpdate` | Merge log + opções (com filtro sequence) |
-| `narrationComplete` | Volta `idle` |
-| `narrationStream` | Preview opcional — **não canônico** |
-| `startLoading` / `stopLoading` | Spinner global |
-| `pendingRollState` | Heal: reabre rolagem pendente após reconnect |
-| `storyFeedUpdate` / `uiStateReplay` | Crônica PENAI + opções pós-reconnect |
+| `connected` | Valida `contractVersion >= 2`, locale `pt-BR` |
+| `mechanicalStateUpdate` | Fase `mechanical`; patch via `PenaiMechanicalSync` |
+| `playerRollRequest` | Fase `rolling`; modal dados |
+| `narrationQueued` | Fase `narrating` (exceto bootstrap/sync) |
+| `storyFeed` / `storyFeedReplay` | Merge crônica `PenaiStoryFeed` |
+| `gameStateUpdate` | Opções + merge (filtro sequence) |
+| `narrationComplete` | Fase `idle`; libera gate |
+| `narrationFailed` / `actionRejected` | `idle` + toast; `penai-turn-settled` |
+| `syncPendingRoll` | Reconnect: reabre rolagem pendente |
 
-### 8.3 Fluxo envio de ação
+Mensagens com `actionSequence < latestActionSequenceRef` são **descartadas** (`isStaleSequence`).
+
+### 8.3 Auth e sessionStorage
+
+| Chave | Propósito |
+|-------|-----------|
+| `localStorage token` | JWT único — `authToken.ts` |
+| `cda:session:{id}:penaiOpening` | Evita reabertura duplicada |
+| `cda:session:{id}:penaiBootstrap` | Fallback `startGame` |
+| `dndai:session-opened:{id}` | Sessão aberta na aba (`sessionDevStorage`) |
+
+WS URL: `buildPenaiWsUrl(token)` → `/ws?token=…`
+
+### 8.4 Fluxo envio de ação (PENAI)
 
 ```mermaid
 sequenceDiagram
     participant U as Usuário
-    participant D as ActionDock
-    participant A as useGameActions
-    participant W as webSocketService
+    participant D as GameplayActionDock
+    participant P as usePenaiTurnPipeline
+    participant W as /ws PENAI
 
     U->>D: clica ação / texto
-    D->>A: processPlayerAction
-    A->>W: processAction { actionCursor++, actionId }
-    Note over W: ver ECOSSISTEMA §8
+    D->>P: sendProcessAction
+    P->>W: processAction { actionId, playerAction }
+    Note over W: ver architecture/ws-pipeline-temporal
 ```
 
 ---
@@ -463,6 +488,13 @@ Config: `narrationVoice` (faber, razo, miro, dii), `narrationSpeed` no WS.
 | Ember não único indicador de erro | Ícone + texto |
 | `prefers-reduced-motion` | Parcial — aplicar em heroes |
 | Touch ≥ 44px dock | Meta |
+| App Expo (Android/iOS) | `apps/mobile` — intro nativa + WebView do mesmo Next |
+
+### 12.1 App móvel (Expo)
+
+- **Cliente único:** após a intro orbital, `react-native-webview` carrega `EXPO_PUBLIC_WEB_APP_URL` (porta 9002 em dev) — mesma UI, API v2 e WS que o browser.
+- **Auth:** bridge injeta `localStorage.token` e espelha em `expo-secure-store` (chave JWT alinhada ao web).
+- **Dev em dispositivo:** `npm run dev:mobile:lan` (detecta IP, gera `.env.local`, sobe stack + Expo `--lan`). Next padrão escuta em `0.0.0.0:9002`; CORS dev aceita origens `192.168.*` (`penaiEnv.isDevLanOrigin`).
 
 ---
 

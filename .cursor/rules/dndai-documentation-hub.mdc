@@ -35,8 +35,10 @@ alwaysApply: true
 | Smoke sessão | `dndai-session-simulator` |
 | UI turno / dock | `dndai-frontend-turn-machine` |
 | Atualizar docs vivos | `dndai-documentation` |
+| Arquiteto / DoD documental | `dndai-documentation-architect` (rule `.cursor/rules/dndai-documentation-architect.mdc`) |
+| Recall / distill contexto dev | `dndai-mom-context` (rule `.cursor/rules/dndai-mom-context.mdc`, pasta `mom/context/`) |
 
-**Antes de implementar:** ler skill da área + trecho relevante de `ECOSSISTEMA.md` ou `DESIGN_FRONTEND.md`.
+**Antes de implementar:** ler skill da área + `mom/context/INDEX.md` + trecho de `ECOSSISTEMA.md` ou `DESIGN_FRONTEND.md`. Mudança arquitetural → ADR + diagrama + distill MOM.
 
 ## Invariantes (não reintroduzir)
 

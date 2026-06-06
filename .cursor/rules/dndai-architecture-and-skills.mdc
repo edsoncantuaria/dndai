@@ -34,8 +34,11 @@ Antes de implementar ou refatorar, verificar `.cursor/skills/` e `.cursor/AGENTS
 | Pipeline WS | `dndai-action-pipeline-refactor` |
 | Smoke / CI | `dndai-session-simulator` |
 | Frontend turno | `dndai-frontend-turn-machine` |
+| Recall / distill contexto dev | `dndai-mom-context` |
 
 Se a tarefa tocar qualquer linha acima, **ler a skill** (não improvisar). Roadmap: `TODO-ARQUITETURA.md`.
+
+**MOM:** recall `mom/context/INDEX.md` no início; distill no fim — rule `dndai-mom-context.mdc`, prompts `.cursor/prompts/mom-maintain-context.md`.
 
 ## Documentação viva
 

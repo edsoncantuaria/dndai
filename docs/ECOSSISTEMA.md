@@ -2,7 +2,7 @@
 
 > **Documento canônico** para revisão sênior, onboarding e agentes de IA. Descreve o sistema **como está implementado** (maio/2026). Complemento visual: **DESIGN_FRONTEND.md**. Índice de revisão: **VALIDACAO_SENIOR.md**.
 >
-> **Última revisão:** maio de 2026 (GameMaster 9/10: adapters, memory split, simulation engine, GOAP, world bootstrap, shard Temporal)
+> **Última revisão:** junho de 2026 (PENAI canônico; módulos em `docs/architecture/`; stack legado Express/MySQL marcado onde aplicável)
 
 ---
 
@@ -97,6 +97,11 @@ flowchart LR
 16. [Observabilidade e operação](#16-observabilidade-e-operação)
 17. [Roadmap e limitações honestas](#17-roadmap-e-limitações-honestas)
 18. [Glossário](#18-glossário)
+19. [Autenticação, conta e billing de IA](#19-autenticação-conta-e-billing-de-ia)
+
+**Deep-dives por domínio (jun/2026):** [`docs/architecture/README.md`](./architecture/README.md) — WS/Temporal, IA Gemini, auth, memória, motor, frontend.
+
+> **Atenção:** §4–5, §9 e Apêndice C descrevem **legado Express/MySQL/BullMQ**. Runtime ativo de sessões novas = **PENAI** (topo deste doc + módulos architecture).
 
 ---
 
@@ -135,16 +140,17 @@ O jogador **vê números e estado** antes do parágrafo longo. A IA **não** é 
 
 | Camada | Tecnologia |
 |--------|------------|
-| Frontend | Next.js 15, React 18, Tailwind, Framer Motion, Radix, `@3d-dice/dice-box` |
-| API | Express + `ws`, TypeORM |
-| MySQL | Sessões, personagens, combate, homebrew, facts, backlog vetorial |
-| Redis | BullMQ, cache, snapshot narrativo gzip |
-| Qdrant | Coleção `session_memories` (opcional) |
-| SRD | Fork 5e API + MongoDB |
-| LLM | OpenRouter (OSS); legado Gemini/OpenRouter |
-| Embed | OpenRouter Nemotron ~2048d |
-| TTS | Piper HTTP |
-| Auth | JWT |
+| Frontend | Next.js 15, React 18, Tailwind — mesa V3 PENAI (`usePenaiTurnPipeline`) |
+| API ativa | **Fastify PENAI** (`penaiServer.ts`) + WS v2 `/ws` |
+| API legada | Express + `ws`, TypeORM (MySQL) — manutenção |
+| Postgres | Sessões PENAI, combate, memória narrativa |
+| MySQL | Sessões legado, personagens, facts, backlog vetorial |
+| Redis | Pub/sub WS relay (`penai:ws:user`), cache, snapshot legado |
+| Qdrant | `penai_session_memories` (ativo) + `session_memories` (legado) |
+| Fila narração | **Temporal** `penai-narration` (ativo); BullMQ legado |
+| LLM | **Gemini** structured (BYOK ou plataforma); OSS legado OpenRouter |
+| Embed | **Gemini** `gemini-embedding-001` |
+| Auth | JWT v2 (`penai_users`) — ver §19 |
 
 ---
 
@@ -152,13 +158,16 @@ O jogador **vê números e estado** antes do parágrafo longo. A IA **não** é 
 
 Se você quer “achar o detalhe técnico” rápido:
 
-- **Protocolo WS (mensagens + payloads JSON)**: §8 + Apêndice A
+- **Protocolo WS (mensagens + payloads JSON)**: §8 + Apêndice A — **PENAI v2:** [`architecture/ws-pipeline-temporal.md`](./architecture/ws-pipeline-temporal.md)
 - **Schemas (ProcessAction, GameMasterResponse, minimal OSS JSON)**: §11 + Apêndice B
-- **Prompts / OSS e contrato do LLM**: §10 + Apêndice B
-- **Fila + P4/P5 (order, idempotência, cancel, split worker)**: §9 + Apêndice C
-- **RAG / embeddings / Qdrant (store/recall + fallback)**: §14 + Apêndice D
-- **Redis snapshot (`gz1:`)**: §13 + Apêndice E
+- **Prompts / IA Gemini e actionSense**: §10 + [`architecture/ai-gemini-penai.md`](./architecture/ai-gemini-penai.md) + ADR `0001-action-sense-vs-motor.md`
+- **Fila narrativa (Temporal PENAI; BullMQ legado)**: §9 + [`architecture/ws-pipeline-temporal.md`](./architecture/ws-pipeline-temporal.md) + Apêndice C *(legado)*
+- **Motor + combate FSM**: §6–7 + [`architecture/motor-combat-dm.md`](./architecture/motor-combat-dm.md)
+- **RAG / embeddings / Qdrant**: §14 + [`architecture/memory-rag.md`](./architecture/memory-rag.md) + Apêndice D
+- **Auth / BYOK / créditos**: §19 + [`architecture/auth-billing-byok.md`](./architecture/auth-billing-byok.md)
+- **Redis snapshot (`gz1:`)**: §13 + Apêndice E *(legado turno)*
 - **Homebrew / tradução (merge e limites)**: §15 + Apêndice F
+- **Frontend turn pipeline**: [`architecture/frontend-turn-pipeline.md`](./architecture/frontend-turn-pipeline.md) + `DESIGN_FRONTEND.md` §7–8
 
 Este texto descreve o **shape e o comportamento**. Quando algo é “conceitual”, vem marcado como tal.
 
@@ -223,7 +232,43 @@ Evolução **sem feature flags** de arquitetura no `.env` — comportamento úni
 
 ## 4. Topologia de deploy
 
+> **Canônico (PENAI):** [`architecture/ws-pipeline-temporal.md`](./architecture/ws-pipeline-temporal.md) · `npm run dev:all` ou `penaiServer` + `worker:temporal`
+
+### 4.0 PENAI (runtime ativo)
+
 ```mermaid
+flowchart TB
+    subgraph PENAI["PENAI — sessões novas"]
+        FE[frontend Next.js]
+        API[penaiServer Fastify :8071<br/>WS /ws + REST /api/v2]
+        TW[worker:temporal<br/>fila penai-narration]
+        PG[(PostgreSQL)]
+        RD[(Redis pub/sub penai:ws:user)]
+        TMP[Temporal]
+        QD[(Qdrant penai_*)]
+    end
+    User((Jogador)) --> FE
+    FE --> API
+    FE -->|WSS ?token=JWT| API
+    API --> PG
+    API --> RD
+    API --> TMP
+    TW --> TMP
+    TW --> RD
+    TW --> PG
+    TW --> QD
+    API --> QD
+```
+
+| Variável | Efeito |
+|----------|--------|
+| `SKIP_TEMPORAL_WORKER=true` | API sem worker embutido → `npm run worker:temporal` separado |
+| `TEMPORAL_DISABLED=true` | Narração síncrona no handler (testes) |
+| `REDIS_URL=mock` | WS relay só local (sem pub/sub cross-process) |
+
+### 4.1 Legado Express/MySQL/BullMQ
+
+> Mantido para referência e profile Docker `full` — **não** é o path de `penaiServer.ts`.
 flowchart TB
     subgraph Docker_full["docker compose --profile full"]
         FE[frontend :9002]
@@ -255,7 +300,17 @@ flowchart TB
 
 ## 5. Fluxo ponta a ponta — diagramas
 
-### 5.1 `processAction` — texto livre ou intent
+> **Canônico PENAI:** diagrama e sequência em [`architecture/ws-pipeline-temporal.md`](./architecture/ws-pipeline-temporal.md). Subseções **5.1–5.3** descrevem o stack **legado Express + BullMQ**.
+
+### 5.0 PENAI — `processAction` (resumo)
+
+1. WS `processAction` → `allocateActionSequence` (Postgres)
+2. `GAME_MOTOR.validateAndApply` (síncrono) → `mechanicalStateUpdate`
+3. Se roll pendente → `playerRollRequest` (sem LLM)
+4. Senão → `startNarrationWorkflow` (Temporal) → `runTurnPipeline` → `storyFeed` + `gameStateUpdate` + `narrationComplete`
+5. Worker entrega WS via Redis `penai:ws:user` quando separado da API
+
+### 5.1 Legado — `processAction` — texto livre ou intent
 
 ```mermaid
 sequenceDiagram
@@ -288,7 +343,7 @@ sequenceDiagram
     end
 ```
 
-### 5.2 `submitRollResult` — dados 3D
+### 5.2 Legado — `submitRollResult` — dados 3D
 
 ```mermaid
 sequenceDiagram
@@ -310,7 +365,7 @@ sequenceDiagram
     W-->>C: gameStateUpdate
 ```
 
-### 5.3 Política P5.2 no worker
+### 5.3 Legado — Política P5.2 no worker BullMQ
 
 ```mermaid
 flowchart TD
@@ -327,6 +382,8 @@ flowchart TD
 ---
 
 ## 6. Motor de regras D&D 5e
+
+> **Deep-dive:** [`architecture/motor-combat-dm.md`](./architecture/motor-combat-dm.md) · Hot path PENAI: `GameMaster/motor/validateAndApply.ts` + `backend/src/rules/`
 
 ### 6.1 Intents suportados (lista fechada)
 
@@ -385,6 +442,8 @@ A IA **não** transiciona fases — só o motor.
 
 ## 7. Camada DM (orquestrador pré-LLM)
 
+> **PENAI:** `motor/actionSense.ts` + `classifyIntent.ts` em `wsHandlers.ts`. **Legado:** `services/dm/dmTurnOrchestrator.ts`. Ver [`architecture/motor-combat-dm.md`](./architecture/motor-combat-dm.md) §7.
+
 **Não** escreve o parágrafo final da aventura. Responsabilidades:
 
 | Etapa | Descrição |
@@ -408,7 +467,19 @@ Após o motor resolver, o **prompt DM** alimenta o job na fila (contexto mecâni
 
 ## 8. WebSocket — protocolo atual
 
-### 8.1 Conexão
+> **Canônico PENAI v2:** mensagens **planas** (`contractVersion: 2`, `locale: pt-BR`, `engine: penai`). Detalhe: [`architecture/ws-pipeline-temporal.md`](./architecture/ws-pipeline-temporal.md). Subseções abaixo + Apêndice A descrevem **legado v1** (`{ type, payload }`).
+
+### 8.0 PENAI v2 — diferenças principais
+
+| Aspecto | PENAI v2 | Legado v1 (§8.2–8.3, Apêndice A) |
+|---------|----------|----------------------------------|
+| URL | `/ws?token=JWT` | JWT + envelope antigo |
+| `processAction` | `playerAction` (texto) | `prompt` + `actionCursor` |
+| Sequence | `actionSequence` servidor (Postgres) | `actionCursor` cliente + MySQL |
+| Fila | Temporal `penai-narration` | BullMQ `dndai-narration` |
+| Falha narração | `narrationFailed` | `narrationCancelled` (P4.3) |
+
+### 8.1 Conexão (legado v1)
 
 - URL com **JWT** (query ou protocolo acordado com o cliente).
 - Reconexão com backoff no frontend.
@@ -1403,9 +1474,21 @@ A sessão mantém uma lista de IDs instalados. A instalação expande dependênc
 
 Limite intencional: o motor não implementa automaticamente “toda mecânica do PHB”; traits complexas podem ser descritas e **interpretadas** na narrativa.
 
-## 9. Fila BullMQ e P4/P5
+## 9. Fila de narração
 
-### 9.1 Enfileiramento
+> **Canônico:** **Temporal** (`penai-narration`) — [`architecture/ws-pipeline-temporal.md`](./architecture/ws-pipeline-temporal.md) §9. **§9 legado** abaixo = BullMQ Express/MySQL.
+
+### 9.0 PENAI — Temporal
+
+1. `actionSequence` alocado em `wsHandlers` (Postgres) **antes** do motor.
+2. `startNarrationWorkflow` → workflow `narration:{sessionId}:{actionSequence}`.
+3. Activity `runTurnPipeline` — append-only narrativo; **não** re-aplica combate.
+4. Env: `SKIP_TEMPORAL_WORKER`, `TEMPORAL_DISABLED`, `TEMPORAL_ADDRESS`.
+5. Worker dedicado: `npm run worker:temporal`.
+
+**Não portado do BullMQ:** cancelamento P4.3 (`narrationCancelled`) — turn lock + `workflowIdConflictPolicy: USE_EXISTING`.
+
+### 9.1 Legado — BullMQ e P4/P5
 
 1. Aloca `actionSequence` na sessão (MySQL).
 2. Cancela jobs waiting/delayed da mesma sessão com sequence menor (P4.3).
@@ -1433,9 +1516,22 @@ Limite intencional: o motor não implementa automaticamente “toda mecânica do
 
 ---
 
-## 10. Inteligência artificial e OSS
+## 10. Inteligência artificial
 
-### 10.1 Engines
+> **Canônico PENAI:** Gemini structured — [`architecture/ai-gemini-penai.md`](./architecture/ai-gemini-penai.md) · ADR [`0001-action-sense-vs-motor.md`](./adr/0001-action-sense-vs-motor.md). **§10.1–10.3** = legado OSS/OpenRouter.
+
+### 10.0 PENAI — Gemini (resumo)
+
+| Aspecto | Implementação |
+|---------|---------------|
+| Default | `AI_PRODUCT.engine = 'gemini'` |
+| Pré-LLM | `actionSense` (plausibilidade) + motor SRD (rolls/bloqueios) |
+| Narração | `runTurnPipeline` → `responseJsonSchema` nativo |
+| Action options | Registry mecânico + agente Gemini separado |
+| BYOK | `resolveInferenceApiKey` na narração; actionSense usa chave plataforma (gap) |
+| Modo | `AI_PIPELINE_MODE=narration_only` (fixo) |
+
+### 10.1 Legado — Engines OSS
 
 | `AI_ENGINE` | Pipeline |
 |-------------|----------|
@@ -1563,6 +1659,8 @@ Snapshot evita recomputar grafo e facts a **cada** job.
 ---
 
 ## 14. Qdrant, embeddings e RAG
+
+> **Canônico PENAI:** Postgres + coleções `penai_*` + Gemini embed — [`architecture/memory-rag.md`](./architecture/memory-rag.md). Apêndice D abaixo mistura legado OpenRouter.
 
 ### 14.1 Pipeline de escrita
 
@@ -1699,8 +1797,47 @@ DB_SYNC=false npm run migration:run --prefix backend
 | actionCursor | Ordem cliente submit |
 | narration_only | IA não grava mecânica |
 | RAG | Recall vetorial + facts no prompt |
-| OSS | Pipeline OpenRouter minimal JSON |
+| OSS | Pipeline OpenRouter minimal JSON (legado) |
+| PENAI | Runtime greenfield Fastify + Postgres + Temporal |
+| actionSense | Plausibilidade LLM pré-motor (não emite rolls) |
 | SRD | System Reference Document 5e |
+
+---
+
+## 19. Autenticação, conta e billing de IA
+
+> Detalhe: [`architecture/auth-billing-byok.md`](./architecture/auth-billing-byok.md)
+
+### 19.1 Identidade (PENAI)
+
+Contas em **`penai_users`** (PostgreSQL): `username`, `email`, `passwordHash` (bcrypt), `settings` JSONB (`onboardingCompleted`), `apiKey` BYOK Gemini, `aiCreditsRemaining` / `aiCreditsUsed`, licença homebrew.
+
+Rotas ativas: `/api/v2/auth/*`, `/api/v2/users/*` — **não** usam `authService.ts` MySQL legado.
+
+### 19.2 JWT e HTTP
+
+1. `POST /api/v2/auth/login` → JWT `{ userId }`, expiração 7d.
+2. Cliente: `localStorage['token']` — `src/lib/authToken.ts`.
+3. Rotas protegidas: `app.authenticate` → `request.userId`.
+4. `GET /api/v2/users/me` → perfil + `aiAccess` + licença + onboarding (sem expor `apiKey`).
+
+### 19.3 WebSocket
+
+- URL: `/ws?token=<JWT>` (`buildPenaiWsUrl`).
+- Servidor: `verifyWsToken` — sem token válido fecha socket.
+- Handshake: `{ type: 'connected', contractVersion: 2, locale: 'pt-BR', engine: 'penai' }`.
+
+### 19.4 BYOK Gemini e créditos
+
+- Resolução narração: `resolveGeminiApiKey(userKey)` — BYOK `AIza…` primeiro, senão `GEMINI_API_KEY` plataforma.
+- Modos: `byok` | `platform_credits` | `unavailable` (`buildAiAccessStatus`).
+- Billing plataforma: `AI_PLATFORM_BILLING_ENABLED` (default **false**); créditos debitados em `turnPipeline` quando ligado.
+- **Gap:** `actionSense` usa chave plataforma, não BYOK do jogador.
+
+### 19.5 Licença e onboarding
+
+- `POST /api/v2/licenses/activate` — gate `AuthGateV2`.
+- Onboarding: `POST /api/v2/users/me/onboarding/complete` → `settings.onboardingCompleted`.
 
 ---
 

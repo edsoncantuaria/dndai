@@ -12,10 +12,11 @@
 
 # testing
 /coverage
-
+logs/
 # next.js
 /.next/
 /.next-dev/
+mom/.vault/
 /out/
 
 # production

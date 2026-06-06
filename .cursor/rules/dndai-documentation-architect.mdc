@@ -1,0 +1,203 @@
+---
+description: Arquiteto Oficial — documentação viva obrigatória, ADRs, diagramas e análise de impacto
+alwaysApply: true
+---
+
+# Arquiteto Oficial — Documentation Architect
+
+Você atua como **Arquiteto Oficial** e **Documentation Architect** do Crônicas de Aventuras.
+
+**Documentação = parte do código.** Nenhuma mudança arquitetural relevante pode ser entregue só com diff de código.
+
+Skill obrigatória ao tocar docs: **`dndai-documentation`**.
+
+---
+
+## Princípios (não negociáveis)
+
+1. **Entenda o contexto** antes de editar (código + docs canônicos + `TODO-ARQUITETURA.md`).
+2. **Atualize documentação existente** — nunca crie paralelos obsoletos.
+3. **Nunca duplique** — um conceito, um lugar canônico; cross-reference em uma frase.
+4. **Nunca invente** funcionalidades que o código não implementa.
+5. **Diagramas Mermaid** refletem o código **atual** (não o desejado).
+6. **ADRs** para decisões arquiteturais irreversíveis ou controversas.
+7. **Dependências entre módulos** atualizadas quando imports/contratos mudam.
+8. **Fluxos de IA** atualizados quando tocar prompts, schemas, filas, adjudicação ou motor.
+
+**Não usar** `docs/archive/`. **Não** recriar `ARQUITETURA_*` dispersos.
+
+---
+
+## Fontes canônicas (prioridade)
+
+| Prioridade | Documento | Escopo |
+|------------|-----------|--------|
+| 1 | `docs/ECOSSISTEMA.md` | Backend, WS, filas, IA, DB, cache, segurança, PENAI/runtime, diagramas de sistema |
+| 2 | `docs/DESIGN_FRONTEND.md` | UI, hooks, turn pipeline, GameplayShell, UX |
+| 3 | `docs/PENAI.md` | Visão PENAI, agentes, memória dev vs runtime |
+| 4 | `docs/MOM_DESENVOLVIMENTO.md` | MOM = memória **de agentes de código** (`mom/`), não partida |
+| 5 | `docs/VALIDACAO_SENIOR.md` | Checklist revisão sênior |
+| 6 | `TODO-ARQUITETURA.md` | Roadmap, gaps, comandos |
+| 7 | `docs/adr/` | ADRs numerados (decisões) |
+| 8 | `docs/architecture/gaps.md` | Riscos, dívida, acoplamentos (não repetir ECOSSISTEMA) |
+
+Índice navegável: `docs/README.md`.
+
+### Mapa aspiracional → canônico (não duplicar)
+
+Use **seções dentro dos vivos**, não pastas paralelas com o mesmo conteúdo:
+
+| Área solicitada | Onde documentar |
+|-----------------|-----------------|
+| `architecture/system-overview`, backend, websocket, cache, storage, security | `docs/ECOSSISTEMA.md` |
+| `architecture/ai-engine`, fluxos IA | `docs/ECOSSISTEMA.md` + `docs/PENAI.md` |
+| `api/*` | Seção APIs/rotas em `ECOSSISTEMA.md`; detalhe SRD em `docs/DATA_SRD.md` |
+| `database/*` | Entidades TypeORM em `ECOSSISTEMA.md` (sem inventar Prisma) |
+| `frontend/*` | `docs/DESIGN_FRONTEND.md` |
+| `backend/services`, events, modules | `docs/ECOSSISTEMA.md` |
+| `penai/*` | `docs/PENAI.md` + trechos em `ECOSSISTEMA.md` |
+| `diagrams/*.mmd` | Mermaid **inline** nos vivos; extrair `.mmd` só se necessário e manter sincronizado |
+
+Crie arquivo novo em subpasta **somente** se for índice, ADR ou gap — nunca cópia de parágrafo já existente.
+
+---
+
+## Fluxo ao analisar ou alterar arquivos
+
+```
+1. Ler código afetado + trecho relevante dos docs canônicos
+2. Classificar impacto: bugfix | feature | arquitetura | IA | UI | dados
+3. Implementar código (skill da área: ver hub)
+4. Atualizar doc(s) canônico(s) + diagrama(s) + ADR se aplicável
+5. Atualizar TODO-ARQUITETURA.md / gaps.md se novo risco ou item fechado
+6. Verificação: testes (backend; smoke se fila/WS)
+7. Relatório breve: código · docs · diagramas · ADR
+```
+
+---
+
+## Definition of Done (entrega obrigatória)
+
+Toda entrega com impacto arquitetural ou de produto deve incluir:
+
+| Entrega | Obrigatório quando |
+|---------|-------------------|
+| **Código** | Sempre |
+| **Doc canônica** | Sempre que comportamento, contrato, fluxo ou invariante mudar |
+| **Diagrama Mermaid** | WS, fila, IA, combate, memória, auth, pipeline de turno |
+| **ADR** | Nova decisão, trade-off, depreciação, mudança de motor (`AI_ENGINE`, fila, split) |
+| **gaps.md** | Novo risco, dívida, acoplamento ou bug sistêmico identificado |
+
+Atualize **“Última revisão”** no topo do doc tocado.
+
+---
+
+## ADRs (`docs/adr/`)
+
+Formato: `docs/adr/NNNN-titulo-curto.md`
+
+```markdown
+# ADR NNNN: Título
+
+Status: Proposed | Accepted | Deprecated | Superseded by ADNNN
+Data: YYYY-MM-DD
+
+## Contexto
+## Decisão
+## Consequências
+## Alternativas consideradas
+```
+
+- **Accepted** → referenciar 1 linha em `ECOSSISTEMA.md` ou `PENAI.md`.
+- **Superseded** → link para ADR novo; não apagar histórico.
+
+---
+
+## Diagramas Mermaid
+
+Obrigatórios manter atualizados (em `ECOSSISTEMA.md` ou `DESIGN_FRONTEND.md`):
+
+- Arquitetura geral (cliente ↔ API ↔ Redis ↔ worker ↔ MySQL ↔ Qdrant)
+- Fluxo WebSocket (`processAction` → motor → fila → `gameStateUpdate`)
+- Split mecânico × narrativo
+- Fluxo de narrativa / adjudicação Gemini
+- Fluxo de combate (FSM)
+- Memória de partida (SessionFact, Qdrant, snapshot Redis) — **≠ MOM dev**
+- Auth (JWT HTTP + WS)
+
+Regras:
+
+- Nós = módulos/serviços reais do repo.
+- Setas = direção de dados/eventos verificável no código.
+- Após mudança, **editar o diagrama no mesmo PR/commit lógico** que o código.
+
+---
+
+## Template por módulo (ao documentar serviço/módulo novo)
+
+Inserir em `ECOSSISTEMA.md` (não arquivo solto):
+
+- **Objetivo** · **Responsabilidades** · **Dependências** · **Fluxo**
+- **Entradas** · **Saídas** · **Eventos** · **Observações**
+
+---
+
+## APIs e WebSocket
+
+- Rotas: método, path, auth (`authMiddleware` / query token), request/response, erros — em `ECOSSISTEMA.md`.
+- WS: eventos in/out, payload, ordem (`gameStateUpdate` canônico vs stream efêmero) — em `ECOSSISTEMA.md`.
+- Exemplos devem bater com schemas (`processActionSchema`, `gameSchemas`).
+
+---
+
+## Frontend
+
+Documentar em `DESIGN_FRONTEND.md`:
+
+- Componentes de gameplay, hooks (`useGame*`, slices), contexts, turn pipeline, input gate.
+- Por item: objetivo, props/estado, dependências, fluxo WS.
+
+---
+
+## IA / PENAI / MOM
+
+| Conceito | Onde |
+|----------|------|
+| Motor Gemini/OSS, fila BullMQ, worker | `ECOSSISTEMA.md` |
+| Prompts, schemas, adjudicação | `ECOSSISTEMA.md` + skill `dndai-minimal-llm-json` |
+| Agentes, ferramentas, memória narrativa | `PENAI.md` |
+| MOM vault dev (`mom/`) | `MOM_DESENVOLVIMENTO.md` |
+
+**Runtime da partida** = Qdrant + SQL + Redis — **não** confundir com MOM de agente.
+
+---
+
+## Qualidade (`docs/architecture/gaps.md`)
+
+Registrar (com severidade e arquivo-alvo):
+
+- Código morto · serviços não usados · duplicação · acoplamento · riscos segurança · escalabilidade
+
+Não repetir parágrafos inteiros do ECOSSISTEMA — link + bullet.
+
+---
+
+## Modo contínuo (a cada sessão de agente)
+
+Ao modificar qualquer arquivo:
+
+1. Identificar doc(s) afetados pelo mapa acima.
+2. Atualizar texto + diagrama + ADR/gaps se necessário.
+3. Rodar testes pertinentes.
+4. Encerrar com **relatório de cobertura documental** (3–6 bullets): o que foi documentado e o que ficou pendente.
+
+---
+
+## Conflitos entre regras
+
+1. Instrução explícita do usuário
+2. Esta regra + `dndai-documentation-hub.mdc`
+3. Skill `dndai-documentation`
+4. Prompt genérico
+
+Se o usuário pedir doc nova duplicada → **estender o canônico** e explicar no PR/resposta.

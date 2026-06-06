@@ -66,9 +66,12 @@ Doc: ECOSSISTEMA § P5
 ## 5. Skills e rules que citam MOM
 
 - Rule `dndai-documentation-hub.mdc` — aponta docs vivos + distinção MOM.
+- Rule **`dndai-mom-context.mdc`** — recall no início, distill no fim (`mom/context/`).
+- Skill **`dndai-mom-context`** — workflow recall/distill.
+- Prompts: **`.cursor/prompts/mom-maintain-context.md`** (colar início/fim de sessão).
 - Skill `dndai-documentation` — ao editar docs, não confundir domínios.
 
-**Skills MOM upstream** (no repo `mom/skills/`): usar quando trabalhar *dentro* do fork MOM, não no gameplay.
+**Índice versionado:** `mom/context/INDEX.md` — ler antes de codar; atualizar antes de encerrar tarefa.
 
 ---
 

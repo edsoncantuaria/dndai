@@ -8,6 +8,7 @@ Roteamento para implementar `TODO-ARQUITETURA.md` com Cursor (Agent, subagentes,
 2. Carregue a **skill** da coluna “Skill” (pasta `.cursor/skills/<nome>/SKILL.md`).
 3. Leia `docs/ECOSSISTEMA.md` ou `docs/DESIGN_FRONTEND.md` só se a skill mandar.
 4. PR pequena; `npm run test --prefix backend` antes de marcar ✅.
+5. **MOM:** recall `mom/context/INDEX.md` no início; distill no fim (rule `dndai-mom-context`).
 
 ## Subagentes recomendados
 

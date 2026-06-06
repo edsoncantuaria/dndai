@@ -43,4 +43,8 @@ description: >-
 - [ ] Seção correta atualizada
 - [ ] Glossário/roadmap se conceito novo
 - [ ] TODO-ARQUITETURA se item de roadmap
+- [ ] Diagrama Mermaid se WS/fila/IA/combate/memória
+- [ ] ADR em `docs/adr/` se decisão arquitetural
+- [ ] `docs/architecture/gaps.md` se novo risco identificado
 - [ ] Rule `dndai-documentation-hub.mdc` ainda coerente (só se mudar lista de skills/docs)
+- [ ] Seguir `.cursor/rules/dndai-documentation-architect.mdc` (DoD: código + doc + diagrama)

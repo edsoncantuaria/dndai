@@ -1,0 +1,92 @@
+---
+description: MOM — manter contexto de dev em mom/context (recall no início, distill no fim)
+alwaysApply: true
+---
+
+# MOM — contexto persistente para agentes
+
+**MOM** = memória de **desenvolvimento** (`mom/`), **não** memória de partida (Qdrant/SQL — ver `ECOSSISTEMA.md`).
+
+Skill: **`dndai-mom-context`** · Doc: **`docs/MOM_DESENVOLVIMENTO.md`**
+
+---
+
+## Obrigatório em toda sessão de agente
+
+### 1. RECALL (início — antes de implementar)
+
+1. Ler `mom/context/INDEX.md`.
+2. Ler entradas listadas como **ativas** que toquem a área da tarefa (WS, IA, frontend, dev, auth…).
+3. Se MCP MOM estiver configurado: `mom_recall` com query curta (ex.: "narration worker relay", "dev local stack").
+4. Cruzar com trecho relevante de `ECOSSISTEMA.md` / `DESIGN_FRONTEND.md` — **MOM = por quê; docs = o quê**.
+
+### 2. DISTILL (fim — antes de encerrar tarefa)
+
+Persistir em **`mom/context/<area>-<slug>.md`** (e MCP `mom_distill` se disponível) quando houver:
+
+- Decisão arquitetural ou trade-off
+- Bug sistêmico + causa raiz + fix
+- Convenção nova (env, scripts, invariante)
+- Config de dev que outros agentes repetiriam
+
+**Não gravar:** `.env`, secrets, tokens, dumps de log enormes, texto integral de docs vivos.
+
+### 3. FORMATO de entrada (`mom/context/*.md`)
+
+```markdown
+# Título curto
+
+Status: active | superseded
+Atualizado: YYYY-MM-DD
+Doc: ECOSSISTEMA § … | DESIGN § … | ADR NNNN
+
+## Por quê
+- …
+
+## O quê (bullets)
+- …
+
+## Armadilhas
+- …
+
+## Comandos / paths
+- …
+```
+
+Depois: **uma linha** em `mom/context/INDEX.md` (título, arquivo, status, tags).
+
+---
+
+## Sincronia MOM ↔ documentação
+
+| Camada | Conteúdo |
+|--------|----------|
+| `docs/ECOSSISTEMA.md` | Comportamento oficial, diagramas, invariantes |
+| `docs/adr/` | Decisão formal |
+| `mom/context/` | Contexto tático, sessões, armadilhas, *por quê* da última semana |
+| MOM vault SQLite (`mom/.vault/`) | Opcional local; **gitignore** — distill também em markdown versionado |
+
+**Regra:** decisão importante → **doc vivo + MOM** (nunca só chat).
+
+---
+
+## Tags sugeridas (INDEX)
+
+`ws` `ia` `gemini` `oss` `fila` `frontend` `auth` `dev` `docker` `combate` `memoria` `docs`
+
+---
+
+## Proibido
+
+- `mom_recall` / MCP MOM no **runtime do jogo** (`processPlayerTurn`, worker de narração para jogador)
+- Duplicar parágrafos inteiros de `ECOSSISTEMA.md` no MOM
+- Substituir ADR ou docs vivos por nota MOM solta
+
+---
+
+## Checklist de encerramento
+
+- [ ] Recall feito no início (INDEX + arquivos relevantes)
+- [ ] Distill criado/atualizado se houve decisão ou fix não trivial
+- [ ] INDEX.md atualizado
+- [ ] Doc canônico tocado se comportamento mudou (rule `dndai-documentation-architect`)
