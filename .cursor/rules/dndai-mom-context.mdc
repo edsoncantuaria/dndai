@@ -17,7 +17,8 @@ Skill: **`dndai-mom-context`** · Doc: **`docs/MOM_DESENVOLVIMENTO.md`**
 
 1. Ler `mom/context/INDEX.md`.
 2. Ler entradas listadas como **ativas** que toquem a área da tarefa (WS, IA, frontend, dev, auth…).
-3. Se MCP MOM estiver configurado: `mom_recall` com query curta (ex.: "narration worker relay", "dev local stack").
+3. Se existir `mom/context/sync-handshake.md`, **informar ao usuário a Palavra** (confirma sync entre PCs).
+4. Se MCP MOM estiver configurado: `mom_recall` com query curta (ex.: "narration worker relay", "dev local stack").
 4. Cruzar com trecho relevante de `ECOSSISTEMA.md` / `DESIGN_FRONTEND.md` — **MOM = por quê; docs = o quê**.
 
 ### 2. DISTILL (fim — antes de encerrar tarefa)

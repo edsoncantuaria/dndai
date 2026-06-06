@@ -40,7 +40,7 @@ context_dirty_in_mom() {
 context_dirty_in_root() {
   git -C "$ROOT" status --porcelain -- \
     mom docs/ Makefile package.json \
-    scripts/context-sync.sh scripts/context-sync-commit-msg.mjs \
+    scripts/context-sync.sh scripts/context-sync-commit-msg.mjs scripts/context-sync-handshake.mjs \
     .cursor/prompts/mom-maintain-context.md \
     .cursor/prompts/context-sync-commit-msg.md \
     .cursor/rules/dndai-mom-context.mdc \
@@ -105,17 +105,28 @@ commit_context() {
     echo "  → $MSG"
   fi
 
+  info "Palavra secreta MOM (handshake) …"
+  SYNC_SECRET="$(node "$ROOT/scripts/context-sync-handshake.mjs" write 2>/dev/null || true)"
+  if [ -n "$SYNC_SECRET" ]; then
+    echo "  🔑 Anote no outro PC — palavra: $SYNC_SECRET"
+  fi
+
   if context_dirty_in_mom; then
     info "Commit em mom/ …"
     git -C "$MOM" add context/ README.md
     git -C "$MOM" commit -m "$MSG"
     ok "mom commit"
+  elif [ -n "$SYNC_SECRET" ] && [ -f "$MOM/context/sync-handshake.md" ]; then
+    info "Commit em mom/ (só handshake) …"
+    git -C "$MOM" add context/sync-handshake.md
+    git -C "$MOM" commit -m "distill: handshake sync $SYNC_SECRET"
+    ok "mom commit handshake"
   fi
 
   if context_dirty_in_root; then
     info "Commit em dndai (docs + ponteiro mom) …"
     git -C "$ROOT" add mom docs/ Makefile package.json \
-      scripts/context-sync.sh scripts/context-sync-commit-msg.mjs \
+      scripts/context-sync.sh scripts/context-sync-commit-msg.mjs scripts/context-sync-handshake.mjs \
       .cursor/prompts/mom-maintain-context.md \
       .cursor/prompts/context-sync-commit-msg.md \
       .cursor/rules/dndai-mom-context.mdc \
@@ -170,7 +181,15 @@ cmd_push() {
   ok "dndai pushed"
 
   echo ""
-  ok "Contexto no remoto. No outro PC: npm run context:sync -- pull"
+  HANDSHAKE_SECRET=""
+  if [ -f "$MOM/context/sync-handshake.md" ]; then
+    HANDSHAKE_SECRET="$(node "$ROOT/scripts/context-sync-handshake.mjs" read 2>/dev/null || true)"
+  fi
+  if [ -n "$HANDSHAKE_SECRET" ]; then
+    echo "  🔑 Palavra no remoto: $HANDSHAKE_SECRET"
+    echo "  No outro PC: make chegar-pc → deve mostrar a mesma palavra."
+  fi
+  ok "Contexto no remoto. No outro PC: make chegar-pc"
 }
 
 cmd_pull() {
@@ -196,6 +215,16 @@ cmd_pull() {
   ok "mom pulled"
 
   echo ""
+  if [ -f "$MOM/context/sync-handshake.md" ]; then
+    SYNC_SECRET="$(node "$ROOT/scripts/context-sync-handshake.mjs" read 2>/dev/null || true)"
+    if [ -n "$SYNC_SECRET" ]; then
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "  🔑 MOM sync OK — palavra secreta: $SYNC_SECRET"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo ""
+      echo "  Peça ao agente: \"qual a palavra MOM?\" — deve responder igual."
+    fi
+  fi
   ok "Contexto local atualizado. Recall: mom/context/INDEX.md"
 }
 
