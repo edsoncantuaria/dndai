@@ -17,6 +17,8 @@ export function clientCanInfer(
   const key = userKey?.trim() ?? '';
   if (isLikelyGeminiKey(key)) return true;
 
+  if (aiAccess?.hasByok) return true;
+
   if (aiAccess?.platformBillingEnabled && (aiAccess.creditsRemaining ?? 0) > 0) {
     return true;
   }

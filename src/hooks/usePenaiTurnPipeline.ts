@@ -12,6 +12,7 @@ import { markSessionAsPenai } from '@/lib/penaiEngine';
 import { buildPenaiWsUrl, validatePenaiWsConnected } from '@/lib/penaiWs';
 import { mergePenaiMechanicalMessage } from '@/lib/penaiMechanicalHydrate';
 import { fetchPenaiSessionUiState, fetchPenaiStoryFeed } from '@/services/penaiApi';
+import { isVisibleStoryEntry } from '@/features/gameplay/story/storyEntryVisibility';
 
 export type PenaiStoryEntry = {
     id?: string;
@@ -86,15 +87,14 @@ function mergeStoryEntries(
     incoming: PenaiStoryEntry[],
     replace = false,
 ): PenaiStoryEntry[] {
-    const withoutOpening = (list: PenaiStoryEntry[]) =>
-        list.filter(e => (e.kind ?? e.tone) !== 'opening');
-    const visible = withoutOpening(incoming);
-    if (replace || !prev.length) return withoutOpening(visible);
-    if (!visible.length) return withoutOpening(prev);
+    const chronicleOnly = (list: PenaiStoryEntry[]) => list.filter(isVisibleStoryEntry);
+    const visible = chronicleOnly(incoming);
+    if (replace || !prev.length) return chronicleOnly(visible);
+    if (!visible.length) return chronicleOnly(prev);
     const seen = new Set(
         prev.map(e => e.id ?? `${e.timestamp}::${e.content.slice(0, 80)}`),
     );
-    const merged = withoutOpening([...prev]);
+    const merged = chronicleOnly([...prev]);
     for (const entry of visible) {
         const key = entry.id ?? `${entry.timestamp}::${entry.content.slice(0, 80)}`;
         if (!seen.has(key)) {

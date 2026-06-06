@@ -35,6 +35,13 @@ test('clientCanInfer: servidor com chave (canInfer)', () => {
   );
 });
 
+test('clientCanInfer: servidor com BYOK salvo (hasByok)', () => {
+  assert.equal(
+    clientCanInfer(baseAccess({ hasByok: true, billingMode: 'byok' }), ''),
+    true,
+  );
+});
+
 test('clientCanInfer: créditos da plataforma', () => {
   assert.equal(
     clientCanInfer(

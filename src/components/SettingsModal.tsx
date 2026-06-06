@@ -11,7 +11,7 @@ import { useNarrationSpeech } from '@/hooks/useNarrationSpeech';
 import { apiClient } from '@/services/apiClient';
 import { generateSceneImage as requestSceneImage } from '@/services/imageService';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
-import { NARRATION_SPEEDS, PIPER_VOICES } from '@/lib/narrationTts';
+import { NARRATION_PLAYBACK_RATE, PIPER_VOICES } from '@/lib/narrationTts';
 import { AiBillingSection } from '@/components/settings/AiBillingSection';
 
 const IMAGE_FEATURE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_IMAGE_GENERATION === 'true';
@@ -72,10 +72,6 @@ const AudioControls: React.FC = () => {
         setPlayMenuMusic,
         playAmbientMusic,
         setPlayAmbientMusic,
-        narrationVoice,
-        setNarrationVoice,
-        narrationSpeed,
-        setNarrationSpeed,
     } = useSettingsContext();
     const { autoSpeak, setAutoSpeak } = useNarrationSpeech();
     return (
@@ -147,47 +143,16 @@ const AudioControls: React.FC = () => {
                     </button>
                 </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                    <label htmlFor="narration-voice" className="mb-2 block text-sm font-semibold text-dnd-parchment">
-                        Voz do narrador (Piper)
-                    </label>
-                    <select
-                        id="narration-voice"
-                        value={narrationVoice}
-                        onChange={e => setNarrationVoice(e.target.value as typeof narrationVoice)}
-                        className="w-full rounded-2xl border border-white/10 bg-black/40 p-3 text-sm text-dnd-parchment focus:border-dnd-gold focus:ring-2 focus:ring-dnd-gold/60"
-                    >
-                        {PIPER_VOICES.map(v => (
-                            <option key={v.id} value={v.id}>
-                                {v.label}
-                            </option>
-                        ))}
-                    </select>
-                    <p className="mt-1 text-xs text-dnd-parchment-muted/80">
-                        {PIPER_VOICES.find(v => v.id === narrationVoice)?.description}
-                    </p>
-                </div>
-                <div>
-                    <label htmlFor="narration-speed" className="mb-2 block text-sm font-semibold text-dnd-parchment">
-                        Velocidade da fala
-                    </label>
-                    <select
-                        id="narration-speed"
-                        value={narrationSpeed}
-                        onChange={e => setNarrationSpeed(e.target.value as typeof narrationSpeed)}
-                        className="w-full rounded-2xl border border-white/10 bg-black/40 p-3 text-sm text-dnd-parchment focus:border-dnd-gold focus:ring-2 focus:ring-dnd-gold/60"
-                    >
-                        {NARRATION_SPEEDS.map(s => (
-                            <option key={s.id} value={s.id}>
-                                {s.label}
-                            </option>
-                        ))}
-                    </select>
-                    <p className="mt-1 text-xs text-dnd-parchment-muted/80">
-                        {NARRATION_SPEEDS.find(s => s.id === narrationSpeed)?.description}
-                    </p>
-                </div>
+            <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                <p className="text-sm font-semibold text-dnd-parchment">Narrador Piper</p>
+                <p className="mt-1 text-xs text-dnd-parchment-muted">
+                    Voz <span className="text-dnd-gold">{PIPER_VOICES[0]?.label ?? 'Faber'}</span>
+                    {' · '}
+                    velocidade {NARRATION_PLAYBACK_RATE.toFixed(2).replace('.', ',')}×
+                </p>
+                <p className="mt-1 text-xs text-dnd-parchment-muted/80">
+                    {PIPER_VOICES[0]?.description}
+                </p>
             </div>
         </div>
     )

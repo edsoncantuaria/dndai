@@ -205,6 +205,24 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
         }
     });
 
+    app.get('/api/v2/sessions/:id/world-registro', auth, async (request, reply) => {
+        const id = Number((request.params as { id: string }).id);
+        if (!Number.isFinite(id)) {
+            return reply.status(400).send({ error: 'ID de sessão inválido' });
+        }
+        const { listSessionWorldRegistro } = await import(
+            '../../../GameMaster/sessions/sessionStoryFeed.js'
+        );
+        try {
+            return await listSessionWorldRegistro(id, request.userId);
+        } catch (err: unknown) {
+            if (createError.isHttpError(err)) {
+                return reply.status(err.statusCode).send({ message: err.message });
+            }
+            throw err;
+        }
+    });
+
     app.get('/api/v2/sessions/:id/summary', auth, async (request, reply) => {
         const id = Number((request.params as { id: string }).id);
         if (!Number.isFinite(id)) {

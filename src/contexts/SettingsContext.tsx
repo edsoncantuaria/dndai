@@ -181,7 +181,18 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [ttsVoice, setTtsVoice] = useState<string>(defaultSettings.ttsVoice);
     const [narrationVoice, setNarrationVoice] = useState<PiperVoiceId>(defaultSettings.narrationVoice);
     const [narrationSpeed, setNarrationSpeed] = useState<NarrationSpeedPreset>(defaultSettings.narrationSpeed);
-    const [apiKey, setApiKey] = useState<string>(defaultSettings.apiKey);
+    const [apiKey, setApiKey] = useState<string>(() => {
+        if (typeof window === 'undefined') return defaultSettings.apiKey;
+        try {
+            return (
+                migrateGeminiApiKeyFromLegacySettings() ||
+                readGeminiApiKey() ||
+                defaultSettings.apiKey
+            );
+        } catch {
+            return defaultSettings.apiKey;
+        }
+    });
     const [generationConfig, setGenerationConfig] = useState<GenerationConfig>(clampGenerationConfigValues(defaultSettings.generationConfig));
     const [volume, setVolume] = useState(defaultSettings.volume);
     const [isMuted, setIsMuted] = useState(defaultSettings.isMuted);
@@ -205,16 +216,13 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     // Load from localStorage on initial mount
     useEffect(() => {
         try {
-            const storedApiKey = migrateGeminiApiKeyFromLegacySettings() || readGeminiApiKey();
-            if (storedApiKey) {
-                setApiKey(storedApiKey);
-            }
             const localSettings = localStorage.getItem('userSettings');
             if (localSettings) {
                 const settings = JSON.parse(localSettings);
                 loadSettings(settings);
             }
-            // Garante que a chave dedicada prevalece sobre userSettings sem apiKey
+            // Storage dedicado prevalece sobre userSettings (evita chave vazia no JSON)
+            const storedApiKey = readGeminiApiKey();
             if (storedApiKey) {
                 setApiKey(storedApiKey);
             }
@@ -270,10 +278,12 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         hapticsEnabled,
     ]);
 
-    // Persiste chave Gemini em storage dedicado (sobrevive a login/logout)
+    // Persiste chave Gemini em storage dedicado — nunca apaga com string vazia na hidratação
     useEffect(() => {
-        if (isLoaded) {
-            writeGeminiApiKey(apiKey);
+        if (!isLoaded) return;
+        const trimmed = apiKey.trim();
+        if (trimmed) {
+            writeGeminiApiKey(trimmed);
         }
     }, [apiKey, isLoaded]);
 

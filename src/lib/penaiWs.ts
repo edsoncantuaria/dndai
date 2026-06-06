@@ -1,13 +1,13 @@
+import { getRuntimeApiUrl, getRuntimeWsUrl } from '@/lib/runtimeApiConfig';
+
 /** Contrato WS PENAI — único barramento de gameplay (Contract V2). */
 export const PENAI_WS_CONTRACT_VERSION = 2;
 export const PENAI_WS_LOCALE = 'pt-BR';
 
 export function buildPenaiWsUrl(token?: string | null): string {
     const withWsPath = (base: string) => (base.endsWith('/ws') ? base : `${base}/ws`);
-    const explicit =
-        process.env.NEXT_PUBLIC_PENAI_WS_URL?.replace(/\/$/, '') ??
-        process.env.NEXT_PUBLIC_WS_URL?.replace(/\/$/, '');
-    const api = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? 'http://localhost:8071/api';
+    const explicit = getRuntimeWsUrl();
+    const api = getRuntimeApiUrl();
     const origin = api.replace(/\/api\/?$/, '');
     const base = withWsPath(explicit || origin.replace(/^http/, 'ws'));
     return token ? `${base}?token=${encodeURIComponent(token)}` : base;

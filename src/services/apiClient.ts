@@ -1,10 +1,8 @@
 // src/services/apiClient.ts
 
 import { getStoredAuthToken } from '@/lib/authToken';
+import { getRuntimeApiUrl } from '@/lib/runtimeApiConfig';
 
-const API_URL =
-    process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ||
-    'http://localhost:8071/api';
 
 export type ApiFieldErrors = Record<string, string[] | string>;
 
@@ -83,7 +81,7 @@ const PUBLIC_ROUTES = [
  */
 const buildRequestOptions = (endpoint: string, options: RequestInit = {}) => {
     const { headers: customHeaders, ...customOptions } = options;
-    const fullUrl = `${API_URL}${endpoint}`;
+    const fullUrl = `${getRuntimeApiUrl()}${endpoint}`;
     const isPublic = PUBLIC_ROUTES.some(route => endpoint.startsWith(route));
     let authHeaders: HeadersInit | null = getAuthHeaders();
 
@@ -115,7 +113,7 @@ const handleErrorResponse = async (response: Response, endpoint: string) => {
 
 export const apiClient = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
     const { headers: customHeaders, ...customOptions } = options;
-    const fullUrl = `${API_URL}${endpoint}`;
+    const fullUrl = `${getRuntimeApiUrl()}${endpoint}`;
 
     const isPublic = PUBLIC_ROUTES.some(route => endpoint.startsWith(route));
     

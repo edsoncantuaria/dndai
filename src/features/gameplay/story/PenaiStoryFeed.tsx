@@ -11,6 +11,9 @@ import {
     splitStoryParagraphs,
     storyEntryLabel,
 } from './penaiStoryFormat';
+import { isVisibleStoryEntry } from './storyEntryVisibility';
+
+export { isVisibleStoryEntry } from './storyEntryVisibility';
 
 const entryMotion = {
     hidden: { opacity: 0, y: 10 },
@@ -105,11 +108,6 @@ function StoryEntryBlock({ entry }: { entry: PenaiStoryEntry }) {
             ) : null}
         </motion.article>
     );
-}
-
-export function isVisibleStoryEntry(entry: PenaiStoryEntry): boolean {
-    const kind = (entry.kind ?? entry.tone ?? '').toLowerCase();
-    return kind !== 'opening';
 }
 
 export function PenaiStoryFeed({

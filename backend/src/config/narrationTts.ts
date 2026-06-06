@@ -1,5 +1,7 @@
-/** Vozes Piper pt-BR disponíveis no container (docker/piper). */
-export const PIPER_VOICE_IDS = ['faber', 'razo', 'miro', 'dii'] as const;
+/** Voz única do narrador — Piper pt-BR Faber. */
+export const PIPER_VOICE_IDS = ['faber'] as const;
+export const NARRATION_PLAYBACK_RATE = 1.2;
+export const NARRATION_LENGTH_SCALE = Number((1 / NARRATION_PLAYBACK_RATE).toFixed(3));
 export type PiperVoiceId = (typeof PIPER_VOICE_IDS)[number];
 
 export const NARRATION_SPEED_PRESETS = ['rapido', 'normal', 'lento', 'pausado'] as const;
@@ -14,23 +16,8 @@ export type PiperVoiceMeta = {
 export const PIPER_VOICES: PiperVoiceMeta[] = [
     {
         id: 'faber',
-        label: 'Faber (padrão)',
+        label: 'Faber',
         description: 'Voz masculina Piper oficial pt-BR — equilibrada.',
-    },
-    {
-        id: 'razo',
-        label: 'Razo',
-        description: 'Masculina conversacional — termos técnicos em pt-BR.',
-    },
-    {
-        id: 'miro',
-        label: 'Miro',
-        description: 'OpenVoiceOS pt-BR — tom sintético treinado.',
-    },
-    {
-        id: 'dii',
-        label: 'Dii',
-        description: 'OpenVoiceOS pt-BR — alternativa ao Miro.',
     },
 ];
 
@@ -44,10 +31,13 @@ export type NarrationSpeedMeta = {
 
 /** length_scale Piper: maior = fala mais devagar (1.0 ≈ ritmo natural). playbackRate no `<audio>`. */
 export const NARRATION_SPEEDS: NarrationSpeedMeta[] = [
-    { id: 'rapido', label: 'Rápido', description: 'Narração ágil.', lengthScale: 0.82, playbackRate: 1.15 },
-    { id: 'normal', label: 'Normal', description: 'Ritmo equilibrado.', lengthScale: 1.0, playbackRate: 1.0 },
-    { id: 'lento', label: 'Lento', description: 'Mais tempo entre frases.', lengthScale: 1.22, playbackRate: 0.95 },
-    { id: 'pausado', label: 'Pausado', description: 'Fala deliberada, ideal para ouvir com calma.', lengthScale: 1.45, playbackRate: 0.88 },
+    {
+        id: 'normal',
+        label: 'Padrão (1,20×)',
+        description: 'Ritmo atual da mesa.',
+        lengthScale: NARRATION_LENGTH_SCALE,
+        playbackRate: NARRATION_PLAYBACK_RATE,
+    },
 ];
 
 const DEFAULT_VOICE: PiperVoiceId = 'faber';
@@ -59,8 +49,7 @@ export const isPiperVoiceId = (value: unknown): value is PiperVoiceId =>
 export const isNarrationSpeedPreset = (value: unknown): value is NarrationSpeedPreset =>
     typeof value === 'string' && (NARRATION_SPEED_PRESETS as readonly string[]).includes(value);
 
-export const resolvePiperVoiceId = (value: unknown): PiperVoiceId =>
-    isPiperVoiceId(value) ? value : DEFAULT_VOICE;
+export const resolvePiperVoiceId = (_value: unknown): PiperVoiceId => DEFAULT_VOICE;
 
 export const resolveNarrationSpeedPreset = (value: unknown): NarrationSpeedPreset =>
     isNarrationSpeedPreset(value) ? value : DEFAULT_SPEED;
@@ -74,15 +63,11 @@ export type NarrationTtsOptions = {
     playbackRate: number;
 };
 
-export const resolveNarrationTtsOptions = (settings?: {
+export const resolveNarrationTtsOptions = (_settings?: {
     narrationVoice?: unknown;
     narrationSpeed?: unknown;
-} | null): NarrationTtsOptions => {
-    const voice = resolvePiperVoiceId(settings?.narrationVoice);
-    const speed = getNarrationSpeedMeta(resolveNarrationSpeedPreset(settings?.narrationSpeed));
-    return {
-        voice,
-        lengthScale: speed.lengthScale,
-        playbackRate: speed.playbackRate,
-    };
-};
+} | null): NarrationTtsOptions => ({
+    voice: DEFAULT_VOICE,
+    lengthScale: NARRATION_LENGTH_SCALE,
+    playbackRate: NARRATION_PLAYBACK_RATE,
+});

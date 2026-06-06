@@ -1,12 +1,14 @@
 'use client';
 
-import { MapPin, ScrollText } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, MapPin, ScrollText } from 'lucide-react';
 import { DndCard } from '@/components/primitives';
 import type { PenaiSessionCampaign } from '@/services/penaiApi';
 
 type Props = {
     quests: PenaiSessionCampaign['activeQuests'];
     onOpenMap?: (regionSlug: string) => void;
+    maxVisiblePerGroup?: number;
 };
 
 function QuestRow({
@@ -46,7 +48,73 @@ function QuestRow({
     );
 }
 
-export function QuestTrackerCard({ quests, onOpenMap }: Props) {
+function QuestGroup({
+    title,
+    toneClass,
+    quests,
+    onOpenMap,
+    maxVisible,
+}: {
+    title: string;
+    toneClass: string;
+    quests: PenaiSessionCampaign['activeQuests'];
+    onOpenMap?: (regionSlug: string) => void;
+    maxVisible: number;
+}) {
+    const [open, setOpen] = useState(true);
+    const [showAll, setShowAll] = useState(false);
+    if (!quests.length) return null;
+
+    const visible = showAll ? quests : quests.slice(0, maxVisible);
+    const hidden = quests.length - maxVisible;
+
+    return (
+        <div>
+            <button
+                type="button"
+                className="mb-2 flex w-full items-center justify-between gap-2 text-left"
+                onClick={() => setOpen(v => !v)}
+                aria-expanded={open}
+            >
+                <p className={`font-ui text-[10px] uppercase tracking-wider ${toneClass}`}>
+                    {title} ({quests.length})
+                </p>
+                <ChevronDown
+                    className={`h-3.5 w-3.5 text-dnd-gold/70 transition-transform ${open ? 'rotate-180' : ''}`}
+                />
+            </button>
+            {open ? (
+                <>
+                    <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                        {visible.map(q => (
+                            <QuestRow key={q.questSlug} q={q} onOpenMap={onOpenMap} />
+                        ))}
+                    </ul>
+                    {hidden > 0 && !showAll ? (
+                        <button
+                            type="button"
+                            onClick={() => setShowAll(true)}
+                            className="mt-2 font-ui text-[10px] uppercase tracking-wide text-dnd-gold underline hover:text-dnd-gold/80"
+                        >
+                            Ver mais ({hidden})
+                        </button>
+                    ) : null}
+                    {showAll && quests.length > maxVisible ? (
+                        <button
+                            type="button"
+                            onClick={() => setShowAll(false)}
+                            className="mt-2 font-ui text-[10px] uppercase tracking-wide text-dnd-parchment-muted underline hover:text-dnd-parchment"
+                        >
+                            Mostrar menos
+                        </button>
+                    ) : null}
+                </>
+            ) : null}
+        </div>
+    );
+}
+
+export function QuestTrackerCard({ quests, onOpenMap, maxVisiblePerGroup = 3 }: Props) {
     const here = quests.filter(q => q.isHere);
     const elsewhere = quests.filter(q => !q.isHere);
 
@@ -63,30 +131,20 @@ export function QuestTrackerCard({ quests, onOpenMap }: Props) {
                 </p>
             ) : (
                 <div className="mt-3 space-y-4">
-                    {here.length > 0 ? (
-                        <div>
-                            <p className="mb-2 font-ui text-[10px] uppercase tracking-wider text-emerald-400/90">
-                                Aqui
-                            </p>
-                            <ul className="space-y-2">
-                                {here.map(q => (
-                                    <QuestRow key={q.questSlug} q={q} onOpenMap={onOpenMap} />
-                                ))}
-                            </ul>
-                        </div>
-                    ) : null}
-                    {elsewhere.length > 0 ? (
-                        <div>
-                            <p className="mb-2 font-ui text-[10px] uppercase tracking-wider text-amber-400/90">
-                                Em outro lugar
-                            </p>
-                            <ul className="space-y-2">
-                                {elsewhere.map(q => (
-                                    <QuestRow key={q.questSlug} q={q} onOpenMap={onOpenMap} />
-                                ))}
-                            </ul>
-                        </div>
-                    ) : null}
+                    <QuestGroup
+                        title="Aqui"
+                        toneClass="text-emerald-400/90"
+                        quests={here}
+                        onOpenMap={onOpenMap}
+                        maxVisible={maxVisiblePerGroup}
+                    />
+                    <QuestGroup
+                        title="Em outro lugar"
+                        toneClass="text-amber-400/90"
+                        quests={elsewhere}
+                        onOpenMap={onOpenMap}
+                        maxVisible={maxVisiblePerGroup}
+                    />
                 </div>
             )}
         </DndCard>

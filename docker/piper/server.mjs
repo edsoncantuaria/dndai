@@ -15,7 +15,7 @@ const PIPER_BIN = process.env.PIPER_BIN ?? '/opt/piper/piper/piper';
 const DEFAULT_VOICE = process.env.PIPER_DEFAULT_VOICE ?? 'faber';
 const MAX_CHARS = Number(process.env.PIPER_MAX_CHARACTERS ?? 600);
 /** Fallback global quando o cliente não envia lengthScale. */
-const DEFAULT_LENGTH_SCALE = Number(process.env.PIPER_LENGTH_SCALE ?? 1.0);
+const DEFAULT_LENGTH_SCALE = Number(process.env.PIPER_LENGTH_SCALE ?? 0.833);
 
 const VOICES = {
   faber: '/models/pt_BR-faber-medium.onnx',

@@ -1,9 +1,14 @@
 // src/services/ttsService.ts
 import { apiClient } from './apiClient';
-import type { NarrationSpeedPreset, PiperVoiceId } from '@/lib/narrationTts';
+import {
+  NARRATION_LENGTH_SCALE,
+  NARRATION_VOICE,
+  type NarrationSpeedPreset,
+  type PiperVoiceId,
+} from '@/lib/narrationTts';
+import { getRuntimeApiUrl } from '@/lib/runtimeApiConfig';
 
-const API_URL =
-    process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') || 'http://localhost:8071/api';
+const API_URL = getRuntimeApiUrl();
 
 type GenerateNarrationResponse = {
   audioUrl: string;
@@ -12,7 +17,7 @@ type GenerateNarrationResponse = {
 
 /** URL de reprodução via backend (MinIO só interno). Inclui access_token para `<audio src>`. */
 export const buildNarrationAudioUrl = (audioKey: string): string => {
-  const base = `${API_URL}/tts/audio?key=${encodeURIComponent(audioKey)}`;
+  const base = `${API_URL}/v2/tts/audio?key=${encodeURIComponent(audioKey)}`;
   if (typeof window === 'undefined') {
     return base;
   }
@@ -22,7 +27,7 @@ export const buildNarrationAudioUrl = (audioKey: string): string => {
 
 /** Atualiza token em URL de playback já gerada pelo backend. */
 export const withPlaybackAuthToken = (audioUrl: string): string => {
-  if (typeof window === 'undefined' || !audioUrl.includes('/tts/audio?')) {
+  if (typeof window === 'undefined' || !audioUrl.includes('/tts/audio')) {
     return audioUrl;
   }
   const token = localStorage.getItem('token');
@@ -53,12 +58,14 @@ export type GenerateNarrationOptions = {
 };
 
 export const generateNarrationAudio = async (text: string, options?: GenerateNarrationOptions) => {
-  const result = await apiClient<GenerateNarrationResponse>('/tts/generate', {
+  const result = await apiClient<GenerateNarrationResponse>('/v2/tts/generate', {
     method: 'POST',
     body: JSON.stringify({
       text,
-      narrationVoice: options?.narrationVoice,
-      narrationSpeed: options?.narrationSpeed,
+      voice: NARRATION_VOICE,
+      narrationVoice: options?.narrationVoice ?? NARRATION_VOICE,
+      narrationSpeed: options?.narrationSpeed ?? 'normal',
+      lengthScale: NARRATION_LENGTH_SCALE,
     }),
   });
   return {

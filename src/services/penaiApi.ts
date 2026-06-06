@@ -144,6 +144,18 @@ export async function fetchPenaiStoryFeed(sessionId: number) {
     return apiClient<PenaiStoryFeedResponse>(`/v2/sessions/${sessionId}/story-feed`);
 }
 
+export type PenaiWorldRegistroEntry = {
+    id: string;
+    timestamp: string;
+    content: string;
+};
+
+export async function fetchPenaiWorldRegistro(sessionId: number) {
+    return apiClient<{ entries: PenaiWorldRegistroEntry[] }>(
+        `/v2/sessions/${sessionId}/world-registro`,
+    );
+}
+
 export type PenaiHumanizedEvent = {
     id: string;
     type: string;

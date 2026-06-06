@@ -15,12 +15,13 @@ import {
 const API_PUBLIC_URL = (process.env.API_PUBLIC_URL ?? '').replace(/\/$/, '');
 const TTS_KEY_PATTERN = /^tts\/[\w\-./]+$/i;
 
-const PIPER_HTTP_URL = (process.env.PIPER_HTTP_URL ?? '').replace(/\/$/, '');
+const PIPER_HTTP_URL = (process.env.PIPER_HTTP_URL ?? 'http://127.0.0.1:5500').replace(/\/$/, '');
+const PIPER_HTTP_LOCAL_FALLBACK = 'http://127.0.0.1:5500';
 const PIPER_BIN_PATH = process.env.PIPER_BIN_PATH ?? '';
 const PIPER_MODEL_PATH = process.env.PIPER_MODEL_PATH ?? '';
 const MAX_TTS_LENGTH = Number(process.env.PIPER_MAX_CHARACTERS ?? 600);
 /** Fallback quando o cliente não envia lengthScale. */
-const LENGTH_SCALE = Number(process.env.PIPER_LENGTH_SCALE ?? 1.0);
+const LENGTH_SCALE = Number(process.env.PIPER_LENGTH_SCALE ?? (1 / 1.2).toFixed(3));
 
 const hasLocalPiper = Boolean(PIPER_BIN_PATH && PIPER_MODEL_PATH);
 const hasHttpPiper = Boolean(PIPER_HTTP_URL);
@@ -51,11 +52,11 @@ export const isValidTtsObjectKey = (key: string): boolean => TTS_KEY_PATTERN.tes
 
 /** URL pública do backend para streaming (MinIO fica só na rede interna). */
 export const buildTtsPlaybackUrl = (key: string): string => {
-  const path = `/tts/audio?key=${encodeURIComponent(key)}`;
+  const path = `/v2/tts/audio?key=${encodeURIComponent(key)}`;
   if (API_PUBLIC_URL) {
     return `${API_PUBLIC_URL}${path}`;
   }
-  return path;
+  return `/api${path}`;
 };
 
 const sanitizeNarrationText = (text: string) => {
@@ -70,19 +71,32 @@ const sanitizeNarrationText = (text: string) => {
 export type SynthesizeNarrationOptions = Partial<NarrationTtsOptions>;
 
 const runPiperHttp = async (text: string, opts: SynthesizeNarrationOptions): Promise<Buffer> => {
-  const response = await fetch(`${PIPER_HTTP_URL}/synthesize`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      text,
-      voice: opts.voice,
-      lengthScale: opts.lengthScale,
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(`Piper HTTP ${response.status}`);
+  const candidates = [PIPER_HTTP_URL];
+  if (PIPER_HTTP_URL.includes('://piper:') && PIPER_HTTP_LOCAL_FALLBACK !== PIPER_HTTP_URL) {
+    candidates.push(PIPER_HTTP_LOCAL_FALLBACK);
   }
-  return Buffer.from(await response.arrayBuffer());
+
+  let lastError: unknown;
+  for (const baseUrl of candidates) {
+    try {
+      const response = await fetch(`${baseUrl}/synthesize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          voice: 'faber',
+          lengthScale: opts.lengthScale,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`Piper HTTP ${response.status}`);
+      }
+      return Buffer.from(await response.arrayBuffer());
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('Piper HTTP indisponível.');
 };
 
 const voiceModelPaths: Partial<Record<PiperVoiceId, string>> = {

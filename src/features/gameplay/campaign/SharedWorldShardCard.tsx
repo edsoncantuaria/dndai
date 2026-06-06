@@ -1,6 +1,7 @@
 'use client';
 
 import type { PenaiSessionCampaign } from '@/services/penaiApi';
+import { CollapsibleItemList } from './CollapsibleItemList';
 
 export function SharedWorldShardCard({
     shard,
@@ -31,18 +32,20 @@ export function SharedWorldShardCard({
             <p className="text-xs text-dnd-parchment/70">
                 Política regional: <span className="text-dnd-gold">{shard.politicsLabel}</span>
             </p>
-            {timelineRecent.length > 0 ? (
-                <ul className="mt-2 space-y-1 border-t border-dnd-gold/10 pt-2">
-                    {timelineRecent.map(entry => (
-                        <li key={entry.eventId} className="text-xs text-dnd-parchment/80">
-                            <span className="text-dnd-parchment/50">D{entry.worldDay}</span>{' '}
-                            {entry.summary}
-                        </li>
-                    ))}
-                </ul>
-            ) : (
-                <p className="text-xs text-dnd-parchment/50">Sem eventos recentes na timeline.</p>
-            )}
+            <CollapsibleItemList
+                title="Timeline recente"
+                items={timelineRecent}
+                itemKey={entry => entry.eventId}
+                maxVisible={4}
+                maxHeightClass="max-h-48"
+                defaultSectionOpen={timelineRecent.length > 0}
+                emptyMessage="Sem eventos recentes na timeline."
+                renderItem={entry => (
+                    <p className="text-xs text-dnd-parchment/80">
+                        <span className="text-dnd-parchment/50">D{entry.worldDay}</span> {entry.summary}
+                    </p>
+                )}
+            />
         </section>
     );
 }

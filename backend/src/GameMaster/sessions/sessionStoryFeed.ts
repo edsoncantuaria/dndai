@@ -15,16 +15,34 @@ export type StoryFeedEntry = {
     consequences?: string[];
 };
 
+export type WorldRegistroEntry = {
+    id: string;
+    timestamp: string;
+    content: string;
+};
+
+function formatMemoryTimestamp(createdAt: Date): string {
+    return createdAt.toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+
 function mapMemoryToStoryEntry(row: SessionMemory): StoryFeedEntry {
     return {
         id: row.id,
-        timestamp: row.createdAt.toLocaleTimeString('pt-BR', {
-            hour: '2-digit',
-            minute: '2-digit',
-        }),
+        timestamp: formatMemoryTimestamp(row.createdAt),
         content: row.text,
         tone: row.storyTone ?? undefined,
         kind: row.storyKind ?? 'narration',
+    };
+}
+
+function mapMemoryToWorldRegistroEntry(row: SessionMemory): WorldRegistroEntry {
+    return {
+        id: row.id,
+        timestamp: formatMemoryTimestamp(row.createdAt),
+        content: row.text,
     };
 }
 
@@ -73,7 +91,7 @@ export async function listSessionStoryFeed(sessionId: number, userId: number) {
         .createQueryBuilder('m')
         .where('m.sessionId = :sessionId', { sessionId })
         .andWhere('m.decayedAt IS NULL')
-        .andWhere("(m.storyKind IS NULL OR m.storyKind IN ('narration', 'system'))")
+        .andWhere("(m.storyKind IS NULL OR m.storyKind = 'narration')")
         .orderBy('m.createdAt', 'ASC')
         .take(200)
         .getMany();
@@ -91,4 +109,21 @@ export async function listSessionStoryFeed(sessionId: number, userId: number) {
         actionSequence: session?.actionSequence ?? 0,
         actionCursor: session?.actionCursor ?? 0,
     };
+}
+
+/** Fatos de bootstrap/mundo (storyKind=system) — painel Mundo Vivo, não a Crônica. */
+export async function listSessionWorldRegistro(sessionId: number, userId: number) {
+    await assertSessionOwner(sessionId, userId);
+
+    const repo = PenaiDataSource.getRepository(SessionMemory);
+    const rows = await repo
+        .createQueryBuilder('m')
+        .where('m.sessionId = :sessionId', { sessionId })
+        .andWhere('m.decayedAt IS NULL')
+        .andWhere("m.storyKind = 'system'")
+        .orderBy('m.createdAt', 'ASC')
+        .take(200)
+        .getMany();
+
+    return { entries: rows.map(mapMemoryToWorldRegistroEntry) };
 }

@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { clearStoredAuthToken, getStoredAuthToken, setStoredAuthToken } from '@/lib/authToken';
 import { readGeminiApiKey, writeGeminiApiKey } from '@/lib/geminiApiKeyStorage';
 import type { AiAccessStatus } from '@/types/aiAccess';
+import { getRuntimeApiUrl } from '@/lib/runtimeApiConfig';
 
 interface User {
     id: number;
@@ -50,9 +51,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const API_URL =
-    process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') || 'http://localhost:8071/api';
-
 const normalizeFieldErrors = (details?: ApiFieldErrors | null): Record<string, string[]> | undefined => {
     if (!details || typeof details !== 'object') {
         return undefined;
@@ -86,7 +84,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const token = getStoredAuthToken();
         if (token) {
             try {
-                const response = await fetch(`${API_URL}/v2/users/me`, {
+                const response = await fetch(`${getRuntimeApiUrl()}/v2/users/me`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
 
@@ -123,7 +121,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const logout = useCallback(() => {
         setUser(null);
         setIsLicenseActive(false);
-        setApiKey('');
         if (typeof window !== 'undefined') {
             clearStoredAuthToken();
             // Limpa também o cache de equipamentos para garantir que o próximo login tenha dados frescos
@@ -298,6 +295,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             writeGeminiApiKey(trimmed);
             setApiKey(trimmed);
             await authService.saveInferenceApiKey(trimmed);
+            if (typeof window !== 'undefined') {
+                try {
+                    const raw = localStorage.getItem('userSettings');
+                    const settings = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+                    settings.apiKey = trimmed;
+                    localStorage.setItem('userSettings', JSON.stringify(settings));
+                } catch {
+                    /* ignore */
+                }
+            }
             await revalidateUserSession();
             toast({
                 title: 'Chave de API salva!',

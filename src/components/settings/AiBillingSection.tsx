@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Coins, ExternalLink, KeyRound } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
@@ -12,6 +12,10 @@ export function AiBillingSection() {
   const { aiAccess, saveApiKey, isActionLoading } = useAuth();
   const { apiKey } = useSettingsContext();
   const [draft, setDraft] = useState(apiKey);
+
+  useEffect(() => {
+    setDraft(apiKey);
+  }, [apiKey]);
 
   const saveKey = async () => {
     const trimmed = draft.trim();
