@@ -25,6 +25,8 @@ Decisões formais: **`adr/README.md`** · Gaps: **`architecture/gaps.md`** · **
 
 Contexto agentes (MOM): **`mom/context/INDEX.md`** · Prompt: **`.cursor/prompts/mom-maintain-context.md`**
 
+**Sync entre PCs:** `make sair-pc` (agente gera commit) · `make chegar-pc`
+
 ---
 
 ## Manutenção

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "NEXT_DIST_DIR=.next-dev next dev -p 9002",
+    "dev": "NEXT_DIST_DIR=.next-dev next dev -H 0.0.0.0 -p 9002",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -42,7 +42,15 @@
     "test:backend": "npm run test --prefix backend",
     "verify:srd": "node scripts/verify-srd-snapshot.js",
     "sync:srd": "node scripts/sync-srd-api.js",
-    "sync:dnd5eapi": "node scripts/sync-dnd5eapi.js"
+    "sync:dnd5eapi": "node scripts/sync-dnd5eapi.js",
+    "dev:mobile": "npm start --prefix apps/mobile",
+    "dev:lan": "sh scripts/dev-lan.sh",
+    "dev:mobile:lan": "sh scripts/dev-mobile-lan.sh",
+    "dev:all:lan": "sh scripts/dev-all-lan.sh",
+    "lan:env": "sh scripts/write-lan-env.sh",
+    "context:sync": "sh scripts/context-sync.sh",
+    "mom:pull": "sh scripts/context-sync.sh pull",
+    "mom:push": "sh scripts/context-sync.sh push --commit"
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",
