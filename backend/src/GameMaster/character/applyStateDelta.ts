@@ -53,21 +53,26 @@ function applyCurrencyDelta(stats: HeroSessionStats, currency: CharacterStateDel
 export async function applyCharacterStateDeltaPenai(
     sessionId: number,
     delta: CharacterStateDelta,
+    vitalsCtx?: { isCriticalDamage?: boolean; userId?: number },
 ): Promise<PenaiDeltaApplicationSummary | null> {
     const heroEntityId = await getSessionHeroEntityId(sessionId);
     if (!heroEntityId) return null;
 
     const stats = await loadHeroSessionStats(sessionId, heroEntityId);
+    const prevHp = stats.hp;
     let changed = false;
+    let hpTouched = false;
 
     if (delta.hp) {
         if (delta.hp.setToMax) {
             stats.hp = stats.maxHp;
             changed = true;
+            hpTouched = true;
         }
         if (typeof delta.hp.delta === 'number') {
             stats.hp = clamp(stats.hp + delta.hp.delta, 0, stats.maxHp);
             changed = true;
+            hpTouched = true;
         }
     }
 
@@ -119,6 +124,18 @@ export async function applyCharacterStateDeltaPenai(
     if (changed) {
         await saveHeroSessionStats(sessionId, heroEntityId, stats);
         await import('./syncHeroHp.js').then(m => m.syncHeroHpPenai(sessionId));
+    }
+
+    if (hpTouched) {
+        const damageWhileDown = prevHp <= 0 && typeof delta.hp?.delta === 'number' && delta.hp.delta < 0;
+        await import('./heroVitalsService.js').then(m =>
+            m.syncHeroVitalsAfterHpChange(sessionId, {
+                prevHp,
+                damageWhileDown,
+                isCritical: Boolean(vitalsCtx?.isCriticalDamage),
+                userId: vitalsCtx?.userId,
+            }),
+        );
     }
 
     const refreshed = await loadHeroSessionStats(sessionId, heroEntityId);

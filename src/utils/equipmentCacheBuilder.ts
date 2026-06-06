@@ -17,6 +17,15 @@ export const normalizeKey = (str: string): string =>
     .replace(/--+/g, '-')
     .trim();
 
+/** Chave canônica de categoria SRD — sempre preferir `index` ao nome traduzido. */
+export function equipmentCategoryKey(
+  cat: string | { index?: string; name?: string } | null | undefined,
+): string {
+  if (!cat) return '';
+  if (typeof cat === 'string') return cat;
+  return cat.index || cat.name || '';
+}
+
 /**
  * 🔹 Tenta encontrar a melhor correspondência de chave no cache
  */

@@ -113,6 +113,11 @@ export const NewCharacterInfoSchema = z.object({
     background: z.string().min(1),
     alignment: z.string().min(1),
     attributes: AttributesSchema,
+    /** Atributos base (antes de bônus raciais) — obrigatório com attributeMethod. */
+    baseAttributes: AttributesSchema.optional(),
+    attributeMethod: z.enum(['point-buy', 'roll']).optional(),
+    /** Sessão de rolagem autorizada pelo servidor (método roll). */
+    rollSessionId: z.string().uuid().optional(),
     proficiencies: z.array(ApiListItemSchema),
     traits: z.array(ApiListItemSchema),
     languages: z.array(z.string()),

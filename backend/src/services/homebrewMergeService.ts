@@ -6,6 +6,13 @@ const norm = (value?: string | null) => (value ?? '').toLowerCase().trim();
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
 
+/** Campos mecânicos SRD — fork PT não deve apagar opções oficiais com arrays vazios. */
+const MECHANICAL_PRESERVE_IF_EMPTY = new Set([
+    'starting_equipment_options',
+    'starting_proficiency_options',
+    'proficiency_choices',
+]);
+
 /**
  * Mescla profunda: valores definidos em `overrides` substituem `base`.
  */
@@ -15,6 +22,15 @@ export function deepMergeSrd<T extends Record<string, unknown>>(base: T, overrid
     for (const [key, value] of Object.entries(overrides)) {
         if (value === undefined) continue;
         const existing = result[key];
+        if (
+            MECHANICAL_PRESERVE_IF_EMPTY.has(key) &&
+            Array.isArray(value) &&
+            value.length === 0 &&
+            Array.isArray(existing) &&
+            existing.length > 0
+        ) {
+            continue;
+        }
         if (isPlainObject(existing) && isPlainObject(value)) {
             result[key] = deepMergeSrd(existing as Record<string, unknown>, value);
         } else {

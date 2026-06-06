@@ -44,6 +44,24 @@ export const penaiEnv = {
     ).trim(),
     /** Logs verbosos do turno (WS, motor, Gemini). Dev: ligado; prod: só com PENAI_PIPELINE_LOG=1 ou AI_DEBUG_LOGS=1 */
     PENAI_PIPELINE_LOG: toBoolean(process.env.PENAI_PIPELINE_LOG, process.env.NODE_ENV !== 'production'),
+
+    /**
+     * Tentativas Gemini structured por chamada (1 = sem retry — evita empilhar tokens em 429).
+     * @default 1
+     */
+    GEMINI_MAX_ATTEMPTS: Math.max(1, Number(process.env.GEMINI_MAX_ATTEMPTS) || 1),
+
+    /**
+     * Tentativas de narração no turnPipeline (validação pt-BR / erro de rede).
+     * @default 1
+     */
+    PENAI_NARRATION_MAX_ATTEMPTS: Math.max(1, Number(process.env.PENAI_NARRATION_MAX_ATTEMPTS) || 1),
+
+    /**
+     * Segunda chamada Gemini para actionOptions pós-narração.
+     * Default false — usa registry mecânico (`contextualActionOptions`).
+     */
+    PENAI_ACTION_OPTIONS_LLM: toBoolean(process.env.PENAI_ACTION_OPTIONS_LLM, false),
     JWT_SECRET: process.env.JWT_SECRET ?? 'change-me-in-development',
 
     PENAI_MAX_RESOURCE_MODULES: Number(process.env.PENAI_MAX_RESOURCE_MODULES) || 5,

@@ -8,6 +8,7 @@ import { useDerivedCharacterData } from './useDerivedCharacterData';
 import * as DndApiService from '../../services/dndApiService';
 import type { NewCharacterInfo, ProficiencyChoice, ApiListItem, InventoryItem } from '../../types';
 import { areAttributesCompleteFromState } from '@/features/character-create/stepCompleteness';
+import { findCacheMatch, equipmentCategoryKey } from '@/utils/equipmentCacheBuilder';
 
 export interface ProficiencyChoiceWithSource extends ProficiencyChoice {
     id: string;
@@ -47,6 +48,11 @@ export const useCharacterCreator = ({ allLanguages, currentStep = 1, initialSnap
     }, [initialSnapshot]);
 
     const setField = useCallback((field: keyof CharacterCreatorState, value: any) => {
+        if (field === 'attributeMethod') {
+            dispatch({ type: 'SET_FIELD', payload: { field: 'rollSessionId', value: null } });
+            dispatch({ type: 'SET_BASE_ATTRIBUTES', payload: initialState.baseAttributes });
+            dispatch({ type: 'SET_POINTS', payload: initialState.points });
+        }
         dispatch({ type: 'SET_FIELD', payload: { field, value } });
     }, []);
 
@@ -64,7 +70,7 @@ export const useCharacterCreator = ({ allLanguages, currentStep = 1, initialSnap
     
     const { raceDetails, classDetails, backgroundDetails } = details;
 
-    const attributeManager = useAttributeManager(state, dispatch);
+    const attributeManager = useAttributeManager(state, dispatch, setField);
 
     const selectionManager = useSelectionManager(state, details, allLanguages, dispatch);
     
@@ -110,10 +116,11 @@ export const useCharacterCreator = ({ allLanguages, currentStep = 1, initialSnap
             if (group.choice.from.option_set_type === 'options_array') {
                 mainOptions = group.choice.from.options || [];
             } else if (group.choice.from.equipment_category) {
-                const cat = group.choice.from.equipment_category;
-                const categoryKey = typeof cat === 'string' ? cat : cat.name || cat.index;
-                mainOptions = equipmentCategoryCache[categoryKey] || [];
-                // Transform items into the expected option format for consistency
+                const cacheKey = findCacheMatch(
+                    equipmentCategoryKey(group.choice.from.equipment_category),
+                    equipmentCategoryCache,
+                );
+                mainOptions = cacheKey ? equipmentCategoryCache[cacheKey] : [];
                 mainOptions = mainOptions.map(item => ({ option_type: 'counted_reference', of: item }));
             }
     
@@ -197,6 +204,7 @@ export const useCharacterCreator = ({ allLanguages, currentStep = 1, initialSnap
             !!state.name && !!state.race && !!state.characterClass && !!state.background && !!state.alignment &&
             areAttributesCompleteFromState({
                 attributeMethod: state.attributeMethod,
+                rollSessionId: state.rollSessionId,
                 points: state.points,
                 baseAttributes: state.baseAttributes,
                 isVariantHuman: state.isVariantHuman,
@@ -247,6 +255,9 @@ export const useCharacterCreator = ({ allLanguages, currentStep = 1, initialSnap
                 background: details.backgroundDetails!.name,
                 alignment: state.alignment,
                 attributes: derivedData.finalAttributes,
+                baseAttributes: state.baseAttributes,
+                attributeMethod: state.attributeMethod ?? undefined,
+                rollSessionId: state.attributeMethod === 'roll' ? (state.rollSessionId ?? undefined) : undefined,
                 proficiencies: derivedData.finalProficiencies,
                 traits: Array.from(new Map([...(details.raceDetails?.traits || []), ...(details.subraceDetails?.racial_traits || [])].map(item => [item.index, item])).values()),
                 languages: Array.from(new Set([...derivedData.baseLanguages, ...state.chosenLanguages.filter(Boolean)])),

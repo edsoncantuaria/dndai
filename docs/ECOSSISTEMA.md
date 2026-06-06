@@ -2,7 +2,7 @@
 
 > **Documento canônico** para revisão sênior, onboarding e agentes de IA. Descreve o sistema **como está implementado** (maio/2026). Complemento visual: **DESIGN_FRONTEND.md**. Índice de revisão: **VALIDACAO_SENIOR.md**.
 >
-> **Última revisão:** junho de 2026 (PENAI canônico; módulos em `docs/architecture/`; stack legado Express/MySQL marcado onde aplicável)
+> **Última revisão:** junho de 2026 (consumo de munição em ataque à distância; PENAI canônico; módulos em `docs/architecture/`)
 
 ---
 
@@ -892,6 +892,8 @@ Esse evento existe para compatibilidade/UX (toasts, needs_roll, etc.). Shape obs
 | `itemId` | number? |
 | `itemIndex` | string? |
 
+Armas com propriedade SRD **Ammunition** (arco, besta, funda, zarabatana) exigem munição no inventário do herói (`validateWeaponAttack` → `metadata.resourceCosts` com `kind: item`, ex. `itemIndex: arrow`). O débito ocorre na **resolução** da rolagem de ataque (1 unidade por ataque, acerto ou erro), via `applyCharacterStateDeltaPenai` / `consumeHeroInventoryItem`.
+
 ### A.7.3 Invariantes
 
 - `advantage` e `disadvantage` não podem ser `true` simultaneamente.
@@ -1528,7 +1530,7 @@ Limite intencional: o motor não implementa automaticamente “toda mecânica do
 | Pré-LLM | `actionSense` (plausibilidade) + motor SRD (rolls/bloqueios) |
 | Narração | `runTurnPipeline` → `responseJsonSchema` nativo |
 | Action options | Registry mecânico + agente Gemini separado |
-| BYOK | `resolveInferenceApiKey` na narração; actionSense usa chave plataforma (gap) |
+| BYOK | `resolveInferenceApiKey` — narração, actionSense (árbitro), actionOptions, bootstrap |
 | Modo | `AI_PIPELINE_MODE=narration_only` (fixo) |
 
 ### 10.1 Legado — Engines OSS
@@ -1829,10 +1831,10 @@ Rotas ativas: `/api/v2/auth/*`, `/api/v2/users/*` — **não** usam `authService
 
 ### 19.4 BYOK Gemini e créditos
 
-- Resolução narração: `resolveGeminiApiKey(userKey)` — BYOK `AIza…` primeiro, senão `GEMINI_API_KEY` plataforma.
+- Resolução inferência: `resolveInferenceApiKey(userId)` → `resolveGeminiApiKey(userKey)` — BYOK `AIza…` primeiro, senão `GEMINI_API_KEY` plataforma (narração, actionSense, actionOptions, bootstrap).
 - Modos: `byok` | `platform_credits` | `unavailable` (`buildAiAccessStatus`).
-- Billing plataforma: `AI_PLATFORM_BILLING_ENABLED` (default **false**); créditos debitados em `turnPipeline` quando ligado.
-- **Gap:** `actionSense` usa chave plataforma, não BYOK do jogador.
+- Billing plataforma: `AI_PLATFORM_BILLING_ENABLED` (default **false**); 1 crédito por turno em `turnPipeline` (narração + actionSense do mesmo `processAction`, sem débito extra no árbitro).
+- Árbitro `free`/`social`: fail-closed sem `canInfer` → `actionRejected`.
 
 ### 19.5 Licença e onboarding
 

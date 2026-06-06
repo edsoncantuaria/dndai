@@ -11,15 +11,16 @@ Estas melhorias estão **sempre ligadas** no código — não usar env para “a
 
 | Capacidade | Onde |
 |------------|------|
+| Runtime canônico | **PENAI** — `penaiServer.ts`, Postgres, Fastify `/api/v2`, WS contract v2 |
 | Split mecânico × narrativo | `mechanicalStateUpdate` antes da narração |
-| Fila BullMQ | `backend/src/queue/` — dev: mesmo processo; prod: `SKIP_NARRATION_WORKERS` + `npm run worker:narration` |
-| Worker append-only mecânico (P5) | `executionSource: worker` — não persiste combate/ficha; só logs/fatos |
-| JSON minimalista OSS | `OssMinimalNarrationSchema` + registry de `actionOptions` |
-| Motor autoritativo | `AI_PIPELINE_MODE=narration_only` |
+| Fila narração | **Temporal** `penai-narration` — `SKIP_TEMPORAL_WORKER` + `npm run worker:temporal` |
+| Gemini single-attempt | `GEMINI_MAX_ATTEMPTS=1`, Temporal `maximumAttempts: 1`, `isStaleNarrationTurn` |
+| Action options | Registry mecânico default (`PENAI_ACTION_OPTIONS_LLM=false`) |
+| Motor autoritativo | `GAME_MOTOR.validateAndApply` — IA só narra |
 
-**Fallback único:** sem Redis (`REDIS_URL=mock` em testes) a narração de rolagem volta síncrona no handler.
+**Fallback dev:** `TEMPORAL_DISABLED=true` — narração síncrona no processo API (testes).
 
-Não reintroduzir: fila `redis-list`, `NARRATION_WORKER_INLINE`, flags `MECHANICAL_NARRATIVE_SPLIT`, `ASYNC_NARRATION_*`, `OSS_MINIMAL_NARRATION`.
+Não reintroduzir: BullMQ legado, MySQL gameplay, fila `redis-list`, flags `MECHANICAL_NARRATIVE_SPLIT`.
 
 ## Skills — uso obrigatório
 

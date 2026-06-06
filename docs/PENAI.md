@@ -22,6 +22,8 @@ O PENAI **não** é um chatbot com prompt central.
 
 Invariante: a IA **não** altera HP, inventário nem geografia canônica.
 
+**Política de tokens (jun/2026):** uma chamada Gemini por etapa do turno — `GEMINI_MAX_ATTEMPTS=1`, Temporal `maximumAttempts: 1`, turnos obsoletos ignorados (`isStaleNarrationTurn`). Opções de ação via registry mecânico (`PENAI_ACTION_OPTIONS_LLM=false`); sem segunda chamada LLM por turno.
+
 ---
 
 ## 2. O que já foi feito (resumo por fase)

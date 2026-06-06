@@ -65,7 +65,11 @@ export async function generateBootstrapQuests(opts: {
 
     const apiKey = resolveGeminiApiKey(opts.userApiKey);
     if (!apiKey) {
-        failWorldGemini('quest', 'no_api_key', 'GEMINI_API_KEY ausente');
+        failWorldGemini(
+            'quest',
+            'no_api_key',
+            'Chave de inferência indisponível (BYOK ou plataforma)',
+        );
     }
 
     const model = penaiEnv.GEMINI_GENERATION_MODEL;

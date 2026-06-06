@@ -14,6 +14,7 @@ export interface CharacterCreatorState {
     alignment: string;
     backstory: string;
     attributeMethod: 'point-buy' | 'roll' | null;
+    rollSessionId: string | null;
     points: number;
     baseAttributes: Attributes;
     personalityTraits: string[];
@@ -47,6 +48,7 @@ export const initialState: CharacterCreatorState = {
     alignment: '',
     backstory: '',
     attributeMethod: null,
+    rollSessionId: null,
     points: 27,
     baseAttributes: { strength: 8, dexterity: 8, constitution: 8, intelligence: 8, wisdom: 8, charisma: 8 },
     personalityTraits: [],

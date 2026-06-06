@@ -33,6 +33,7 @@ export interface ActionSenseProvider {
         regionSlug: string | null;
         intentType: string;
         sessionFacts?: string[];
+        userApiKey?: string;
     }): Promise<PlausibilityResult>;
 }
 

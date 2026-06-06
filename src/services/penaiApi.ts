@@ -264,6 +264,20 @@ export async function deletePenaiSession(sessionId: number) {
     return apiClient<{ ok: boolean }>(`/v2/sessions/${sessionId}`, { method: 'DELETE' });
 }
 
+export async function exportSessionHeroToVault(sessionId: number) {
+    return apiClient<{ character: Record<string, unknown> }>(
+        `/v2/sessions/${sessionId}/export-hero-to-vault`,
+        { method: 'POST' },
+    );
+}
+
+export async function resetVaultHeroProgress(heroId: string) {
+    return apiClient<{ message: string; character: Record<string, unknown> }>(
+        `/v2/characters/${heroId}/reset-progress`,
+        { method: 'POST' },
+    );
+}
+
 export async function renamePenaiSession(sessionId: number, nome: string) {
     return apiClient<Record<string, unknown>>(`/v2/sessions/${sessionId}`, {
         method: 'PATCH',

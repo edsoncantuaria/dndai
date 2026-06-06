@@ -17,6 +17,7 @@ import { patchCharacter } from './characterPatch';
 import { loadPenaiGameSession } from '@/lib/penaiCharacterAdapter';
 import { applyPenaiMechanicalInteractionSlice } from '@/lib/penaiMechanicalHydrate';
 import { getPenaiBridge } from '@/lib/penaiBridge';
+import { PENAI_OPENING_PROMPT } from '@/hooks/usePenaiTurnPipeline';
 import { deletePenaiSession } from '@/services/penaiApi';
 import type { useGameLog } from '../useGameLog';
 import type { useInteractionManager } from '../useInteractionManager';
@@ -188,8 +189,7 @@ export function useGameSession(options: UseGameSessionOptions) {
             const targetSessionId = newSessionId ?? sessionId;
             if (!targetSessionId) return;
 
-            const opening =
-                'A aventura começa. Onde eu estou e o que está acontecendo?';
+            const opening = PENAI_OPENING_PROMPT;
 
             const bridge = getPenaiBridge();
             if (bridge?.active) {

@@ -24,6 +24,7 @@ import { LivingCharacterSheet } from './LivingCharacterSheet';
 import { SheetBlockEditor } from './SheetBlockEditor';
 import type { SheetBlockDef } from './sheetBlocks';
 import { getVisibleBlocks, isBlockComplete } from './sheetBlocks';
+import { useOnboarding } from '@/contexts/OnboardingContext';
 
 export interface CharacterCreationWizardProps {
   races: ApiListItem[];
@@ -50,6 +51,8 @@ export function CharacterCreationWizard({
 }: CharacterCreationWizardProps) {
   const { createCharacter, updateCharacter } = useGameStateContext();
   const { toast } = useToast();
+  const { needsOnboarding, step: onboardingStep } = useOnboarding();
+  const isOnboardingCreateHero = needsOnboarding && onboardingStep === 'create_hero';
   const isEditMode = editCharacterId != null;
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -204,12 +207,15 @@ export function CharacterCreationWizard({
         hook={hook}
         onStartBlank={() => setPhase('sheet')}
         onApplied={() => setPhase('sheet')}
+        reserveOnboardingBar={isOnboardingCreateHero}
       />
     );
   }
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-dnd-obsidian">
+    <div
+      className={`relative flex h-full min-h-0 flex-col overflow-hidden bg-dnd-obsidian${isOnboardingCreateHero ? ' pt-[var(--dnd-onboarding-hero-bar,3.5rem)]' : ''}`}
+    >
       <AmbientBackground variant="parchment" />
 
       <header className="relative z-10 flex shrink-0 items-center justify-between gap-2 border-b border-dnd-gold/10 px-3 py-3 sm:px-5">

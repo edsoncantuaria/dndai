@@ -40,6 +40,7 @@ import { LastProjectedEventUuid1748700000000 } from './migrations/1748700000000-
 import { SessionUiAndWorldBootstrap1748800000000 } from './migrations/1748800000000-SessionUiAndWorldBootstrap.js';
 import { PenaiP9SupremeWorld1748900000000 } from './migrations/1748900000000-PenaiP9SupremeWorld.js';
 import { WorldShardPolitics1748910000000 } from './migrations/1748910000000-WorldShardPolitics.js';
+import { SessionDeathAndVault1748920000000 } from './migrations/1748920000000-SessionDeathAndVault.js';
 import { WorldShard } from './entities/WorldShard.js';
 import { KgNode } from './entities/KgNode.js';
 import { KgEdge } from './entities/KgEdge.js';
@@ -96,6 +97,7 @@ export const PenaiDataSource = new DataSource({
         SessionUiAndWorldBootstrap1748800000000,
         PenaiP9SupremeWorld1748900000000,
         WorldShardPolitics1748910000000,
+        SessionDeathAndVault1748920000000,
     ],
     migrationsTableName: 'penai_migrations',
 });

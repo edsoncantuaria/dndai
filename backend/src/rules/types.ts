@@ -134,7 +134,7 @@ export interface RulesCharacterSnapshot {
     weaponProficiencies?: string[];
     skillProficiencies?: string[];
     extraAttackBonus?: number;
-    inventory?: { index?: string; name?: string; equipped?: boolean }[];
+    inventory?: { index?: string; name?: string; equipped?: boolean; quantity?: number }[];
     conditions?: string[];
     resources?: CharacterResourceSnapshot[];
     spellcasting?: {

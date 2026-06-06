@@ -8,6 +8,7 @@ import type { NewCharacterInfoSchema } from '../../schemas/validationSchemas.js'
 import { ensureHeroSessionState } from './heroStats.js';
 import { seedStarterInventory, addHeroInventoryItem } from './heroInventory.js';
 import { appendWorldEvent } from '../events/store.js';
+import { validateCreationAttributes } from './validateCreationAttributes.js';
 
 function slugify(name: string, userId: number): string {
     const base = name
@@ -143,6 +144,8 @@ export async function updateVaultHero(
     });
     if (!entity) throw createError(404, 'Template de herói não encontrado no cofre.');
 
+    await validateCreationAttributes(userId, data);
+
     const prevRevision = (entity.stats?.templateRevision as number) ?? 1;
     const srdBuild = { ...data, level: data.level ?? 1 };
 
@@ -253,6 +256,15 @@ export async function cloneVaultHeroToSession(
         await seedStarterInventory(sessionId, newId);
     }
 
+    const sessionRepo = PenaiDataSource.getRepository(
+        (await import('../database/entities/GameSession.js')).GameSession,
+    );
+    const session = await sessionRepo.findOne({ where: { id: sessionId } });
+    if (session) {
+        session.vaultTemplateId = templateId;
+        await sessionRepo.save(session);
+    }
+
     await appendWorldEvent({
         type: 'HERO_CREATED',
         sessionId,
@@ -261,4 +273,113 @@ export async function cloneVaultHeroToSession(
     });
 
     return newId;
+}
+
+/** Exporta progresso do herói da sessão para o template do cofre (pós-morte ou manual). */
+export async function exportSessionHeroToVault(
+    userId: number,
+    sessionId: number,
+): Promise<Record<string, unknown>> {
+    const { GameSession } = await import('../database/entities/GameSession.js');
+    const session = await PenaiDataSource.getRepository(GameSession).findOne({
+        where: { id: sessionId, userId },
+    });
+    if (!session?.heroWorldEntityId) {
+        throw createError(404, 'Herói da sessão não encontrado.');
+    }
+
+    const templateId = session.vaultTemplateId;
+    if (!templateId) {
+        throw createError(400, 'Sessão sem template de cofre vinculado.');
+    }
+
+    const repo = PenaiDataSource.getRepository(WorldEntity);
+    const template = await repo.findOne({
+        where: { id: templateId, createdByUserId: userId, isVaultTemplate: true, deletedAt: IsNull() },
+    });
+    if (!template) throw createError(404, 'Template do cofre não encontrado.');
+
+    const hero = await repo.findOne({ where: { id: session.heroWorldEntityId } });
+    if (!hero) throw createError(404, 'Entidade do herói não encontrada.');
+
+    const { loadHeroSessionStats } = await import('./heroStats.js');
+    const { listHeroInventory } = await import('./heroInventory.js');
+    const { loadPenaiProgressionPack } = await import('./progressionPack.js');
+
+    const stats = await loadHeroSessionStats(sessionId, hero.id);
+    const inventory = await listHeroInventory(sessionId, hero.id);
+    const srdBuild = { ...((hero.stats?.srdBuild ?? {}) as Record<string, unknown>) };
+    const progression = await loadPenaiProgressionPack({
+        sessionId,
+        heroEntityId: hero.id,
+        srdBuild,
+    });
+
+    srdBuild.level = progression.level;
+    srdBuild.inventory = inventory.map(i => ({
+        index: i.itemKey,
+        name: i.name,
+        quantity: i.quantity,
+        equipped: i.equipped,
+    }));
+    if (progression.classLevelsData?.length) {
+        srdBuild.classLevelsData = progression.classLevelsData;
+    }
+    if (progression.subclassLevelsData?.length) {
+        srdBuild.subclassLevelsData = progression.subclassLevelsData;
+    }
+
+    template.displayName = hero.displayName;
+    template.stats = {
+        ...hero.stats,
+        ...template.stats,
+        level: progression.level,
+        srdBuild,
+        exportedFromSessionId: sessionId,
+        exportedAt: new Date().toISOString(),
+        sessionHp: stats.hp,
+        sessionMaxHp: stats.maxHp,
+    };
+
+    await repo.save(template);
+
+    await appendWorldEvent({
+        type: 'HERO_EXPORTED_TO_VAULT',
+        sessionId,
+        actorEntityId: hero.id,
+        payload: { vaultTemplateId: templateId, level: progression.level },
+    });
+
+    return vaultToFullCharacter(template);
+}
+
+/** Reseta progresso do template para nível 1 (mesma identidade/backstory). */
+export async function resetVaultHeroProgress(
+    userId: number,
+    heroId: string,
+): Promise<Record<string, unknown>> {
+    const repo = PenaiDataSource.getRepository(WorldEntity);
+    const entity = await repo.findOne({
+        where: { id: heroId, createdByUserId: userId, isVaultTemplate: true, deletedAt: IsNull() },
+    });
+    if (!entity) throw createError(404, 'Template de herói não encontrado no cofre.');
+
+    const build = { ...((entity.stats?.srdBuild ?? {}) as Record<string, unknown>) };
+    build.level = 1;
+    delete build.classLevelsData;
+    delete build.subclassLevelsData;
+    delete build.exportedFromSessionId;
+    delete build.exportedAt;
+    delete build.sessionHp;
+    delete build.sessionMaxHp;
+
+    entity.stats = {
+        ...entity.stats,
+        level: 1,
+        srdBuild: build,
+        templateRevision: ((entity.stats?.templateRevision as number) ?? 1) + 1,
+    };
+
+    await repo.save(entity);
+    return vaultToFullCharacter(entity);
 }

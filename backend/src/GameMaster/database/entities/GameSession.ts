@@ -73,6 +73,14 @@ export class GameSession {
     @Column({ type: 'jsonb', nullable: true })
     worldBootstrap!: Record<string, unknown> | null;
 
+    /** `active` | `ended_death` | `ended_abandon` */
+    @Column({ type: 'varchar', length: 24, default: 'active' })
+    sessionStatus!: string;
+
+    /** Template do cofre usado ao clonar o herói desta sessão. */
+    @Column({ type: 'uuid', nullable: true })
+    vaultTemplateId!: string | null;
+
     @CreateDateColumn()
     createdAt!: Date;
 

@@ -1,8 +1,9 @@
 // src/hooks/character-creation/useAttributeManager.ts
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import type { Attributes } from '@/types';
 import type { CharacterCreatorState, CharacterCreatorAction } from './reducer';
-import { getCostForScore, getPointsForScore, rollAttribute } from '@/utils/creationHelpers';
+import { getCostForScore, getPointsForScore } from '@/utils/creationHelpers';
+import { rollCharacterAttributes } from '@/services/characterCreationService';
 
 const attributeSuggestions: Record<string, (keyof Attributes)[]> = {
     'barbarian': ['strength', 'constitution', 'dexterity', 'wisdom', 'charisma', 'intelligence'],
@@ -19,8 +20,14 @@ const attributeSuggestions: Record<string, (keyof Attributes)[]> = {
     'wizard': ['intelligence', 'constitution', 'dexterity', 'wisdom', 'charisma', 'strength'],
 };
 
-export const useAttributeManager = (state: CharacterCreatorState, dispatch: React.Dispatch<CharacterCreatorAction>) => {
+export const useAttributeManager = (
+    state: CharacterCreatorState,
+    dispatch: React.Dispatch<CharacterCreatorAction>,
+    setField: (field: keyof CharacterCreatorState, value: unknown) => void,
+) => {
     const { baseAttributes, points, characterClass } = state;
+    const [isRollingAttributes, setIsRollingAttributes] = useState(false);
+    const [rollError, setRollError] = useState<string | null>(null);
 
     const handleAttributeChange = useCallback((attr: keyof Attributes, delta: 1 | -1) => {
         const currentScore = baseAttributes[attr];
@@ -37,17 +44,20 @@ export const useAttributeManager = (state: CharacterCreatorState, dispatch: Reac
         }
     }, [baseAttributes, points, dispatch]);
 
-    const handleRollAttributes = useCallback(() => {
-        const newAttributes = {
-            strength: rollAttribute(),
-            dexterity: rollAttribute(),
-            constitution: rollAttribute(),
-            intelligence: rollAttribute(),
-            wisdom: rollAttribute(),
-            charisma: rollAttribute(),
-        };
-        dispatch({ type: 'SET_BASE_ATTRIBUTES', payload: newAttributes });
-    }, [dispatch]);
+    const handleRollAttributes = useCallback(async () => {
+        setIsRollingAttributes(true);
+        setRollError(null);
+        try {
+            const result = await rollCharacterAttributes();
+            dispatch({ type: 'SET_BASE_ATTRIBUTES', payload: result.baseAttributes });
+            setField('rollSessionId', result.rollSessionId);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Não foi possível rolar os atributos.';
+            setRollError(message);
+        } finally {
+            setIsRollingAttributes(false);
+        }
+    }, [dispatch, setField]);
 
     const handleSuggestAttributes = useCallback(() => {
         if (!characterClass) return;
@@ -64,11 +74,14 @@ export const useAttributeManager = (state: CharacterCreatorState, dispatch: Reac
 
         dispatch({ type: 'SET_BASE_ATTRIBUTES', payload: newAttributes as Attributes });
         dispatch({ type: 'SET_POINTS', payload: 27 - totalCost });
-    }, [characterClass, dispatch]);
+        setField('rollSessionId', null);
+    }, [characterClass, dispatch, setField]);
 
     return {
         handleAttributeChange,
         handleRollAttributes,
         handleSuggestAttributes,
+        isRollingAttributes,
+        rollError,
     };
 };

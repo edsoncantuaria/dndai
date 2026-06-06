@@ -10,13 +10,16 @@
 
 2. **Rolagens e bloqueios mecânicos** ficam exclusivamente no **motor SRD** (`RuleCheckStatus`, `rulesBridge`). WS expõe `actionRejected`, `playerRollRequest`, `mechanicalStateUpdate` — não um enum único de adjudicação LLM.
 
-3. **Indisponibilidade do árbitro:** permissivo em dev; `GEMINI_FAIL_CLOSED` opcional em prod. Narração exige chave resolvível (BYOK ou plataforma) e aborta turno sem texto fictício.
+3. **Chave de inferência:** actionSense, narração, actionOptions e bootstrap usam `resolveInferenceApiKey(userId)` → `resolveGeminiApiKey(userApiKey)` (BYOK primeiro, depois plataforma).
+
+4. **Indisponibilidade do árbitro:** intents `free`/`social` **fail-closed** sem `canInfer`; falha de API em prod ou `GEMINI_FAIL_CLOSED=1` rejeita a ação. Narração aborta turno sem texto fictício se sem chave.
+
+5. **Créditos:** 1 crédito por turno narrado (`consumePenaiNarrationCredit`); actionSense no mesmo `processAction` **não** debita de novo (bundled).
 
 ## Consequências
 
 - Não reintroduzir schema monolítico `adjudication.verdict` no JSON de narração.
-- Documentação: `architecture/ai-gemini-penai.md`, ECOSSISTEMA §10.
-- **Gap aberto:** actionSense usa `GEMINI_API_KEY` plataforma, não BYOK do jogador.
+- Documentação: `architecture/ai-gemini-penai.md`, `architecture/auth-billing-byok.md`, ECOSSISTEMA §10/§19.
 
 ## Referências
 

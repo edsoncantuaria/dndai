@@ -46,7 +46,11 @@ export async function generateBootstrapEconomy(opts: {
     const ctx = opts.ctx ?? { sessionId: opts.sessionId, userId: opts.userId };
     const apiKey = resolveGeminiApiKey(opts.userApiKey);
     if (!apiKey) {
-        failWorldGemini('economy', 'no_api_key', 'GEMINI_API_KEY ausente');
+        failWorldGemini(
+            'economy',
+            'no_api_key',
+            'Chave de inferência indisponível (BYOK ou plataforma)',
+        );
     }
 
     const model = penaiEnv.GEMINI_GENERATION_MODEL;

@@ -46,6 +46,14 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({
   const [hasRolled, setHasRolled] = useState(false);
 
   const fullscreenMobile = isMobile && show;
+  const isDeathSave =
+    Boolean(request.metadata?.deathSave) ||
+    (request.rollType === 'save' &&
+      /morte|death/i.test(String(request.reason ?? '')));
+  const rollTitle = isDeathSave
+    ? request.reason?.trim() || 'Teste de morte'
+    : request.reason;
+  const rollSubtitle = isDeathSave ? 'Rolagem de Constituição (CD 10)' : null;
 
   useEffect(() => {
     if (!show) {
@@ -329,7 +337,12 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({
               <p className="mt-1 font-ui text-xs uppercase tracking-wider text-dnd-gold/90">
                 Mestre solicita — role nos dados 3D
               </p>
-              <h1 className="mt-2 font-serif text-2xl leading-tight text-white">{request.reason}</h1>
+              <h1 className="mt-2 font-serif text-2xl leading-tight text-white">{rollTitle}</h1>
+              {rollSubtitle ? (
+                <p className="mt-1 font-ui text-xs uppercase tracking-wider text-red-300/90">
+                  {rollSubtitle}
+                </p>
+              ) : null}
             </header>
             <div className="flex-1 space-y-4 p-6 text-stone-200">
               {renderMeta()}
@@ -405,8 +418,13 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({
               id="dice-roll-modal-title"
               className="mt-1.5 font-display text-xl leading-snug text-dnd-parchment md:text-2xl"
             >
-              {request.reason}
+              {rollTitle}
             </h1>
+            {rollSubtitle ? (
+              <p className="mt-1 font-ui text-[10px] uppercase tracking-[0.35em] text-red-300/90">
+                {rollSubtitle}
+              </p>
+            ) : null}
           </header>
 
           <div className="flex flex-1 flex-col justify-center space-y-4 overflow-y-auto px-4 py-5 md:px-6">

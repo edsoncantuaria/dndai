@@ -1,6 +1,6 @@
 # Auth · Billing · BYOK · Onboarding
 
-> **Última revisão:** 2026-06-06 · Ver `ECOSSISTEMA.md` §19
+> **Última revisão:** 2026-06-06 (BYOK no árbitro actionSense) · Ver `ECOSSISTEMA.md` §19
 
 ## Resumo
 
@@ -33,7 +33,17 @@
 
 Env: `AI_PLATFORM_BILLING_ENABLED` (default **false**), `AI_INCLUDED_CREDITS_DEFAULT` (default 30 no registro).
 
-Consumo: `consumePenaiNarrationCredit` em `turnPipeline.ts` por turno narrado.
+Consumo: `consumePenaiNarrationCredit` em `turnPipeline.ts` por turno narrado (inclui actionSense do mesmo turno — sem débito extra).
+
+## Quem usa a chave (PENAI)
+
+| Chamada LLM | Resolução | Sem chave |
+|-------------|-----------|-----------|
+| Narração (`turnPipeline`) | `resolveInferenceApiKey` | Aborta narração |
+| Árbitro (`actionSense` free/social) | `resolveInferenceApiKey` | `actionRejected` (fail-closed) |
+| Opções pós-narração (`actionOptions`) | `userApiKey` no turno | Fallback registry mecânico |
+| Bootstrap mundo / pulse | `resolveInferenceApiKey` na sessão | Fallback offline (seed) |
+| Embeddings / memória | `userApiKey` opcional | Fallback local ou skip |
 
 ## Onboarding
 

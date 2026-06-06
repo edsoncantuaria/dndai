@@ -12,7 +12,11 @@ import type { MotorActionOption } from '../motor/actionOptionTypes.js';
 import { buildContextualActionOptions } from '../motor/contextualActionOptions.js';
 import { saveLastActionOptions } from '../sessions/sessionUiState.js';
 import { publishWsToUser } from '../transport/wsPubSub.js';
-import { completePenaiTurnNarration, rollbackPenaiTurnOnNarrationFailure } from '../motor/turnLock.js';
+import {
+    completePenaiTurnNarration,
+    isStaleNarrationTurn,
+    rollbackPenaiTurnOnNarrationFailure,
+} from '../motor/turnLock.js';
 import {
     resolveInferenceApiKey,
     consumePlatformNarrationCredit,
@@ -38,7 +42,6 @@ import {
     orchestrationToPayload,
 } from '../ai/turnOrchestration.js';
 import { applyLazyNpcLootFromNarration } from '../world/npcNarrationLoot.js';
-import { isNonRecoverableNarrationError } from '../ai/geminiStructured.js';
 
 async function abortPenaiTurnNarration(opts: {
     sessionId: number;
@@ -191,42 +194,30 @@ export async function runTurnPipeline(input: TurnPipelineInput): Promise<TurnPip
     let narration = '';
     let tone: string | undefined;
     let lastError = 'Narração indisponível.';
-    let fatal = false;
 
-    for (let attempt = 0; attempt < 3; attempt++) {
-        penaiPipelineWait('NARRATION', `Gemini narração tentativa ${attempt + 1}/3…`, ctx);
-        const t0 = performance.now();
-        try {
-            const out = await defaultProviders.narration.render(userPayload, {
-                userApiKey: userApiKey ?? undefined,
-                sceneMode,
-            });
-            penaiPipelineLog(
-                'NARRATION',
-                `Gemini respondeu (${Math.round(performance.now() - t0)}ms)`,
-                { tone: out.tone, preview: out.narration.slice(0, 200) },
-                ctx,
-            );
-            const guard = assertNarrationPtBr(out.narration);
-            if (guard.ok) {
-                narration = out.narration;
-                tone = out.tone;
-                break;
-            }
+    penaiPipelineWait('NARRATION', 'Gemini narração (1 tentativa, sem retry)…', ctx);
+    const t0 = performance.now();
+    try {
+        const out = await defaultProviders.narration.render(userPayload, {
+            userApiKey: userApiKey ?? undefined,
+            sceneMode,
+        });
+        penaiPipelineLog(
+            'NARRATION',
+            `Gemini respondeu (${Math.round(performance.now() - t0)}ms)`,
+            { tone: out.tone, preview: out.narration.slice(0, 200) },
+            ctx,
+        );
+        const guard = assertNarrationPtBr(out.narration);
+        if (guard.ok) {
+            narration = out.narration;
+            tone = out.tone;
+        } else {
             lastError = guard.reason ?? 'Narração fora do padrão pt-BR.';
-        } catch (err) {
-            lastError = err instanceof Error ? err.message : String(err);
-            penaiPipelineLog(
-                'NARRATION',
-                `tentativa ${attempt + 1} falhou`,
-                { error: lastError },
-                ctx,
-            );
-            if (isNonRecoverableNarrationError(err)) {
-                fatal = true;
-                break;
-            }
         }
+    } catch (err) {
+        lastError = err instanceof Error ? err.message : String(err);
+        penaiPipelineLog('NARRATION', 'narração falhou — turno encerrado', { error: lastError }, ctx);
     }
 
     if (!narration.trim()) {
@@ -235,9 +226,7 @@ export async function runTurnPipeline(input: TurnPipelineInput): Promise<TurnPip
             userId: input.userId,
             actionId: input.actionId,
             actionSequence: input.actionSequence,
-            message: fatal
-                ? lastError
-                : `${lastError} Tente novamente em instantes.`,
+            message: lastError,
             ctx,
         });
     }

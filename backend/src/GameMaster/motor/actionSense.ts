@@ -1,4 +1,4 @@
-import { penaiEnv } from '../../config/penaiEnv.js';
+import { resolveInferenceApiKey } from '../../services/aiBillingService.js';
 import { getGameSession } from '../sessions/sessionService.js';
 import { getRegionBySlug } from '../world/travelCanon.js';
 import { listCanonicalRegions } from '../world/mapCatalog.js';
@@ -260,10 +260,18 @@ export async function validateActionSense(opts: {
         }
     }
 
-    if (
-        penaiEnv.GEMINI_API_KEY &&
-        (intent.type === 'free' || intent.type === 'social')
-    ) {
+    if (intent.type === 'free' || intent.type === 'social') {
+        const userApiKey = await resolveInferenceApiKey(opts.userId);
+        if (!userApiKey) {
+            return {
+                ok: false,
+                reason:
+                    'Árbitro indisponível — configure sua chave Gemini (BYOK) ou créditos da plataforma.',
+                hint: 'Em Configurações, adicione sua chave Google AI (AIza…) ou aguarde créditos da plataforma.',
+                refinedIntent: intent,
+            };
+        }
+
         const recalled = await recallMemoryForTurn({
             sessionId: opts.sessionId,
             query: text,
@@ -281,6 +289,7 @@ export async function validateActionSense(opts: {
             regionSlug: currentRegionSlug,
             intentType: intent.type,
             sessionFacts: [...recalled.sessionFacts, ...recalled.canonFacts].slice(0, 6),
+            userApiKey,
         });
         penaiPipelineLog(
             'ACTION_SENSE',

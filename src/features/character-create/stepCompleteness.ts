@@ -3,6 +3,7 @@ import type { Attributes } from '@/types';
 
 type AttributesCompletionInput = {
   attributeMethod: 'point-buy' | 'roll' | null;
+  rollSessionId: string | null;
   points: number;
   baseAttributes: Attributes;
   isVariantHuman: boolean;
@@ -22,6 +23,7 @@ export function areAttributesCompleteFromState(input: AttributesCompletionInput)
 export function areAttributesComplete(hook: ReturnType<typeof useCharacterCreator>): boolean {
   return areAttributesCompleteFromState({
     attributeMethod: hook.attributeMethod,
+    rollSessionId: hook.rollSessionId,
     points: hook.points,
     baseAttributes: hook.baseAttributes,
     isVariantHuman: hook.isVariantHuman,

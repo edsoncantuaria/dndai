@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { penaiEnv } from '../../../config/penaiEnv.js';
 import { parseLlmJsonText } from '../../ai/llmJsonTranslator.js';
 import { ACTION_OPTIONS_LLM_DICTIONARY } from '../../ai/llmJsonSchemas.js';
 import { ACTION_OPTIONS_RESPONSE_JSON_SCHEMA } from '../../ai/geminiSchemas.js';
@@ -92,7 +91,7 @@ export async function suggestActionOptionsGemini(opts: {
     proficientSkills?: string[];
     knownSpells?: string[];
 }): Promise<MotorActionOption[]> {
-    const apiKey = resolveGeminiApiKey(opts.userApiKey).trim() || penaiEnv.GEMINI_API_KEY.trim();
+    const apiKey = resolveGeminiApiKey(opts.userApiKey).trim();
     if (!apiKey || !opts.lastNarration.trim()) {
         return opts.fallbackOptions;
     }

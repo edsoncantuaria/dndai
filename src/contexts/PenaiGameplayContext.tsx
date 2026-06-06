@@ -20,7 +20,16 @@ export type PenaiGameplayValue = {
     lastMechanical: Record<string, unknown> | null;
     lastError: string | null;
     phase: TurnPipelinePhase;
+    gameOver: {
+        heroName: string;
+        level: number;
+        vaultTemplateId?: string | null;
+        reason?: string;
+    } | null;
+    clearGameOver: () => void;
     sendProcessAction: (playerAction: string, payload?: Record<string, unknown>) => void;
+    /** Reenvia abertura manualmente após falha (sem retry automático de LLM). */
+    retryOpening: () => void;
     sendStructuredIntent: (
         intent: { type: string; payload?: Record<string, unknown> },
         playerAction?: string,
@@ -46,7 +55,10 @@ const defaultValue: PenaiGameplayValue = {
     lastMechanical: null,
     lastError: null,
     phase: 'idle',
+    gameOver: null,
+    clearGameOver: () => {},
     sendProcessAction: () => {},
+    retryOpening: () => {},
     sendStructuredIntent: () => {},
     submitRollResult: () => {},
     handleRollResult: () => () => {},

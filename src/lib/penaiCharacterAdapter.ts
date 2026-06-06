@@ -177,8 +177,11 @@ export function mechanicalPackToCharacter(
         hitDie: 10,
         hitDice: { current: 1, total: 1 },
         speed: 30,
-        deathSaves: { successes: 0, failures: 0 },
-        conditions: [],
+        deathSaves: {
+            successes: Number((ch?.deathSaves as { successes?: number })?.successes ?? 0),
+            failures: Number((ch?.deathSaves as { failures?: number })?.failures ?? 0),
+        },
+        conditions: Array.isArray(ch?.conditions) ? (ch!.conditions as Character['conditions']) : [],
         currency: currencyFromCoins,
         currentWeight,
         carryingCapacity,

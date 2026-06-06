@@ -288,6 +288,29 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
         return { ok: true };
     });
 
+    app.post('/api/v2/sessions/:id/export-hero-to-vault', auth, async (request, reply) => {
+        const id = Number((request.params as { id: string }).id);
+        if (!Number.isFinite(id)) {
+            return reply.status(400).send({ error: 'ID de sessão inválido' });
+        }
+        const { assertSessionOwner } = await import(
+            '../../../GameMaster/sessions/sessionExtras.js'
+        );
+        const { exportSessionHeroToVault } = await import(
+            '../../../GameMaster/character/vault.js'
+        );
+        try {
+            await assertSessionOwner(id, request.userId);
+            const character = await exportSessionHeroToVault(request.userId, id);
+            return { character };
+        } catch (err: unknown) {
+            if (createError.isHttpError(err)) {
+                return reply.status(err.statusCode).send({ message: err.message });
+            }
+            throw err;
+        }
+    });
+
     app.post('/api/v2/sessions/:id/clone', auth, async (request, reply) => {
         const id = Number((request.params as { id: string }).id);
         if (!Number.isFinite(id)) {

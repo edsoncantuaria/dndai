@@ -15,6 +15,21 @@ type InputGateListener = (gate: InputGate) => void;
 let inputGate: InputGate = 'OPEN';
 const inputGateListeners = new Set<InputGateListener>();
 
+let vitalsGameOver = false;
+let vitalsUnconsciousAtZero = false;
+
+export function setVitalsInputSignals(signals: {
+    gameOver?: boolean;
+    unconsciousAtZero?: boolean;
+}): void {
+    if (signals.gameOver !== undefined) vitalsGameOver = signals.gameOver;
+    if (signals.unconsciousAtZero !== undefined) vitalsUnconsciousAtZero = signals.unconsciousAtZero;
+}
+
+export function getVitalsInputSignals(): { gameOver: boolean; unconsciousAtZero: boolean } {
+    return { gameOver: vitalsGameOver, unconsciousAtZero: vitalsUnconsciousAtZero };
+}
+
 export function getTurnPipelinePhase(): TurnPipelinePhase {
     return phase;
 }

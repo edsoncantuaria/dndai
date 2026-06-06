@@ -38,17 +38,6 @@ export const getCostForScore = (score: number): number => {
 };
 
 /**
- * Rolls 4 six-sided dice, drops the lowest, and returns the sum.
- * @returns A number between 3 and 18.
- */
-export const rollAttribute = (): number => {
-    const rolls = Array.from({ length: 4 }, () => Math.floor(Math.random() * 6) + 1);
-    rolls.sort((a, b) => a - b);
-    rolls.shift(); // Drop the lowest
-    return rolls.reduce((sum, value) => sum + value, 0);
-};
-
-/**
  * Generates a human-readable label for an equipment option from the API.
  * Handles cases for direct items, categories, and multiple-item choices.
  */

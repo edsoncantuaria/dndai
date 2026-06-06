@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, Play, UserPlus, Sparkles } from 'lucide-react';
 import { DndButton, DndCard, DndDivider, DndHeading } from '@/components/primitives';
@@ -7,6 +8,9 @@ import { CinematicBackdrop } from '@/components/cinematic';
 import { introSlides } from '@/lib/cinematicAssets';
 import { useOnboarding, type OnboardingStep } from '@/contexts/OnboardingContext';
 import { AiAccessStep } from './AiAccessStep';
+
+/** Altura da barra fixa no passo create_hero — usada como padding no wizard de ficha. */
+export const ONBOARDING_CREATE_HERO_BAR_HEIGHT = '3.5rem';
 
 const STEP_LABELS: Record<Exclude<OnboardingStep, 'done'>, string> = {
   welcome: 'O que é',
@@ -130,10 +134,20 @@ export function ProductOnboarding() {
 /** Barra fina durante criação de personagem (passo 3). */
 export function OnboardingCreateHeroBar() {
   const { step, advanceStep } = useOnboarding();
+
+  useEffect(() => {
+    if (step !== 'create_hero') {
+      document.documentElement.style.removeProperty('--dnd-onboarding-hero-bar');
+      return;
+    }
+    document.documentElement.style.setProperty('--dnd-onboarding-hero-bar', ONBOARDING_CREATE_HERO_BAR_HEIGHT);
+    return () => document.documentElement.style.removeProperty('--dnd-onboarding-hero-bar');
+  }, [step]);
+
   if (step !== 'create_hero') return null;
 
   return (
-    <div className="fixed inset-x-0 top-0 z-[190] border-b border-dnd-gold/20 bg-dnd-obsidian/90 px-4 py-3 backdrop-blur-md">
+    <div className="fixed inset-x-0 top-0 z-40 border-b border-dnd-gold/20 bg-dnd-obsidian/90 px-4 py-3 backdrop-blur-md">
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-dnd-ember" />

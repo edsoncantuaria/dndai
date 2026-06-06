@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PlayerRollRequest } from '@/types';
 import {
+    getTurnPipelinePhase,
+    getVitalsInputSignals,
     setInputGate,
     setTurnPipelinePhase,
+    setVitalsInputSignals,
     type TurnPipelinePhase,
 } from '@/hooks/game/turnPipelineStore';
 import { getStoredAuthToken } from '@/lib/authToken';
@@ -49,6 +52,26 @@ export type ProcessActionOptions = {
     bootstrap?: boolean;
 };
 
+/** Frase canônica de abertura — alinhada ao backend `isSessionOpeningRequest`. */
+export const PENAI_OPENING_PROMPT =
+    'A aventura começa. Onde eu estou e o que está acontecendo?';
+
+function penaiOpeningStorageKey(sessionId: number): string {
+    return `cda:session:${sessionId}:penaiOpening`;
+}
+
+function clearPenaiOpeningFlag(sessionId: number): void {
+    if (typeof window === 'undefined') return;
+    sessionStorage.removeItem(penaiOpeningStorageKey(sessionId));
+}
+
+function storyHasVisibleNarration(entries: PenaiStoryEntry[]): boolean {
+    return entries.some(e => {
+        const kind = (e.kind ?? e.tone ?? '').toLowerCase();
+        return kind !== 'opening' && Boolean(String(e.content ?? '').trim());
+    });
+}
+
 
 function isStaleSequence(
     msg: PenaiWsPayload,
@@ -62,6 +85,11 @@ function isStaleSequence(
 }
 
 function mapGateFromPhase(phase: TurnPipelinePhase, bootstrapPending: boolean): void {
+    const { gameOver, unconsciousAtZero } = getVitalsInputSignals();
+    if (gameOver) {
+        setInputGate('LOCKED_UNCONSCIOUS');
+        return;
+    }
     if (bootstrapPending) {
         setInputGate('OPEN');
         return;
@@ -77,7 +105,11 @@ function mapGateFromPhase(phase: TurnPipelinePhase, bootstrapPending: boolean): 
             setInputGate('LOCKED_NARRATING');
             break;
         default:
-            setInputGate('OPEN');
+            if (unconsciousAtZero) {
+                setInputGate('LOCKED_UNCONSCIOUS');
+            } else {
+                setInputGate('OPEN');
+            }
     }
 }
 
@@ -115,6 +147,7 @@ export function usePenaiTurnPipeline(
     const bootstrapPendingRef = useRef(false);
     const rollPriorityRef = useRef(false);
     const latestActionSequenceRef = useRef(0);
+    const storyHasNarrationRef = useRef(false);
     const [connected, setConnected] = useState(false);
     const [contractOk, setContractOk] = useState(false);
     const [actionCursor, setActionCursor] = useState(0);
@@ -128,6 +161,12 @@ export function usePenaiTurnPipeline(
     const [lastError, setLastError] = useState<string | null>(null);
     const [phase, setPhase] = useState<TurnPipelinePhase>('idle');
     const [narrationPending, setNarrationPending] = useState(false);
+    const [gameOver, setGameOver] = useState<{
+        heroName: string;
+        level: number;
+        vaultTemplateId?: string | null;
+        reason?: string;
+    } | null>(null);
 
     const clearPhaseTimer = useCallback(() => {
         if (phaseTimerRef.current) {
@@ -161,6 +200,27 @@ export function usePenaiTurnPipeline(
         },
         [clearPhaseTimer],
     );
+
+    const applyServerNarrationPending = useCallback(
+        (pending: boolean) => {
+            setNarrationPending(pending);
+            if (pending) {
+                if (!rollPriorityRef.current) {
+                    setPhaseBoth('narrating');
+                }
+                return;
+            }
+            bootstrapPendingRef.current = false;
+            if (!rollPriorityRef.current) {
+                setPhaseBoth('idle');
+            }
+        },
+        [setPhaseBoth],
+    );
+
+    useEffect(() => {
+        storyHasNarrationRef.current = storyHasVisibleNarration(storyFeed);
+    }, [storyFeed]);
 
     const prioritizePlayerRollRequest = useCallback(
         (roll: PlayerRollRequest) => {
@@ -198,19 +258,15 @@ export function usePenaiTurnPipeline(
             ]);
             setStoryFeed(prev => mergeStoryEntries(prev, feed.entries, replace));
             setStoryHydrated(true);
-            setNarrationPending(feed.pendingNarration);
             if (ui) {
                 applyPersistedUiState(ui.actionOptions, ui.worldPulse);
             }
-            if (!feed.pendingNarration) {
-                bootstrapPendingRef.current = false;
-                setPhaseBoth('idle');
-            }
+            applyServerNarrationPending(feed.pendingNarration);
         } catch (err) {
             console.warn('[PENAI] Falha ao carregar story-feed:', err);
             setStoryHydrated(true);
         }
-    }, [setPhaseBoth, applyPersistedUiState]);
+    }, [applyPersistedUiState, applyServerNarrationPending]);
 
     useEffect(() => {
         if (!enabled || !sessionId || !userId) return;
@@ -280,12 +336,7 @@ export function usePenaiTurnPipeline(
                         mergeStoryEntries(prev, msg.entries as PenaiStoryEntry[], !prev.length),
                     );
                     setStoryHydrated(true);
-                    const pending = Boolean(msg.pendingNarration);
-                    setNarrationPending(pending);
-                    if (!pending) {
-                        bootstrapPendingRef.current = false;
-                        setPhaseBoth('idle');
-                    }
+                    applyServerNarrationPending(Boolean(msg.pendingNarration));
                 }
                 if (msg.type === 'storyFeed' && Array.isArray(msg.entries)) {
                     setStoryFeed(prev => mergeStoryEntries(prev, msg.entries as PenaiStoryEntry[]));
@@ -396,7 +447,27 @@ export function usePenaiTurnPipeline(
                     }
                     const failText = String(msg.message ?? 'Narração indisponível.');
                     setLastError(failText);
+                    if (!storyHasNarrationRef.current && sessionId != null) {
+                        clearPenaiOpeningFlag(sessionId);
+                    }
                     setPhaseBoth('idle');
+                    window.dispatchEvent(new Event('penai-turn-settled'));
+                }
+                if (msg.type === 'heroPermanentlyDead') {
+                    rollPriorityRef.current = false;
+                    setPlayerRollRequest(null);
+                    setNarrationPending(false);
+                    setNarrationWorkflowId(null);
+                    bootstrapPendingRef.current = false;
+                    setVitalsInputSignals({ gameOver: true, unconsciousAtZero: false });
+                    setPhaseBoth('idle');
+                    setGameOver({
+                        heroName: String(msg.heroName ?? 'Herói'),
+                        level: Number(msg.level ?? 1),
+                        vaultTemplateId:
+                            typeof msg.vaultTemplateId === 'string' ? msg.vaultTemplateId : null,
+                        reason: typeof msg.reason === 'string' ? msg.reason : undefined,
+                    });
                     window.dispatchEvent(new Event('penai-turn-settled'));
                 }
                 if (msg.type === 'actionRejected') {
@@ -445,7 +516,15 @@ export function usePenaiTurnPipeline(
             setNarrationWorkflowId(null);
             setPhaseBoth('idle');
         };
-    }, [sessionId, userId, enabled, setPhaseBoth, clearPhaseTimer, prioritizePlayerRollRequest]);
+    }, [
+        sessionId,
+        userId,
+        enabled,
+        setPhaseBoth,
+        clearPhaseTimer,
+        prioritizePlayerRollRequest,
+        applyServerNarrationPending,
+    ]);
 
     const sendProcessAction = useCallback(
         (playerAction: string, payload?: Record<string, unknown>) => {
@@ -458,7 +537,8 @@ export function usePenaiTurnPipeline(
             const bootstrap = Boolean(payload?.bootstrap);
             if (bootstrap) {
                 bootstrapPendingRef.current = true;
-                mapGateFromPhase(phase, true);
+                setNarrationPending(true);
+                setPhaseBoth('narrating');
             } else {
                 bootstrapPendingRef.current = false;
                 setPhaseBoth('mechanical');
@@ -472,8 +552,14 @@ export function usePenaiTurnPipeline(
                 }),
             );
         },
-        [sessionId, setPhaseBoth, phase],
+        [sessionId, setPhaseBoth],
     );
+
+    const retryOpening = useCallback(() => {
+        if (!sessionId) return;
+        clearPenaiOpeningFlag(sessionId);
+        sendProcessAction(PENAI_OPENING_PROMPT, { bootstrap: true });
+    }, [sessionId, sendProcessAction]);
 
     const submitRollResult = useCallback(
         (request: PlayerRollRequest, result: { rawRoll: number; rolls: number[] }) => {
@@ -525,6 +611,13 @@ export function usePenaiTurnPipeline(
         lastError,
         phase,
         sendProcessAction,
+        retryOpening,
+        gameOver,
+        clearGameOver: () => {
+            setGameOver(null);
+            setVitalsInputSignals({ gameOver: false, unconsciousAtZero: false });
+            mapGateFromPhase(getTurnPipelinePhase(), bootstrapPendingRef.current);
+        },
         submitRollResult,
         handleRollResult,
     };

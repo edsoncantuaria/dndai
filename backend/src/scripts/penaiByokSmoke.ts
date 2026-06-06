@@ -48,7 +48,13 @@ async function main() {
     assert.equal(me.aiAccess?.canInfer, true);
     const resolved = await resolvePenaiInferenceApiKey(user.id);
     assert.equal(resolved, sampleKey);
-    console.log('[penai:smoke:byok] OK — BYOK persiste, /me omite chave, inferência resolve');
+
+    const { resolveGeminiApiKey } = await import('../GameMaster/adapters/gemini/apiKey.js');
+    assert.equal(resolveGeminiApiKey(sampleKey), sampleKey);
+
+    console.log(
+        '[penai:smoke:byok] OK — BYOK persiste, /me omite chave, inferência e árbitro usam mesma resolução',
+    );
 }
 
 main().catch(err => {

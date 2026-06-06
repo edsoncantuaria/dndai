@@ -47,6 +47,7 @@ export type RollResolveResult = {
     mechanical?: Record<string, unknown>;
     deferNarration?: boolean;
     playerRollRequest?: PlayerRollRequest;
+    permanentlyDead?: boolean;
 };
 
 /** @deprecated use ActionIntent */

@@ -4,7 +4,7 @@
 >
 > **Referência de atmosfera (não copiar assets):** [Dungeons & Dragons — site oficial](https://www.dungeonsanddragons.com/)
 >
-> **Última revisão:** junho de 2026 (V3 PENAI-only — `usePenaiTurnPipeline`; deep-dive: [`architecture/frontend-turn-pipeline.md`](./architecture/frontend-turn-pipeline.md))
+> **Última revisão:** junho de 2026 (death saves + HeroDeathScreen; V3 PENAI-only — `usePenaiTurnPipeline`; deep-dive: [`architecture/frontend-turn-pipeline.md`](./architecture/frontend-turn-pipeline.md))
 
 ---
 
@@ -281,6 +281,7 @@ Estado `InputGate` (derivado do pipeline + sinais WS):
 | `LOCKED_MECHANICAL` | ação aceita / loading / `mechanical` | bloqueia ações state-changing |
 | `LOCKED_ROLLING` | `playerRollRequest` pendente | só o modal de dados pode enviar roll |
 | `LOCKED_NARRATING` | `narrating` | bloqueia até `narrationComplete` |
+| `LOCKED_UNCONSCIOUS` | HP ≤ 0 inconsciente/estável ou `gameOver` | bloqueia ações; só death save (`LOCKED_ROLLING` tem prioridade) |
 
 **Regra de ouro:** liberar input state-changing **apenas** em `narrationComplete` (ou falha final + `stopLoading`).
 
@@ -410,7 +411,9 @@ Nova sessão PENAI **não** abre a mesa até `worldBootstrap.status === 'ready'`
 |------|--------|
 | `usePenaiWorldBootstrap` | `POST /world-bootstrap` + poll `GET /ui-state` |
 | `SessionWorldLoadingScreen` | Overlay fullscreen — passos region → factions → npcs → quests → economy → simulation → pulse |
-| `GameplayScreen` | Monta hook com `sessionId`; retry em falha Gemini |
+| `GameplayScreen` | Monta hook com `sessionId`; retry em falha Gemini; overlay `HeroDeathScreen` em `gameOver` |
+| `HeroDeathSavesBanner` | Testes de morte (sucessos/falhas) no log quando HP = 0 |
+| `HeroDeathScreen` | Game over fullscreen — export cofre, nova campanha, reset nível 1, hub |
 
 Copy dos passos: `WORLD_BOOTSTRAP_STEP_LABELS` em `penaiApi.ts`.
 

@@ -126,6 +126,8 @@ export async function applyCombatEntityDeltaPenai(
     });
     if (!combatant) return;
 
+    const prevHp = combatant.hpCurrent;
+
     if (delta.delta.hp) {
         if (typeof delta.delta.hp.setTo === 'number') {
             combatant.hpCurrent = delta.delta.hp.setTo;
@@ -144,6 +146,17 @@ export async function applyCombatEntityDeltaPenai(
 
     if (combatant.side === 'hero') {
         await syncHeroHpToCanonical(sessionId, combatant.hpCurrent);
+        if (delta.delta.hp) {
+            const { syncHeroVitalsAfterHpChange } = await import('../character/heroVitalsService.js');
+            await syncHeroVitalsAfterHpChange(sessionId, {
+                prevHp,
+                damageWhileDown:
+                    prevHp <= 0 &&
+                    typeof delta.delta.hp.delta === 'number' &&
+                    delta.delta.hp.delta < 0,
+                isCritical: Boolean((delta.delta as { isCritical?: boolean }).isCritical),
+            });
+        }
     } else if (combatant.side === 'ally') {
         const { syncCompanionHpFromCombat } = await import('./summonService.js');
         await syncCompanionHpFromCombat(sessionId, combatant.entityKey, combatant.hpCurrent);

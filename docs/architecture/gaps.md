@@ -2,7 +2,7 @@
 
 Registro **operacional** de riscos e melhorias — detalhe de design continua em `docs/ECOSSISTEMA.md`, módulos `docs/architecture/` e roadmap em `TODO-ARQUITETURA.md`.
 
-**Última revisão:** 2026-06-06 (auditoria multitask 6 domínios)
+**Última revisão:** 2026-06-06 (BYOK árbitro actionSense)
 
 ---
 
@@ -24,7 +24,7 @@ Registro **operacional** de riscos e melhorias — detalhe de design continua em
 | **P1** | Auth/WS | Fallback `?userId=` sem JWT | `wsHandlers.ts` `resolveWsUserId` — impersonação dev |
 | **P1** | Motor | Dois stacks PENAI vs Express `actionService` | Persistência Postgres vs MySQL |
 | **P2** | Docs | MOM `ia-gemini-adjudication.md` aponta paths inexistentes | Real: `adapters/gemini/actionSense.ts` — ADR 0001 |
-| **P2** | IA | actionSense ignora BYOK do usuário | `actionSense.ts` usa `GEMINI_API_KEY` plataforma |
+| **P2** | IA | Retry Gemini empilhava tokens (429 × 12 × 3 × 3) | **Mitigado jun/2026:** `GEMINI_MAX_ATTEMPTS=1`, Temporal `maximumAttempts: 1`, `isStaleNarrationTurn` |
 | **P2** | WS relay | Doc/MOM citam `wsUserRelay`; produção usa `wsPubSub` | Canal `penai:ws:user` vs `dndai:ws:user` |
 | **P2** | Protocolo | Apêndice A assume envelope `{type,payload}` v1 | PENAI mensagem plana v2 |
 | **P2** | Docs | Apêndice D / §14 citam OpenRouter embed | Implementação Gemini-only |
@@ -45,6 +45,9 @@ Registro **operacional** de riscos e melhorias — detalhe de design continua em
 
 | Data | Gap | Resolução |
 |------|-----|-----------|
+| 2026-06-06 | actionSense ignorava BYOK do jogador | `resolveInferenceApiKey` no motor + adapter; fail-closed free/social sem `canInfer` |
+| 2026-06-06 | Sem death saves / game over — HP clampava em 0 sem inconsciência | `rules/deathSaves.ts`, `heroVitalsService`, `HeroDeathScreen`, WS `heroPermanentlyDead` |
+| 2026-06-06 | Retry LLM empilhava requisições Gemini | `penaiEnv` single-attempt + stale turn skip + actionOptions registry default |
 | 2026-06-06 | Doc sistema fragmentado / desatualizado vs PENAI | Módulos `docs/architecture/*` + §19 ECOSSISTEMA + ADR 0001 |
 | 2026-05-29 | Worker WS sem relay API | `wsPubSub.ts` (PENAI); legado `wsUserRelay` removido de `src/` |
 | 2026-05-29 | `sendMessage` ausente no WS hook | Import corrigido (legado) |
