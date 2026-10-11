@@ -308,7 +308,7 @@ function nearbyPlaces(db: DB, from: string, hops: number): Set<string> {
 function arcLine(arc: number, chapters: { n: number; from_turn: number; to_turn: number; changes: string }[]): string {
   const lines = chapters.flatMap((c) => (c.changes ? c.changes.split("\n") : []))
   const count = (re: RegExp) => lines.filter((l) => re.test(l)).length
-  const marks = lines.filter((l) => /^(✝|~ missão|~ agenda .* resolvida|⚠ AGENDA|\+ facção)/.test(l))
+  const marks = lines.filter((l) => /^(✝|~ missão .*: (concluida|falhou|abandonada)|~ agenda .* resolvida|⚠ AGENDA|\+ facção)/.test(l))
   const tally: [RegExp, string][] = [
     [/^\+ local /, "locais"], [/^\+ NPC /, "NPCs"], [/^\+ missão /, "missões"], [/^\+ gancho /, "ganchos"],
     [/^\+ agenda /, "agendas"], [/^~ gancho \S+: /, "ganchos fechados"], [/agora é conhecido/, "revelações"],
@@ -359,9 +359,9 @@ export function resume(db: DB, slug: string, opts: { page?: number; limit?: numb
   const since = chapters.at(-1)?.to_turn ?? 0
   const turns = paged
     ? all<{ n: number; summary: string; action: string; started_min: number }>(db, "SELECT n, summary, action, started_min FROM turns WHERE ended = 1 ORDER BY n DESC LIMIT ? OFFSET ?", limit, (page - 1) * limit).reverse()
-    : all<{ n: number; summary: string; action: string; started_min: number }>(db, "SELECT n, summary, action, started_min FROM turns WHERE ended = 1 AND (n > ? OR n > ?) ORDER BY n", since, total - 4)
+    : all<{ n: number; summary: string; action: string; started_min: number }>(db, "SELECT n, summary, action, started_min FROM turns WHERE ended = 1 AND n > ? ORDER BY n", since)
   out.push(paged ? `## TURNOS (página ${page}, ${limit} por página, ${total} fechados)` : `## TURNOS desde o último capítulo (${total} fechados; antigos: resume --page N ou --chapter N)`)
-  if (!turns.length) out.push("(nenhum turno fechado)")
+  if (!turns.length) out.push(paged ? "(nenhum turno fechado)" : "(nenhum: o último capítulo cobre tudo)")
   for (const t of turns) out.push(`T${t.n} ${fmtClock(t.started_min)} — Jogador: ${t.action} → ${t.summary}`)
   if (paged && page * limit < total) out.push(`Há mais. Peça resume --page ${page + 1}.`)
   // Continuidade de voz para uma conversa nova do Mestre: a última narração exibida, como foi.

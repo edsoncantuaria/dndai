@@ -97,12 +97,14 @@ export function assertInScope(scope: SecretScope, slug: string | undefined, coma
 
 const auditPath = () => join(campaignsHome(), "connector-audit.log")
 
-export function auditCall(secret: string, comando: string, ok: boolean): void {
+/** Uma linha por chamada. Em erro, o motivo (1ª linha, 200 caracteres) para entender o que confundiu o Mestre. */
+export function auditCall(secret: string, comando: string, ok: boolean, error = ""): void {
   try {
     const home = campaignsHome()
     mkdirSync(home, { recursive: true })
     const path = auditPath()
-    appendFileSync(path, `${new Date().toISOString()} ${secretHash(secret)} ${comando} ${ok ? "ok" : "erro"}\n`, { mode: 0o600 })
+    const why = ok ? "" : ` ${error.split("\n")[0].slice(0, 200)}`
+    appendFileSync(path, `${new Date().toISOString()} ${secretHash(secret)} ${comando} ${ok ? "ok" : "erro"}${why}\n`, { mode: 0o600 })
     chmodSync(path, 0o600)
   } catch {
     /* auditoria não pode derrubar a jogada */

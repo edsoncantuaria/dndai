@@ -76,11 +76,15 @@ function validate(kind: "ler" | "agir", comando: string, args: string[]): void {
   checkFlags(comando, args)
 }
 
-function execute(secret: string, kind: "ler" | "agir", campanha: string | undefined, comando: string, args: string[], entrada: string | undefined) {
+function execute(secret: string, kind: "ler" | "agir", campanha: string | undefined, raw: string, rawArgs: string[], entrada: string | undefined) {
+  // O modelo às vezes manda "turn begin" no campo comando: vale o mesmo que comando "turn" + args ["begin", ...].
+  const [comando, ...lead] = raw.trim().split(/\s+/)
+  const args = [...lead, ...rawArgs]
   if (!rateOk(`tool:${secret.slice(0, 8)}`, 120, 60_000)) {
     return { isError: true, content: [{ type: "text" as const, text: "ERRO: limite de chamadas do conector. Espere um instante." }] }
   }
   let ok = false
+  let failure = ""
   try {
     validate(kind, comando, args)
     const legacyFile = join(campaignsHome(), "conector-secret")
@@ -109,9 +113,10 @@ function execute(secret: string, kind: "ler" | "agir", campanha: string | undefi
     return { content: [{ type: "text" as const, text: out || "ok" }] }
   } catch (error) {
     const message = (error as Error).message.replace(/Existentes:.*$/, "Fora do escopo deste conector.")
+    failure = message
     return { isError: true, content: [{ type: "text" as const, text: `ERRO: ${message}` }] }
   } finally {
-    auditCall(secret, comando, ok)
+    auditCall(secret, `${comando}${args[0] && !args[0].startsWith("-") ? ` ${args[0]}` : ""}`, ok, failure)
   }
 }
 

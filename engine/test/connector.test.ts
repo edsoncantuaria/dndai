@@ -49,7 +49,8 @@ describe("conector MCP dndai (ChatGPT, sem shell)", () => {
     assert.match((await call("dnd_agir", { campanha: "conec", comando: "apply", entrada: JSON.stringify(world) })).text, /\+ local Praça/)
     const pc = { name: "Ana", race: "Humana", class: "bardo", ac: 12, place: "l1", abilities: { for: 8, des: 14, con: 12, int: 10, sab: 10, car: 16 } }
     assert.match((await call("dnd_agir", { campanha: "conec", comando: "pc", args: ["create"], entrada: JSON.stringify(pc) })).text, /Ana/)
-    await call("dnd_agir", { campanha: "conec", comando: "turn", args: ["begin", "--action", "Ana canta"] })
+    // Subcomando no campo comando ("turn begin") vale o mesmo que em args.
+    assert.match((await call("dnd_agir", { campanha: "conec", comando: "turn begin", args: ["--action", "Ana canta"] })).text, /Turno 1 aberto/)
     assert.match((await call("dnd_agir", { campanha: "conec", comando: "check", args: ["pc", "atuacao", "--dc", "12", "--mesa"] })).text, /Pedido de rolagem/)
     assert.match((await call("dnd_agir", { campanha: "conec", comando: "narrate", entrada: "Você sobe no banco da praça." })).text, /registrada/)
     assert.match((await call("dnd_ler", { campanha: "conec", comando: "context" })).text, /Rolagem #1 aguardando/)

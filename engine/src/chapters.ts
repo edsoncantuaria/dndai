@@ -18,7 +18,7 @@ function summaryOf(db: DB, from: number, to: number): string {
 }
 
 /** Linhas do lote que mudam a história (não memória, fato comum, dinheiro miúdo). */
-const MARK = /^(\+ (local|NPC|facção|missão|agenda|gancho) |~ missão .*: (concluida|falhou|abandonada)|~ gancho \S+: (resolvido|abandonado)|~ fato \S+ agora é conhecido|~ agenda .* resolvida|⚠ AGENDA DISPAROU|~ evento #\d+ resolvido)/
+const MARK = /^(\+ (local|NPC|facção|missão|agenda|gancho) |~ missão |~ gancho \S+: (resolvido|abandonado)|~ fato \S+ agora é conhecido|~ agenda .* resolvida|⚠ AGENDA DISPAROU|~ evento #\d+ resolvido)/
 
 /**
  * Marcos do capítulo, tirados do log do motor (o que os apply gravaram de fato), com ids curtos.

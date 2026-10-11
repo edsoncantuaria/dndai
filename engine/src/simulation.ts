@@ -95,10 +95,17 @@ export function move(db: DB, who: string, to: string): string[] {
   if (c.place_id === to) return [`${c.name} já está em ${getPlace(db, to).name}.`]
   const out: string[] = []
   if (c.place_id) {
+    // Entrar num sublocal ou sair para o local de cima (Forja ↔ Vila) é caminho sem tempo, como a cena anuncia.
     const link = one<{ minutes: number }>(db, "SELECT minutes FROM links WHERE from_id = ? AND to_id = ?", c.place_id, to)
+      ?? one<{ minutes: number }>(db, "SELECT 0 AS minutes FROM places WHERE (id = ? AND parent_id = ?) OR (id = ? AND parent_id = ?)", to, c.place_id, c.place_id, to)
     if (!link) {
-      const exits = all<{ id: string; name: string }>(db, "SELECT p.id, p.name FROM links l JOIN places p ON p.id = l.to_id WHERE l.from_id = ?", c.place_id)
-      throw new Error(`Não há caminho registrado de ${c.place_id} para ${to}. Saídas: ${exits.map((e) => `${e.name} [${e.id}]`).join("; ") || "nenhuma"}. Crie a ligação (link) antes, se fizer sentido no mundo.`)
+      const exits = all<{ id: string; name: string }>(
+        db,
+        "SELECT p.id, p.name FROM links l JOIN places p ON p.id = l.to_id WHERE l.from_id = ? UNION SELECT id, name FROM places WHERE parent_id = ? UNION SELECT p.id, p.name FROM places c JOIN places p ON p.id = c.parent_id WHERE c.id = ?",
+        c.place_id, c.place_id, c.place_id,
+      )
+      const short = (id: string) => one<{ code: string }>(db, "SELECT code FROM codes WHERE entity = ?", id)?.code ?? id
+      throw new Error(`Não há caminho registrado de ${getPlace(db, c.place_id).name} para ${getPlace(db, to).name}. Saídas daqui: ${exits.map((e) => `${e.name} [${short(e.id)}]`).join("; ") || "nenhuma"}. Vá por elas (um move por trecho) ou crie a ligação (link, minutos > 0), se fizer sentido no mundo.`)
     }
     if (link.minutes > 0) out.push(...advanceTime(db, link.minutes))
   }

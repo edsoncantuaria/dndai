@@ -94,6 +94,9 @@ describe("campanha de 100 turnos", () => {
     assert.match(r, /## ARCOS\n- Arco 1 .*\+\d+ missões.*→ resume --chapter/)
     assert.match(r, /Premissa: uma campanha de cem turnos/)
     assert.match(r, /ÚLTIMA NARRAÇÃO \(T100\)/)
+    // Turno já resumido num capítulo não se repete na lista de turnos.
+    assert.doesNotMatch(r, /^T96 /m)
+    assert.match(r, /^T97 /m)
     assert.match(resume(w, slug, { chapter: 1 }), /Mudanças:\n  \+ gancho h1 [\s\S]*\+ missão Tarefa 5 \[q1\][\s\S]*- T1: segue viagem 1/)
   })
 })

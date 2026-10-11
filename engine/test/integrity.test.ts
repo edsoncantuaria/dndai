@@ -185,6 +185,14 @@ describe("economia de tokens na conversa", () => {
     assert.throws(() => narrate(w, "{n99} aparece."), /\{n99\}, que não existe/)
   })
 
+  it("sublocal ↔ local de cima é caminho, como a cena anuncia", () => {
+    apply([{ op: "create.place", name: "Forja", kind: "oficina", summary: "Forja da vila.", parent: "l1" }])
+    beginTurn(w, slug, "entra na forja e sai de novo")
+    assert.match(apply([{ op: "move", who: "pc", to: "Forja" }]).join(), /chega a Forja/)
+    assert.match(apply([{ op: "move", who: "pc", to: "l1" }]).join(), /chega a Vila/)
+    assert.throws(() => apply([{ op: "move", who: "pc", to: "Forja" }, { op: "move", who: "pc", to: "l2" }]), /Saídas daqui: Vila \[l1\]/)
+  })
+
   it("estado do PC só reaparece quando muda", () => {
     runCli(["-c", slug, "turn", "begin", "--action", "anda pela vila"])
     const first = runCli(["-c", slug, "apply"], JSON.stringify([{ op: "memory", npcs: ["n1"], text: "Kael passou pela forja" }]))
