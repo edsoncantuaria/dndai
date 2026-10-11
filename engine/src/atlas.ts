@@ -356,3 +356,15 @@ export function atlasStats(db: DB): { places: number; npcs: number; factions: nu
     campaigns: one<{ n: number }>(db, "SELECT COUNT(DISTINCT origin_campaign) AS n FROM atlas.entities")!.n,
   }
 }
+
+/** Remove do atlas tudo o que uma campanha publicou (ex.: campanhas de teste). Universos que já importaram mantêm suas cópias. */
+export function forgetCampaign(db: DB, slug: string): number {
+  if (!hasAtlas(db)) return 0
+  let n = 0
+  n += Number(db.prepare("DELETE FROM atlas.entities WHERE origin_campaign = ?").run(slug).changes)
+  n += Number(db.prepare("DELETE FROM atlas.links WHERE origin_campaign = ?").run(slug).changes)
+  n += Number(db.prepare("DELETE FROM atlas.lore WHERE origin_campaign = ?").run(slug).changes)
+  db.prepare("DELETE FROM atlas.history WHERE origin_campaign = ?").run(slug)
+  db.prepare("DELETE FROM atlas.reserved WHERE campaign = ?").run(slug)
+  return n
+}

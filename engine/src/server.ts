@@ -7,7 +7,7 @@ import { timingSafeEqual } from "node:crypto"
 import { listCampaigns, openCampaign, resolveCampaign } from "./campaign.ts"
 import { type DB, metaNum, transaction } from "./db.ts"
 import { applyItemAction } from "./items.ts"
-import { resolveRequest } from "./mechanics.ts"
+import { pendingRequests, resolveRequest } from "./mechanics.ts"
 import { sendToMaster } from "./master/client.ts"
 import { chatVersion, chatView } from "./master/queue.ts"
 import { buildView } from "./view.ts"
@@ -212,6 +212,9 @@ export function startServer(opts: ServeOptions) {
         const slug = slugOf(url)
         const body = (await readBody(req)) as { action?: unknown; item?: unknown }
         if (typeof body.action !== "string" || typeof body.item !== "string") throw new HttpError(400, 'Envie { "action": "...", "item": "<id>" }.')
+        const pending = withDb(slug, (db) => pendingRequests(db))
+        if (pending.length) throw new HttpError(409, `Role os dados primeiro: ${pending.map((r) => `#${r.id} ${r.label}`).join(", ")}.`)
+
         let text: string
         try {
           text = withDb(slug, (db) => transaction(db, () => applyItemAction(db, body.action as string, body.item as string)))
@@ -233,6 +236,9 @@ export function startServer(opts: ServeOptions) {
         const body = (await readBody(req)) as { text?: unknown }
         const text = typeof body.text === "string" ? body.text.trim() : ""
         if (!text || text.length > 4000) throw new HttpError(400, "Mensagem vazia ou longa demais (máx. 4000).")
+        // A rolagem pedida pelo Mestre não pode ficar para depois.
+        const pending = withDb(slug, (db) => pendingRequests(db))
+        if (pending.length) throw new HttpError(409, `Role os dados primeiro: ${pending.map((r) => `#${r.id} ${r.label}`).join(", ")}.`)
         try {
           const { mensagem_id } = await sendToMaster(slug, text, "jogador")
           return send(res, 202, { id: mensagem_id })

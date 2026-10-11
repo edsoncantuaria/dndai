@@ -145,6 +145,8 @@ interface RollOutcome {
 
 ## Regras da rolagem na mesa
 
+- **Rolagem não fica para depois.** Enquanto houver `pendingRolls`, `POST /api/messages` e `POST /api/actions` respondem 409 ("Role os dados primeiro…") e o motor não abre turno novo. O app deve manter o modal de dados aberto, sem opção de adiar, até o jogador rolar. Só o Mestre pode cancelar (`roll-cancel`).
+
 - A mesa rola exatamente `dice` (dados físicos 3D) e envia os valores naturais, na mesma ordem de `dice`.
 - Teste contra a morte vem como `kind: "resistencia"`, label "Teste contra a morte", `dice: [d20]`, `modifier: 0`, `dc: 10`. Com 20 natural o herói volta com 1 PV.
 - Em ataques, `dice` traz o(s) d20 primeiro e depois os dados de dano (ex.: `[d20, d8]`); o motor só aplica o dano se acertar e rola sozinho os dados extras de crítico.

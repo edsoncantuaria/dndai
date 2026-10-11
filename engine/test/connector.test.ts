@@ -65,6 +65,7 @@ describe("conector MCP dndai (ChatGPT, sem shell)", () => {
       ["dnd_agir", { campanha: "conec", comando: "apply", args: ["--file=/etc/passwd"] }, /não é permitida/],
       ["dnd_ler", { campanha: "conec", comando: "atlas", args: ["sync"] }, /use dnd_agir/],
       ["dnd_ler", { campanha: "conec", comando: "show", args: ["-c", "outra"] }, /não é permitida/],
+      ["dnd_agir", { campanha: "conec", comando: "atlas", args: ["forget", "outra"] }, /não é permitido/],
     ]
     for (const [tool, args, re] of tries) {
       const r = await call(tool, args)

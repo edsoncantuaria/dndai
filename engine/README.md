@@ -60,7 +60,11 @@ journalctl --user -u dndai-conector -f
 
 Para trocar o segredo: apague `campaigns/conector-secret`, rode `systemctl --user restart dndai-conector` e atualize a URL do plugin no ChatGPT.
 
-## Mesa visual
+## App (Flutter) e mesa visual
+
+O app do jogador agora é [`../app`](../app) (Flutter, mobile first + web). A mesa React em `../mesa` continua só até a migração ser confirmada.
+
+## Mesa visual (legado)
 
 ```bash
 bin/dnd serve --static ../mesa/dist                     # http://127.0.0.1:8790/?campaign=<slug>

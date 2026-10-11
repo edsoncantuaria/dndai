@@ -23,6 +23,8 @@ function validate(kind: "ler" | "agir", comando: string, args: string[]): void {
     throw new Error(`Comando "${comando}" não permitido em dnd_${kind}${hint}. Permitidos: ${[...allowed].join(", ")}.`)
   }
   if (kind === "ler" && comando === "atlas" && args[0] === "sync") throw new Error('"atlas sync" muda o jogo: use dnd_agir.')
+  // Administração do multiverso (ex.: atlas forget) é só do dono do servidor, nunca do Mestre.
+  if (comando === "atlas" && args.length && args[0] !== "sync") throw new Error(`"atlas ${args[0]}" não é permitido pelo conector.`)
   if (kind === "ler" && comando === "campaign" ) throw new Error("Use dnd_agir para campanhas.")
   const bad = args.find((a) => FORBIDDEN_FLAG.test(a))
   if (bad) throw new Error(`Opção "${bad}" não é permitida pelo conector (use o campo "entrada" para JSON/narração e "campanha" para a campanha).`)

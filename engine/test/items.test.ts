@@ -103,6 +103,15 @@ describe("ações de item", () => {
     assert.equal(pc().sheet.death.success, 1)
   })
 
+  it("rolagem pendente não pode ficar para depois: bloqueia novo turno até rolar ou cancelar", async () => {
+    const { beginTurn } = await import("../src/turns.ts")
+    const { cancelRequest } = await import("../src/mechanics.ts")
+    const { id } = db.transaction(w, () => requestRoll(w, { kind: "pericia", who: "pc:lyra", key: "percepcao", dc: 10, mode: "normal", bonus: 0, reason: "" }))
+    assert.throws(() => beginTurn(w, db.getMeta(w, "slug"), "faz outra coisa"), /rolagem pendente/)
+    db.transaction(w, () => cancelRequest(w, id))
+    assert.match(beginTurn(w, db.getMeta(w, "slug"), "faz outra coisa")[0], /Turno 1 aberto/)
+  })
+
   it("chegar com a arma em punho provoca reação no novo local e limpa a do anterior", () => {
     act("empunhar", "Rapieira")
     db.transaction(w, () => applyOps(w, parseOps([{ op: "move", who: "pc", to: "Trilha" }])))

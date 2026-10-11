@@ -2,7 +2,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { randomBytes } from "node:crypto"
 import { join } from "node:path"
-import { atlasStats, publish, sync } from "./atlas.ts"
+import { atlasStats, forgetCampaign, publish, sync } from "./atlas.ts"
 import { campaignsHome, createCampaign, listCampaigns, openCampaign, resolveCampaign } from "./campaign.ts"
 import { startConnector } from "./connector.ts"
 import { buildContext, recall, resume, showEntity } from "./context.ts"
@@ -161,6 +161,14 @@ export function runCli(argv: string[], input?: string): string {
       throw new Error("Uso: dnd campaign new|list")
     }
     case "atlas": {
+      if (sub === "forget") {
+        const target = rest[0]
+        if (!target) throw new Error("Uso: dnd atlas forget <campanha>  (remove do mundo compartilhado o que ela publicou)")
+        return withCampaign(args, (db) => {
+          const n = transaction(db, () => forgetCampaign(db, target))
+          return `Atlas: ${n} publicação(ões) da campanha "${target}" removidas do multiverso. Para ela não publicar de novo, apague a campanha (pasta em campaigns/).`
+        })
+      }
       // Sincronizar/publicar não muda a narrativa: permitido também entre turnos.
       if (sub === "sync")
         return withCampaign(args, (db) => transaction(db, () => [...publish(db), ...sync(db)].join("\n") || "Multiverso: nada novo."))

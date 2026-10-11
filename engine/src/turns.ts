@@ -15,6 +15,10 @@ export function beginTurn(db: DB, slug: string, action: string): string[] {
   if (getMeta(db, "turn_open") === "1") {
     throw new Error(`O turno ${metaNum(db, "turn")} ainda está aberto. Feche com dnd turn end --summary "..." ou desfaça com dnd undo.`)
   }
+  const pending = all<{ id: number; label: string }>(db, "SELECT id, label FROM roll_requests WHERE status = 'pendente'")
+  if (pending.length) {
+    throw new Error(`Há rolagem pendente na mesa (${pending.map((r) => `#${r.id} ${r.label}`).join(", ")}). O jogador precisa rolar antes de seguir; se a rolagem não fizer mais sentido, cancele com roll-cancel <id>.`)
+  }
   const n = metaNum(db, "turn") + 1
   backupBeforeTurn(db, slug, n)
   const news = transaction(db, () => {
