@@ -16,24 +16,24 @@ O jogador usa `app/` (Android, iOS e web). O app só apresenta o `GameView` e en
 flowchart TB
   GameScreen --> Controller[GameController]
   Controller --> Api["ApiClient HTTP + SSE /api/events"]
-  Api --> Engine["engine: GET /api/state, POST mensagens, ações, rolagens"]
+  Api --> Engine["engine: GET /api/state, POST mensagens, ações, rolagens, GET /api/tts"]
   GameScreen --> Roll["modal de dados 3D, não dispensável"]
   GameScreen --> Table[GameTable]
-  Table --> Journal["diário de pergaminho"]
-  Table --> Bar["barra rápida"]
-  Bar --> Drawers["gavetas: ficha, bolsa, grimório, diário, pessoas, mapa"]
-  Table --> Dock["doca reposicionável quando a largura é pelo menos 900 px"]
+  Table --> Strip["barra compacta: vida, lugar, retratos"]
+  Table --> Journal["diário: histórico acima, última narração em página cheia"]
+  Table --> Actions["saídas e usar, acima do campo livre"]
+  Strip --> Drawers["gavetas no celular; laterais quando a largura é pelo menos 900 px"]
 ```
 
 | Peça | Onde | O que faz |
 |------|------|-----------|
-| Mesa | `app/lib/ui/fantasy/table.dart` | No celular, diário rolável, barra do polegar e gavetas. Em largura ≥ 900 px (pelo `LayoutBuilder`, não pelo `MediaQuery`), o diário fica ao lado de uma doca de painéis que o jogador reordena. |
+| Mesa | `app/lib/ui/fantasy/table.dart` | No celular a narração ocupa a página. Personagem, vida, retratos e lugar ficam numa barra de 56 px que abre ao toque ou ao arrastar. Saídas, itens no chão e “Usar” ficam numa faixa acima do campo, sem cobrir o texto. Em largura ≥ 900 px a narração fica no centro, a situação à esquerda e a doca de painéis à direita. |
 | Gavetas | `app/lib/ui/fantasy/drawers.dart` | Ficha, bolsa (segurar e soltar em Equipar/Usar; botões continuam), grimório com espaços, diário de missões e fatos conhecidos, pessoas e mapa com locais arrastáveis. |
 | Aparência | `app/lib/theme.dart`, `fantasy/sigils.dart`, `fantasy/chrome.dart` | Couro escuro, pergaminho `#F4E6C8` com tinta `#24180F`, Cinzel e EB Garamond (OFL, em `app/assets/fonts/`). Sigilos de classe são desenhos próprios. Cor de raridade só quando `ItemView.rarity` não é null. |
-| Ajustes | `app/lib/ui/play_settings.dart` | Texto maior (escala ×1,3, teto 2,4), vibração (ligada por padrão) e sons do sistema (desligados por padrão). Alvos de toque da barra e dos botões principais ficam em 48 px ou mais. |
+| Ajustes | `app/lib/ui/play_settings.dart`, `fantasy/voice.dart` | A−/A+ só na narração (18, 22, 26). “Texto maior” ainda escala a mesa inteira (×1,3, teto 2,4). “Ouvir” toca `GET /api/tts` com a chave `chat-<id>` ou `turn-<n>`. Vibração ligada por padrão; sons do sistema desligados. |
 | Fluxo | `game_screen.dart`, `state/game_controller.dart`, `api/` | SSE, auth Bearer (na web o `EventSource` usa `?token=`) e abertura automática da rolagem não mudam. Retrato só entra se for `http(s)` ou um caminho relativo à base da API. |
 
-A narração do último turno do Mestre abre o diário. Nome do lugar e saídas ficam numa faixa curta; o resumo do lugar abre sob “O lugar”. Tocar uma saída preenche o compositor (`Sigo para …`). Itens no chão e fichas de NPC expandem sem criar campos que o motor não manda.
+A última narração do Mestre é uma página de pergaminho com a altura do diário. O que veio antes fica acima, no mesmo rolamento. Tocar uma saída preenche o compositor (`Sigo para …`). Itens no chão sugerem “Pego …”, sem ação de inventário que o motor não lista. NPCs em cena aparecem ao abrir a barra.
 
 ---
 

@@ -20,6 +20,7 @@ class GameTable extends StatefulWidget {
     this.sending = false,
     this.portraitBase,
     this.animateNarration = true,
+    this.onListen,
   });
 
   final GameView view;
@@ -30,6 +31,7 @@ class GameTable extends StatefulWidget {
   final bool sending;
   final String? portraitBase;
   final bool animateNarration;
+  final Future<void> Function(String key)? onListen;
 
   @override
   State<GameTable> createState() => _GameTableState();
@@ -137,21 +139,27 @@ class _GameTableState extends State<GameTable> {
     final view = widget.view;
     final journal = _Journal(
       view: view,
-      portraitBase: widget.portraitBase,
+      narrationSize: settings.narrationSize,
       animate: widget.animateNarration,
       lastMasterId: _lastMasterId,
       onMaster: (id) {
         if (_lastMasterId != id) setState(() => _lastMasterId = id);
       },
-      onSuggest: (text) => _input.text = text,
-      onPeople: () => _open('pessoas'),
+      onListen: widget.onListen,
+      onStep: (step) => settings.setNarrationStep(step),
+      step: settings.narrationStep,
     );
-    final quick = view.pc?.inventory.where((i) => i.actions.contains('usar')).firstOrNull;
     final composer = _Composer(
       controller: _input,
       onSend: _send,
       sending: widget.sending || view.master.busy,
       locked: view.pendingRolls.isNotEmpty,
+    );
+    final actions = _ActionRow(
+      view: view,
+      enabled: view.pendingRolls.isEmpty && !widget.sending,
+      onSuggest: (text) => _input.text = text,
+      onItem: widget.onItem,
     );
     final bar = _QuickBar(order: settings.panelOrder, meta: _meta, onOpen: _open);
 
@@ -162,19 +170,33 @@ class _GameTableState extends State<GameTable> {
           child: LayoutBuilder(builder: (context, constraints) {
             final wide = constraints.maxWidth >= 900;
             _wide = wide;
+            final center = Column(children: [Expanded(child: journal), actions, composer]);
+            if (wide) {
+              return Column(children: [
+                _TopBar(view: view, live: widget.live, onLeave: widget.onLeave, onSettings: _settings),
+                Expanded(
+                  child: Row(children: [
+                    Expanded(flex: 3, child: _StatusDeck(view: view, portraitBase: widget.portraitBase, side: true, onPeople: () => _open('pessoas'), onOpenSheet: () => _open('ficha'))),
+                    const VerticalDivider(width: 1, color: Palette.line),
+                    Expanded(flex: 6, child: center),
+                    const VerticalDivider(width: 1, color: Palette.line),
+                    Expanded(flex: 4, child: _Dock(order: settings.panelOrder, meta: _meta, anchor: _anchor, panel: _panel, onReorder: settings.setPanelOrder)),
+                  ]),
+                ),
+              ]);
+            }
             return Column(children: [
-              _TopBar(view: view, live: widget.live, onLeave: widget.onLeave, onSettings: _settings),
-              if (view.pc != null) _HeroPlate(pc: view.pc!, portraitBase: widget.portraitBase, onOpenSheet: () => _open('ficha')),
-              if (view.combat.isNotEmpty) InitiativeRail(view: view, portraitBase: widget.portraitBase),
-              Expanded(
-                child: wide
-                    ? Row(children: [
-                        Expanded(flex: 5, child: Column(children: [Expanded(child: journal), if (quick != null) _QuickUse(item: quick, enabled: view.pendingRolls.isEmpty && !widget.sending, onItem: widget.onItem), composer])),
-                        const VerticalDivider(width: 1, color: Palette.line),
-                        SizedBox(width: 400, child: _Dock(order: settings.panelOrder, meta: _meta, anchor: _anchor, panel: _panel, onReorder: settings.setPanelOrder)),
-                      ])
-                    : Column(children: [Expanded(child: journal), if (quick != null) _QuickUse(item: quick, enabled: view.pendingRolls.isEmpty && !widget.sending, onItem: widget.onItem), composer]),
+              _StatusDeck(
+                view: view,
+                live: widget.live,
+                portraitBase: widget.portraitBase,
+                maxBody: constraints.maxHeight * 0.38,
+                onLeave: widget.onLeave,
+                onSettings: _settings,
+                onPeople: () => _open('pessoas'),
+                onOpenSheet: () => _open('ficha'),
               ),
+              Expanded(child: center),
               bar,
             ]);
           }),
@@ -208,6 +230,184 @@ class _TopBar extends StatelessWidget {
         IconButton(key: const Key('btn-ajustes'), tooltip: 'Ajustes de leitura', onPressed: onSettings, icon: const Icon(Icons.tune, color: Palette.gold), iconSize: 26),
         IconButton(tooltip: 'Trocar campanha', onPressed: onLeave, icon: const Icon(Icons.logout, color: Palette.gold), iconSize: 24),
       ]),
+    );
+  }
+}
+
+class _StatusDeck extends StatefulWidget {
+  const _StatusDeck({
+    required this.view,
+    required this.portraitBase,
+    required this.onPeople,
+    required this.onOpenSheet,
+    this.live = false,
+    this.side = false,
+    this.maxBody = 280,
+    this.onLeave,
+    this.onSettings,
+  });
+
+  final GameView view;
+  final String? portraitBase;
+  final VoidCallback onPeople;
+  final VoidCallback onOpenSheet;
+  final bool live;
+  final bool side;
+  final double maxBody;
+  final VoidCallback? onLeave;
+  final VoidCallback? onSettings;
+
+  @override
+  State<_StatusDeck> createState() => _StatusDeckState();
+}
+
+class _StatusDeckState extends State<_StatusDeck> {
+  double _fraction = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final body = _StatusBody(view: widget.view, portraitBase: widget.portraitBase, onPeople: widget.onPeople, onOpenSheet: widget.onOpenSheet);
+    if (widget.side) {
+      return Material(color: Palette.leatherRaised, child: SingleChildScrollView(child: body));
+    }
+    final pc = widget.view.pc;
+    final place = widget.view.location?.name ?? '';
+    final round = widget.view.combat.isEmpty ? '' : ' · R${widget.view.combatRound ?? 1}';
+    return Material(
+      color: Palette.leatherRaised,
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Row(children: [
+          Expanded(
+            child: GestureDetector(
+              key: const Key('status-bar'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => _fraction = _fraction > 0.5 ? 0 : 1),
+              onVerticalDragUpdate: (d) => setState(() => _fraction = (_fraction + d.delta.dy / widget.maxBody).clamp(0.0, 1.0)),
+              onVerticalDragEnd: (d) {
+                final velocity = d.primaryVelocity ?? 0;
+                setState(() => _fraction = velocity < -250 || (_fraction < 0.35 && velocity <= 250) ? 0 : 1);
+              },
+              child: Semantics(
+                button: true,
+                label: '${pc?.name ?? widget.view.campaignName}, ${pc == null ? '' : '${pc.hp} de ${pc.maxHp} pontos de vida, '}$place. Toque ou arraste para ver a situação.',
+                child: SizedBox(
+                  height: 56,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 10),
+                    child: Row(children: [
+                      if (pc != null) PortraitFace(name: pc.name, url: portraitUrl(pc.portrait, widget.portraitBase), classKey: pc.classKey, classLabel: pc.classLabel, size: 36),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(
+                            pc == null ? widget.view.campaignName : '${pc.name} · ${pc.hp}/${pc.maxHp}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontFamily: 'Cinzel', fontWeight: FontWeight.w600, color: Palette.text, fontSize: 15),
+                          ),
+                          Text(
+                            '$place$round'.trim(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Palette.textDim, fontFamily: 'EBGaramond', fontSize: 14),
+                          ),
+                        ]),
+                      ),
+                      Icon(widget.live ? Icons.circle : Icons.circle_outlined, size: 10, color: widget.live ? Palette.success : Palette.textDim),
+                      Icon(_fraction > 0.5 ? Icons.expand_less : Icons.expand_more, color: Palette.gold),
+                      const SizedBox(width: 4),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (widget.onSettings != null)
+            IconButton(key: const Key('btn-ajustes'), tooltip: 'Ajustes de leitura', onPressed: widget.onSettings, icon: const Icon(Icons.tune, color: Palette.gold), iconSize: 24, constraints: const BoxConstraints(minWidth: 48, minHeight: 48)),
+          if (widget.onLeave != null) IconButton(tooltip: 'Trocar campanha', onPressed: widget.onLeave, icon: const Icon(Icons.logout, color: Palette.gold), iconSize: 22, constraints: const BoxConstraints(minWidth: 48, minHeight: 48)),
+        ]),
+        if (_fraction > 0)
+          ClipRect(
+            child: Align(
+              alignment: Alignment.topCenter,
+              heightFactor: _fraction,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: widget.maxBody),
+                child: SingleChildScrollView(padding: const EdgeInsets.fromLTRB(12, 0, 12, 12), child: body),
+              ),
+            ),
+          ),
+      ]),
+    );
+  }
+}
+
+class _StatusBody extends StatelessWidget {
+  const _StatusBody({required this.view, required this.portraitBase, required this.onPeople, required this.onOpenSheet});
+  final GameView view;
+  final String? portraitBase;
+  final VoidCallback onPeople;
+  final VoidCallback onOpenSheet;
+
+  @override
+  Widget build(BuildContext context) {
+    final pc = view.pc;
+    final place = view.location;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (pc != null) _HeroPlate(pc: pc, portraitBase: portraitBase, onOpenSheet: onOpenSheet),
+        if (view.combat.isNotEmpty) InitiativeRail(view: view, portraitBase: portraitBase),
+        if (view.present.isNotEmpty) ...[
+          const SectionHeading('Em cena', onParchment: false),
+          SizedBox(
+            height: 88,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: view.present.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (_, i) {
+                final npc = view.present[i];
+                return LongPressDraggable<String>(
+                  data: npc.id,
+                  feedback: Material(color: Colors.transparent, child: _PortraitChip(npc: npc, portraitBase: portraitBase)),
+                  child: _PortraitChip(npc: npc, portraitBase: portraitBase, onTap: onPeople),
+                );
+              },
+            ),
+          ),
+        ],
+        if (place != null) ...[
+          const SectionHeading('Lugar', onParchment: false),
+          Text(place.name, style: displayStyle(size: 16)),
+          if (place.parent != null) Text(place.parent!, style: const TextStyle(color: Palette.textDim, fontFamily: 'EBGaramond')),
+          if (place.summary.isNotEmpty) Text(place.summary, style: const TextStyle(color: Palette.text, fontFamily: 'EBGaramond', height: 1.35)),
+          if (place.details.isNotEmpty) Text(place.details, style: const TextStyle(color: Palette.textDim, fontFamily: 'EBGaramond', height: 1.35)),
+        ],
+      ]),
+    );
+  }
+}
+
+class _PortraitChip extends StatelessWidget {
+  const _PortraitChip({required this.npc, this.portraitBase, this.onTap});
+  final Npc npc;
+  final String? portraitBase;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 72,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(children: [
+          PortraitFace(name: npc.name, url: portraitUrl(npc.portrait, portraitBase), size: 40, ring: _tone(npc.attitudeLabel)),
+          const SizedBox(height: 4),
+          Text(npc.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Palette.text, fontFamily: 'Cinzel', fontSize: 12)),
+          Text(npc.attitudeLabel, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: _tone(npc.attitudeLabel), fontSize: 11, fontFamily: 'EBGaramond')),
+        ]),
+      ),
     );
   }
 }
@@ -340,27 +540,44 @@ class InitiativeRail extends StatelessWidget {
 class _Journal extends StatefulWidget {
   const _Journal({
     required this.view,
+    required this.narrationSize,
     required this.animate,
     required this.lastMasterId,
     required this.onMaster,
-    required this.onSuggest,
-    required this.onPeople,
-    this.portraitBase,
+    required this.onStep,
+    required this.step,
+    this.onListen,
   });
   final GameView view;
+  final double narrationSize;
   final bool animate;
   final int lastMasterId;
+  final int step;
   final ValueChanged<int> onMaster;
-  final ValueChanged<String> onSuggest;
-  final VoidCallback onPeople;
-  final String? portraitBase;
+  final ValueChanged<int> onStep;
+  final Future<void> Function(String key)? onListen;
 
   @override
   State<_Journal> createState() => _JournalState();
 }
 
 class _JournalState extends State<_Journal> {
-  String? _ground;
+  final _featureKey = GlobalKey();
+  int? _pinnedFor;
+  bool _pinScheduled = false;
+
+  void _pin(int id) {
+    if (_pinnedFor == id || _pinScheduled) return;
+    _pinScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pinScheduled = false;
+      if (!mounted) return;
+      final target = _featureKey.currentContext;
+      if (target == null) return;
+      _pinnedFor = id;
+      Scrollable.ensureVisible(target, alignment: 0);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -372,153 +589,146 @@ class _JournalState extends State<_Journal> {
         if (mounted) widget.onMaster(lastMaster.id);
       });
     }
-    final playerLine = lastMaster == null ? null : view.chat.where((c) => c.role != 'mestre' && c.id < lastMaster.id).lastOrNull;
-    final earlier = view.chat.where((c) => lastMaster == null || c.id < (playerLine?.id ?? lastMaster.id)).toList();
+    final history = view.chat.where((c) => lastMaster == null || c.id < lastMaster.id).toList();
     final after = lastMaster == null ? view.chat : view.chat.where((c) => c.id > lastMaster.id).toList();
-    final location = view.location;
+    final text = lastMaster?.text ?? view.latestNarration;
+    final voiceKey = lastMaster != null ? 'chat-${lastMaster.id}' : (view.journal.isNotEmpty ? 'turn-${view.journal.last.n}' : null);
+    _pin(lastMaster?.id ?? -1);
 
-    return ListView(
-      key: const Key('journal'),
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-      children: [
-        if (location != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(location.name, style: displayStyle(size: 20)),
-              if (location.parent != null) Text(location.parent!, style: const TextStyle(color: Palette.textDim, fontFamily: 'EBGaramond', fontSize: 14)),
-              if (location.exits.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Wrap(spacing: 6, runSpacing: 6, children: [
-                    for (final exit in location.exits)
-                      ActionChip(
-                        key: Key('exit-${exit.id}'),
-                        materialTapTargetSize: MaterialTapTargetSize.padded,
-                        label: Text('${exit.name} · ${exit.minutes} min'),
-                        avatar: const Icon(Icons.signpost_outlined, size: 18, color: Palette.gold),
-                        labelStyle: const TextStyle(color: Palette.text, fontFamily: 'EBGaramond', fontSize: 16),
-                        backgroundColor: Palette.leatherRaised,
-                        side: const BorderSide(color: Palette.brassDark),
-                        onPressed: () => widget.onSuggest('Sigo para ${exit.name}.'),
+    return LayoutBuilder(builder: (context, constraints) {
+      final page = constraints.maxHeight.isFinite ? constraints.maxHeight : 480.0;
+      return ListView(
+        key: const Key('journal'),
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+        children: [
+          if (history.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.only(bottom: 6),
+              child: Text('Páginas anteriores', style: TextStyle(color: Palette.textDim, fontFamily: 'EBGaramond', fontSize: 14)),
+            ),
+            for (final message in history) _Note(message: message),
+          ],
+          ConstrainedBox(
+            key: _featureKey,
+            constraints: BoxConstraints(minHeight: page),
+            child: KeyedSubtree(
+              key: const Key('narracao-destaque'),
+              child: Parchment(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Text('O MESTRE', style: displayStyle(size: 13, color: Palette.inkEmph)),
+                    const Spacer(),
+                    IconButton(
+                      key: const Key('font-menor'),
+                      tooltip: 'Texto menor na narração',
+                      onPressed: widget.step > 0 ? () => widget.onStep(widget.step - 1) : null,
+                      icon: const Icon(Icons.text_decrease),
+                      color: Palette.ink,
+                      iconSize: 22,
+                      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                    ),
+                    IconButton(
+                      key: const Key('font-maior'),
+                      tooltip: 'Texto maior na narração',
+                      onPressed: widget.step < PlaySettings.narrationSizes.length - 1 ? () => widget.onStep(widget.step + 1) : null,
+                      icon: const Icon(Icons.text_increase),
+                      color: Palette.ink,
+                      iconSize: 22,
+                      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                    ),
+                    if (widget.onListen != null && voiceKey != null)
+                      IconButton(
+                        key: const Key('btn-ouvir'),
+                        tooltip: 'Ouvir a narração',
+                        onPressed: () => widget.onListen!(voiceKey),
+                        icon: const Icon(Icons.volume_up_outlined),
+                        color: Palette.ink,
+                        iconSize: 22,
+                        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                       ),
                   ]),
-                ),
-            ]),
-          ),
-        if (playerLine != null) _Note(message: playerLine),
-        if (lastMaster != null || view.latestNarration.isNotEmpty)
-          Parchment(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('O MESTRE', style: displayStyle(size: 13, color: Palette.inkEmph)),
-              const SizedBox(height: 8),
-              Narration(text: lastMaster?.text ?? view.latestNarration, animate: animate),
-            ]),
-          )
-        else
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Text('Diga ao Mestre o que você quer fazer para começar.', style: TextStyle(color: Palette.textDim, fontFamily: 'EBGaramond', fontSize: 18)),
-          ),
-        if (earlier.isNotEmpty)
-          ExpansionTile(
-            tilePadding: EdgeInsets.zero,
-            title: Text('Páginas anteriores (${earlier.length})', style: const TextStyle(color: Palette.textDim, fontFamily: 'EBGaramond')),
-            children: [for (final message in earlier) _Note(message: message)],
-          ),
-        if (location != null && (location.summary.isNotEmpty || location.details.isNotEmpty))
-          ExpansionTile(
-            tilePadding: EdgeInsets.zero,
-            title: const Text('O lugar', style: TextStyle(color: Palette.textDim, fontFamily: 'EBGaramond')),
-            children: [
-              Parchment(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  if (location.summary.isNotEmpty) Text(location.summary),
-                  if (location.details.isNotEmpty) Text(location.details, style: const TextStyle(color: Palette.inkSoft)),
+                  if (text.isNotEmpty)
+                    Narration(text: text, animate: animate, fontSize: widget.narrationSize)
+                  else
+                    const Text('Diga ao Mestre o que você quer fazer para começar.', style: TextStyle(color: Palette.inkSoft, fontFamily: 'EBGaramond', fontSize: 20, height: 1.5)),
+                  for (final message in after) _Note(message: message),
+                  if (view.master.busy)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 10),
+                      child: Text('O Mestre está narrando…', style: TextStyle(color: Palette.inkEmph, fontFamily: 'EBGaramond', fontStyle: FontStyle.italic)),
+                    ),
+                  if (view.master.status == 'erro')
+                    Padding(padding: const EdgeInsets.only(top: 8), child: Text('O Mestre não respondeu: ${view.master.error ?? ''}', style: const TextStyle(color: Palette.failure))),
                 ]),
               ),
-            ],
-          ),
-        for (final message in after) _Note(message: message),
-        if (view.master.busy)
-          const Padding(
-            padding: EdgeInsets.only(top: 10),
-            child: Text('O Mestre está narrando…', style: TextStyle(color: Palette.gold, fontFamily: 'EBGaramond', fontStyle: FontStyle.italic)),
-          ),
-        if (view.master.status == 'erro')
-          Padding(padding: const EdgeInsets.only(top: 8), child: Text('O Mestre não respondeu: ${view.master.error ?? ''}', style: const TextStyle(color: Palette.failure))),
-        if (view.present.isNotEmpty) ...[
-          const SectionHeading('Em cena', onParchment: false),
-          SizedBox(
-            height: 132,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: view.present.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 8),
-              itemBuilder: (_, i) {
-                final npc = view.present[i];
-                return LongPressDraggable<String>(
-                  data: npc.id,
-                  feedback: Material(color: Colors.transparent, child: _NpcToken(npc: npc, portraitBase: widget.portraitBase, wide: true)),
-                  child: _NpcToken(npc: npc, portraitBase: widget.portraitBase, onTap: widget.onPeople),
-                );
-              },
             ),
           ),
         ],
-        if (location != null && location.items.isNotEmpty) ...[
-          const SectionHeading('No chão', onParchment: false),
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            for (final item in location.items)
-              ActionChip(
-                label: Text(item.qty > 1 ? '${item.qty}× ${item.name}' : item.name),
-                onPressed: () => setState(() => _ground = _ground == item.id ? null : item.id),
-              ),
-          ]),
-          if (_ground != null)
-            for (final item in location.items.where((i) => i.id == _ground))
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Parchment(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(item.name, style: const TextStyle(fontFamily: 'Cinzel', fontWeight: FontWeight.w600)),
-                    if (item.effect != null) Text(item.effect!),
-                    if (item.notes.isNotEmpty) Text(item.notes, style: const TextStyle(fontStyle: FontStyle.italic, color: Palette.inkSoft)),
-                    const Text('Está no chão. Peça ao Mestre se quiser pegar.', style: TextStyle(color: Palette.inkSoft, fontSize: 14)),
-                  ]),
-                ),
-              ),
-        ],
-      ],
-    );
+      );
+    });
   }
 }
 
-class _NpcToken extends StatelessWidget {
-  const _NpcToken({required this.npc, this.portraitBase, this.onTap, this.wide = false});
-  final Npc npc;
-  final String? portraitBase;
-  final VoidCallback? onTap;
-  final bool wide;
+class _ActionRow extends StatelessWidget {
+  const _ActionRow({required this.view, required this.enabled, required this.onSuggest, required this.onItem});
+  final GameView view;
+  final bool enabled;
+  final ValueChanged<String> onSuggest;
+  final ItemAct onItem;
 
   @override
   Widget build(BuildContext context) {
+    final exits = view.location?.exits ?? const <Exit>[];
+    final ground = view.location?.items ?? const <Item>[];
+    final quick = view.pc?.inventory.where((i) => i.actions.contains('usar')).firstOrNull;
+    if (exits.isEmpty && ground.isEmpty && quick == null) return const SizedBox.shrink();
     return SizedBox(
-      width: wide ? 180 : 148,
-      child: Parchment(
-        padding: const EdgeInsets.all(8),
-        child: InkWell(
-          onTap: onTap,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              PortraitFace(name: npc.name, url: portraitUrl(npc.portrait, portraitBase), size: 36, ring: _tone(npc.attitudeLabel)),
-              const SizedBox(width: 6),
-              Expanded(child: Text(npc.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Cinzel', fontSize: 13, fontWeight: FontWeight.w600))),
-            ]),
-            Text(npc.attitudeLabel, style: TextStyle(color: _tone(npc.attitudeLabel), fontSize: 12)),
-            if (npc.reaction != null) Text(npc.reaction!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Palette.inkEmph)),
-          ]),
-        ),
+      height: 56,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        children: [
+          for (final exit in exits)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ActionChip(
+                key: Key('exit-${exit.id}'),
+                materialTapTargetSize: MaterialTapTargetSize.padded,
+                label: Text('${exit.name} · ${exit.minutes} min'),
+                avatar: const Icon(Icons.signpost_outlined, size: 18, color: Palette.gold),
+                labelStyle: const TextStyle(color: Palette.text, fontFamily: 'EBGaramond', fontSize: 16),
+                backgroundColor: Palette.leatherRaised,
+                side: const BorderSide(color: Palette.brassDark),
+                onPressed: () => onSuggest('Sigo para ${exit.name}.'),
+              ),
+            ),
+          for (final item in ground)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ActionChip(
+                label: Text(item.qty > 1 ? '${item.qty}× ${item.name}' : item.name),
+                avatar: const Icon(Icons.inventory_2_outlined, size: 18, color: Palette.gold),
+                labelStyle: const TextStyle(color: Palette.text, fontFamily: 'EBGaramond', fontSize: 16),
+                backgroundColor: Palette.leatherRaised,
+                side: const BorderSide(color: Palette.brassDark),
+                onPressed: () => onSuggest('Pego ${item.name}.'),
+              ),
+            ),
+          if (quick != null)
+            FilledButton.icon(
+              key: const Key('quick-usar'),
+              onPressed: enabled
+                  ? () async {
+                      tableFeedback(context);
+                      final text = await onItem('usar', quick.id);
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text ?? 'Usar: ${quick.name}')));
+                    }
+                  : null,
+              icon: const Icon(Icons.local_drink_outlined),
+              label: Text('Usar ${quick.name}'),
+            ),
+        ],
       ),
     );
   }
@@ -559,36 +769,6 @@ class _Note extends StatelessWidget {
           if (pending) const Text('enviando ao Mestre…', style: TextStyle(color: Palette.inkSoft, fontSize: 12)),
           if (message.status == 'erro') Text('não entregue: ${message.error}', style: const TextStyle(color: Palette.failure, fontSize: 12)),
         ]),
-      ),
-    );
-  }
-}
-
-class _QuickUse extends StatelessWidget {
-  const _QuickUse({required this.item, required this.enabled, required this.onItem});
-  final Item item;
-  final bool enabled;
-  final ItemAct onItem;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: FilledButton.icon(
-          key: const Key('quick-usar'),
-          onPressed: enabled
-              ? () async {
-                  tableFeedback(context);
-                  final text = await onItem('usar', item.id);
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text ?? 'Usar: ${item.name}')));
-                }
-              : null,
-          icon: const Icon(Icons.local_drink_outlined),
-          label: Text('Usar ${item.name}'),
-        ),
       ),
     );
   }

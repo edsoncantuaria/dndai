@@ -2,8 +2,8 @@
 
 App do jogador, **mobile first** (Android, iOS) e também web. Substitui a mesa React (`../mesa`). Fala com o motor pelo contrato [`../engine/API.md`](../engine/API.md): toda regra fica no motor, o app só apresenta e envia.
 
-- **Celular:** diário em pergaminho, barra do herói e barra rápida (ficha, bolsa, grimório, diário, pessoas, mapa). As gavetas sobem arrastáveis. Na bolsa, segurar um item e soltar em Equipar ou Usar chama a ação que o motor já permite; os botões continuam para quem não arrasta.
-- **Tela larga (≥ 900 px de largura do layout, web/tablet):** o diário fica ao lado de uma doca de painéis que o jogador reordena.
+- **Celular:** a narração ocupa a página. Vida, lugar e retratos ficam numa barra compacta que abre ao toque ou ao arrastar. Saídas e o campo livre ficam embaixo, sem cobrir o texto. A barra rápida abre ficha, bolsa, grimório, diário, pessoas e mapa.
+- **Tela larga (≥ 900 px de largura do layout, web/tablet):** narração no centro, situação à esquerda e doca de painéis à direita.
 - **Tempo real:** SSE (`/api/events`), com reconexão automática e releitura periódica.
 - **Dados 3D nativos** (`lib/dice3d/`, Dart puro, sem WebView): d4, d6, d8, d10, d12, d20 como sólidos reais, física de corpo rígido (gravidade, quique, atrito, colisão com a mesa e entre dados), iluminação e sombras. Arremesso por gesto (direção e força) ou botão. O valor sai de `Random.secure()`; a física é simulada e as faces são renumeradas para que a face que realmente cai para cima mostre esse valor (testado em centenas de arremessos). O motor confere e calcula o resultado.
 - **Rolagem não fica para depois:** o modal abre sozinho e não fecha sem rolar (o motor também bloqueia mensagens, ações e turno novo até a rolagem).

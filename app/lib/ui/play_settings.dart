@@ -10,6 +10,9 @@ class PlaySettings extends ChangeNotifier {
   bool largeText = false;
   bool haptics = true;
   bool sounds = false;
+  /// 0 menor, 1 leitura, 2 maior. Só o diário em destaque.
+  int narrationStep = 1;
+  static const narrationSizes = <double>[18, 22, 26];
   List<String> panelOrder = [...panelIds];
   SharedPreferences? _prefs;
 
@@ -19,6 +22,7 @@ class PlaySettings extends ChangeNotifier {
     largeText = prefs.getBool('ui.largeText') ?? false;
     haptics = prefs.getBool('ui.haptics') ?? true;
     sounds = prefs.getBool('ui.sounds') ?? false;
+    narrationStep = (prefs.getInt('ui.narrationStep') ?? 1).clamp(0, narrationSizes.length - 1);
     final saved = prefs.getString('ui.panelOrder');
     if (saved != null) {
       final parts = saved.split(',').where(panelIds.contains).toList();
@@ -46,6 +50,14 @@ class PlaySettings extends ChangeNotifier {
     sounds = value;
     notifyListeners();
     await _prefs?.setBool('ui.sounds', value);
+  }
+
+  double get narrationSize => narrationSizes[narrationStep.clamp(0, narrationSizes.length - 1)];
+
+  Future<void> setNarrationStep(int value) async {
+    narrationStep = value.clamp(0, narrationSizes.length - 1);
+    notifyListeners();
+    await _prefs?.setInt('ui.narrationStep', narrationStep);
   }
 
   Future<void> setPanelOrder(List<String> next) async {

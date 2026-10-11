@@ -62,7 +62,7 @@ class SheetDrawer extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               mainAxisSpacing: 8,
               crossAxisSpacing: 8,
-              childAspectRatio: 1.15,
+              childAspectRatio: 0.95,
               children: [
                 for (final key in abilityOrder)
                   if (pc.abilities[key] case final ability?)

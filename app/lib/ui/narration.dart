@@ -27,9 +27,10 @@ List<InlineSpan> _inline(String text, TextStyle base) {
 
 /// Narração com efeito de máquina de escrever. Toque para mostrar tudo.
 class Narration extends StatefulWidget {
-  const Narration({super.key, required this.text, this.animate = true});
+  const Narration({super.key, required this.text, this.animate = true, this.fontSize = 18});
   final String text;
   final bool animate;
+  final double fontSize;
 
   @override
   State<Narration> createState() => _NarrationState();
@@ -78,7 +79,7 @@ class _NarrationState extends State<Narration> {
 
   @override
   Widget build(BuildContext context) {
-    final style = narrationStyle(context);
+    final style = narrationStyle(context, size: widget.fontSize);
     final visible = _clean.substring(0, _shown.clamp(0, _clean.length));
     final paragraphs = visible.split(RegExp(r'\n\s*\n'));
     return GestureDetector(

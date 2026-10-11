@@ -1,3 +1,4 @@
+import 'package:dndai/api/client.dart';
 import 'package:dndai/api/models.dart';
 import 'package:dndai/theme.dart';
 import 'package:dndai/ui/fantasy/drawers.dart';
@@ -17,6 +18,11 @@ void main() {
     expect(rarityColor(null), isNull);
     expect(rarityColor('raro'), Palette.rare);
     expect(classKeyOf('', 'Patrulheiro'), 'patrulheiro');
+    final uri = ApiClient(baseUrl: 'http://127.0.0.1:8790', token: 'segredo').ttsUri('selo', 'chat-2');
+    expect(uri.path, '/api/tts');
+    expect(uri.queryParameters['campaign'], 'selo');
+    expect(uri.queryParameters['key'], 'chat-2');
+    expect(uri.queryParameters['token'], 'segredo');
   });
 
   testWidgets('mesa mostra narração, iniciativa e abre a ficha', (tester) async {
@@ -33,15 +39,15 @@ void main() {
     }
     expect(diary, findsOneWidget);
     expect(find.text('O MESTRE'), findsOneWidget);
-    expect(find.text('Lyra'), findsWidgets);
-    await tester.scrollUntilVisible(
-      find.text('Brom'),
-      200,
-      scrollable: find.descendant(of: find.byKey(const Key('journal')), matching: find.byType(Scrollable)),
-    );
+    final page = tester.getSize(find.byKey(const Key('narracao-destaque')));
+    expect(page.height, greaterThan(500));
+    expect(find.textContaining('Lyra'), findsWidgets);
+    expect(find.textContaining('R1'), findsWidgets);
+
+    await tester.tap(find.byKey(const Key('status-bar')));
+    await tester.pumpAndSettle();
     expect(find.text('Brom'), findsWidgets);
     expect(find.textContaining('envenenado'), findsWidgets);
-    expect(find.text('R1'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('quick-ficha')));
     await tester.pumpAndSettle();
@@ -51,6 +57,7 @@ void main() {
   });
 
   testWidgets('bolsa expande o item e soltar em Usar chama o motor', (tester) async {
+    await phone(tester);
     final calls = <String>[];
     await tester.pumpWidget(host(GameTable(
       view: sampleView(),
@@ -132,6 +139,26 @@ void main() {
     await tester.tap(find.byKey(const Key('exit-lugar:trilha')));
     await tester.pump();
     expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, 'Sigo para Trilha Norte.');
+
+    await tester.tap(find.byKey(const Key('font-maior')));
+    await tester.pump();
+    expect(settings.narrationStep, 2);
+  });
+
+  testWidgets('ouvir pede a voz da última narração', (tester) async {
+    await phone(tester);
+    final keys = <String>[];
+    await tester.pumpWidget(host(GameTable(
+      view: sampleView(),
+      animateNarration: false,
+      onSend: (_) async => null,
+      onItem: (_, _) async => null,
+      onLeave: () {},
+      onListen: (key) async => keys.add(key),
+    )));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('btn-ouvir')));
+    expect(keys, ['chat-2']);
   });
 
   testWidgets('golden da mesa, ficha, bolsa, grimório e diário', (tester) async {
@@ -144,20 +171,25 @@ void main() {
       await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
     }
 
-    await shot('mesa_telefone', GameTable(view: view, animateNarration: false, onSend: (_) async => null, onItem: (_, _) async => null, onLeave: () {}), const Size(390, 844));
+    await shot('mesa_telefone', GameTable(view: view, animateNarration: false, onSend: (_) async => null, onItem: (_, _) async => null, onLeave: () {}, onListen: (_) async {}), const Size(390, 844));
     await shot('ficha', Scaffold(body: SheetDrawer(view: view)), const Size(390, 844));
     await shot('bolsa', Scaffold(body: BagDrawer(view: view, onItem: (_, _) async => null)), const Size(390, 844));
     await shot('grimorio', Scaffold(body: SpellbookDrawer(view: view)), const Size(390, 844));
     await shot('diario', Scaffold(body: QuestDrawer(view: view)), const Size(390, 844));
-    await shot('mesa_larga', GameTable(view: view, animateNarration: false, onSend: (_) async => null, onItem: (_, _) async => null, onLeave: () {}), const Size(1100, 760));
+    await shot('mesa_larga', GameTable(view: view, animateNarration: false, onSend: (_) async => null, onItem: (_, _) async => null, onLeave: () {}, onListen: (_) async {}), const Size(1100, 760));
     await tester.binding.setSurfaceSize(null);
   });
 }
 
 Future<void> phone(WidgetTester tester) async {
+  final view = tester.view;
+  final ratio = view.devicePixelRatio;
   await tester.binding.setSurfaceSize(const Size(390, 844));
-  tester.view.devicePixelRatio = 1;
-  addTearDown(() => tester.binding.setSurfaceSize(null));
+  view.devicePixelRatio = 1;
+  addTearDown(() async {
+    view.devicePixelRatio = ratio;
+    await tester.binding.setSurfaceSize(null);
+  });
 }
 
 Widget host(Widget child, {PlaySettings? settings}) {

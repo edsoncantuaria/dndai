@@ -6,6 +6,7 @@ import '../theme.dart';
 import 'dice.dart';
 import 'fantasy/chrome.dart';
 import 'fantasy/table.dart';
+import 'fantasy/voice.dart';
 
 /// Tela do jogo. O fluxo (SSE, rolagem obrigatória, ações) fica no [GameController]; a mesa só apresenta.
 class GameScreen extends StatefulWidget {
@@ -32,6 +33,7 @@ class _GameScreenState extends State<GameScreen> {
   void dispose() {
     game.removeListener(_maybeOpenRoll);
     game.dispose();
+    TableVoice.instance.stop();
     super.dispose();
   }
 
@@ -78,6 +80,7 @@ class _GameScreenState extends State<GameScreen> {
           portraitBase: widget.api.baseUrl,
           onLeave: widget.onLeave,
           onSend: game.send,
+          onListen: (key) => TableVoice.instance.toggle(widget.api.ttsUri(widget.campaign, key).toString()),
           onItem: (action, id) async {
             final err = await game.itemAction(action, id);
             return err ?? game.lastActionText;
