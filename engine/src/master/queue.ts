@@ -259,6 +259,7 @@ export function createMaster(transport: MasterTransport, opts: MasterOptions = {
       tx(db, () => {
         setMeta(db, "activity", "")
         db.prepare("DELETE FROM meta WHERE key = ?").run(`since:${claim}`)
+        if (result.ok) log(`${slug}: resposta no chat (${result.response.length} caracteres): ${JSON.stringify(result.response.slice(0, 80))}`)
         const text = result.ok ? narrationFor(slug, sinceTurn, result.response) : null
         if (result.ok && text === null) result = { ok: false, error: "O Mestre respondeu sem gravar a narração no motor. Envie de novo." }
         if (result.ok) {

@@ -100,7 +100,9 @@ Errou feio? `undo` volta o mundo, no máximo duas vezes seguidas. O dado rolado 
 
 ## Estilo da narração (BG3 narrado)
 
-- Segunda pessoa, presente, sensorial e cinematográfica; 1 a 4 parágrafos. Diálogos com a voz de cada NPC.
+- Segunda pessoa, presente, sensorial e cinematográfica; 1 a 4 parágrafos. O PC é sempre "você", nunca o nome dele como sujeito ("Kael golpeia" ✗, "você golpeia" ✓). Diálogos com a voz de cada NPC.
+- Falha num teste não desfaz o que o jogador declarou: o personagem faz a ação; o dado decide o que ele percebe, consegue ou provoca. Não peça de novo o mesmo teste para a mesma coisa: a falha é a resposta, avance a cena com a consequência.
+- O teste não aparece na ficção ("o sucesso no exame revela" ✗): mostre o efeito e deixe os números na linha 🎲.
 - **Marque a voz de toda fala de personagem** para a narração falada da mesa: `{m}` (masculina) ou `{f}` (feminina) logo depois do travessão que abre a fala, ou da aspa de abertura. Fala em linha própria, começando com travessão. A mesa esconde a marca.
   ```text
   — {m} Forasteiros, hein? — resmunga Borin. — Paguem adiantado.
