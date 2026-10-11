@@ -36,6 +36,9 @@ const ALLOW: Record<string, Set<string>> = {
   recall: new Set(["limit"]),
 }
 
+/** Ops do apply que o modelo às vezes chama como se fossem comandos (ex.: "move"). */
+const APPLY_OPS = new Set(["move", "link", "update", "hp", "condition", "money", "attitude", "memory", "fact", "hook", "reveal", "xp"])
+
 const hits = new Map<string, number[]>()
 
 function rateOk(key: string, max: number, windowMs: number): boolean {
@@ -65,6 +68,9 @@ function checkFlags(comando: string, args: string[]): void {
 
 function validate(kind: "ler" | "agir", comando: string, args: string[]): void {
   const allowed = kind === "ler" ? READ : WRITE
+  if (!allowed.has(comando) && APPLY_OPS.has(comando)) {
+    throw new Error(`"${comando}" é operação do apply, não comando: use dnd_agir comando "apply" com entrada [{"op":"${comando}", ...}].`)
+  }
   if (!allowed.has(comando)) {
     const hint = kind === "ler" && WRITE.has(comando) ? " (esse comando muda o jogo: use dnd_agir)" : kind === "agir" && READ.has(comando) ? " (é leitura: use dnd_ler)" : ""
     throw new Error(`Comando "${comando}" não permitido em dnd_${kind}${hint}. Permitidos: ${[...allowed].join(", ")}.`)

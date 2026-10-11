@@ -12,7 +12,7 @@ const db = await import("../src/db.ts")
 const { ngramEmbedder, setEmbedder } = await import("../src/embed.ts")
 const { runCli } = await import("../src/cli.ts")
 const { formatRollJournal } = await import("../src/journal.ts")
-const { rollNow } = await import("../src/mechanics.ts")
+const { resolveRequest, rollNow } = await import("../src/mechanics.ts")
 const { applyOps, parseOps } = await import("../src/ops.ts")
 const { createPc } = await import("../src/pc.ts")
 const { memoriesFor } = await import("../src/scene.ts")
@@ -191,6 +191,16 @@ describe("economia de tokens na conversa", () => {
     assert.match(apply([{ op: "move", who: "pc", to: "Forja" }]).join(), /chega a Forja/)
     assert.match(apply([{ op: "move", who: "pc", to: "l1" }]).join(), /chega a Vila/)
     assert.throws(() => apply([{ op: "move", who: "pc", to: "Forja" }, { op: "move", who: "pc", to: "l2" }]), /Saídas daqui: Vila \[l1\]/)
+  })
+
+  it("turn end recusa fechar sem narrar a rolagem que o jogador fez na mesa", () => {
+    runCli(["-c", slug, "turn", "begin", "--action", "examina a forja"])
+    runCli(["-c", slug, "check", "pc", "investigacao", "--dc", "12", "--mesa"])
+    runCli(["-c", slug, "narrate"], "Você se aproxima da bigorna. Faça um teste de Investigação.")
+    const req = w.prepare("SELECT id FROM roll_requests WHERE status = 'pendente'").get() as { id: number }
+    db.transaction(w, () => resolveRequest(w, req.id, [15], "mesa"))
+    assert.throws(() => endTurn(w, "Kael examinou a forja e achou marcas.", ""), /rolagem #\d+ foi resolvida depois da última narração/)
+    assert.match(endTurn(w, "Kael examinou a forja e achou marcas.", "Você encontra marcas de martelo recentes. 🎲 Investigação 15 vs CD 12").join(), /fechado/)
   })
 
   it("estado do PC só reaparece quando muda", () => {

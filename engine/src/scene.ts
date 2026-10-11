@@ -48,6 +48,18 @@ export function memoriesFor(db: DB, npc: string, detailed = false): Memory[] {
   }).slice(0, 4)
 }
 
+/** NPCs vivos com memórias soltas demais (`presentOnly`: só os que estão com o PC). */
+export function consolidationDue(db: DB, presentOnly = false): { id: string; code: string; name: string; n: number }[] {
+  const place = presentOnly ? one<{ place_id: string | null }>(db, "SELECT place_id FROM characters WHERE kind = 'pc' LIMIT 1")?.place_id ?? "" : null
+  return all<{ id: string; name: string; n: number }>(
+    db,
+    `SELECT c.id, c.name, COUNT(*) AS n FROM memories m JOIN characters c ON c.id = m.npc_id
+     WHERE m.merged_into IS NULL AND m.consolidated = 0 AND c.status <> 'morto' ${place !== null ? "AND c.place_id = ?" : ""}
+     GROUP BY c.id HAVING n >= ? ORDER BY n DESC`,
+    ...(place !== null ? [place, CONSOLIDATE_AT] : [CONSOLIDATE_AT]),
+  ).map((r) => ({ ...r, code: codeOf(db, r.id) }))
+}
+
 function signature(db: DB): string {
   const pid = pcId(db)
   const pc = pid ? getCharacter(db, pid) : null
@@ -121,15 +133,11 @@ export function sceneDoc(db: DB, slug: string, opts: { cena?: boolean } = {}): R
     return row
   })
   const pendencias = pendingRequests(db).map((r) => `Rolagem #${r.id} aguardando o jogador na mesa: ${r.label}`)
-  const loose = all<{ id: string; name: string; n: number }>(
-    db,
-    "SELECT c.id, c.name, COUNT(*) AS n FROM memories m JOIN characters c ON c.id = m.npc_id WHERE m.merged_into IS NULL AND m.consolidated = 0 AND c.status <> 'morto' GROUP BY c.id HAVING n >= ? ORDER BY n DESC",
-    CONSOLIDATE_AT,
-  )
+  const loose = consolidationDue(db)
   for (const l of loose.slice(0, 3)) {
-    pendencias.push(`Consolide as memórias de ${l.name} (${codeOf(db, l.id)}, ${l.n} soltas): show ${codeOf(db, l.id)} e grave memory.consolidate com os ids e o resumo da relação`)
+    pendencias.push(`Consolide as memórias de ${l.name} (${l.code}, ${l.n} soltas): show ${l.code} e grave memory.consolidate com os ids e o resumo da relação`)
   }
-  if (loose.length > 3) pendencias.push(`+${loose.length - 3} NPCs com memórias para consolidar: ${loose.slice(3).map((l) => codeOf(db, l.id)).join(" ")}`)
+  if (loose.length > 3) pendencias.push(`+${loose.length - 3} NPCs com memórias para consolidar: ${loose.slice(3).map((l) => l.code).join(" ")}`)
   const sceneIds = [pc.id, pc.place_id, ...here.map((n) => n.id)].filter(Boolean) as string[]
   const { fios, dormentes, esfriando } = threadsFor(db, sceneIds)
   // Capítulos são fatos sem about_id, mas vivem no resume: não disputam espaço com os fatos da cena.

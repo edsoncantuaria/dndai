@@ -5,7 +5,7 @@ import { all, type DB, getMeta, index, log, metaNum, setMeta, transaction } from
 import { assertWorld } from "./invariants.ts"
 import { assertCanUndo, recordTurnClosed, recordUndo } from "./journal.ts"
 import { assertNarration, expandRefs } from "./narration.ts"
-import { captureSceneSnap } from "./scene.ts"
+import { captureSceneSnap, consolidationDue } from "./scene.ts"
 import { markSeen } from "./threads.ts"
 import { fmtMoney, getPlace, now, pcId, getCharacter } from "./world.ts"
 
@@ -78,6 +78,7 @@ function addNarration(db: DB, turn: number, text: string): void {
 export function endTurn(db: DB, summary: string, raw: string): string[] {
   if (getMeta(db, "turn_open") !== "1") throw new Error("Não há turno aberto.")
   const narration = expandRefs(db, raw)
+  if (!narration.trim()) assertPlayerHasRead(db, metaNum(db, "turn"))
   if (summary.trim().length < 10) throw new Error("O resumo do turno precisa descrever o que aconteceu (mín. 10 caracteres). Ele é a memória de longo prazo.")
   if (narration.trim()) assertNarration(db, narration)
   const n = metaNum(db, "turn")
@@ -104,8 +105,26 @@ export function endTurn(db: DB, summary: string, raw: string): string[] {
   if (due.length) warnings.push(`Atenção: eventos vencidos não resolvidos: ${due.map((e) => `#${e.id}`).join(", ")}.`)
   const fired = all<{ id: string }>(db, "SELECT id FROM clocks WHERE status = 'disparado'")
   if (fired.length) warnings.push(`Atenção: agendas disparadas não resolvidas: ${fired.map((c) => c.id).join(", ")}.`)
+  for (const due of consolidationDue(db, true)) warnings.push(`Pendente: consolide as memórias de ${due.name} (${due.code}, ${due.n} soltas) no próximo apply (memory.consolidate).`)
   const state = transaction(db, () => pcStateChange(db))
   return [`Turno ${n} fechado e registrado na crônica.`, ...(state ? [state] : []), ...warnings]
+}
+
+/**
+ * O jogador só vê o que foi narrado. Fechar o turno depois de uma rolagem da mesa que ainda não foi
+ * narrada deixaria o resultado só no resumo, que ele nunca lê. (Sem rolagem de mesa, a narração no
+ * motor é opcional: no jogo direto no chat ela vai na própria conversa.)
+ */
+function assertPlayerHasRead(db: DB, turn: number): void {
+  const last = all<{ at: string }>(db, "SELECT at FROM narrations WHERE turn = ? ORDER BY id DESC LIMIT 1", turn)[0]
+  const rolls = all<{ id: number; result: string }>(db, "SELECT id, result FROM roll_requests WHERE created_turn = ? AND status = 'resolvida'", turn)
+  const unread = rolls.filter((r) => {
+    const out = JSON.parse(r.result) as { at: string; source?: string }
+    return out.source === "mesa" && (!last || out.at >= last.at)
+  })
+  if (unread.length) {
+    throw new Error(`A rolagem #${unread.map((r) => r.id).join(", #")} foi resolvida depois da última narração: o jogador ainda não viu o resultado. Feche com turn end --narration - narrando a consequência (com a linha 🎲).`)
+  }
 }
 
 /** Desfaz o turno atual (aberto) ou o último fechado, restaurando o backup feito no turn begin. */
