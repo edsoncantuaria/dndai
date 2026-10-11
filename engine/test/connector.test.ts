@@ -47,7 +47,7 @@ describe("conector MCP dndai (ChatGPT, sem shell)", () => {
     assert.match((await call("dnd_agir", { comando: "campaign", args: ["new", "conec", "--name", "C", "--premise", "p"] })).text, /criada/)
     const world = [{ op: "create.place", name: "Praça", kind: "praça", summary: "Praça central." }]
     assert.match((await call("dnd_agir", { campanha: "conec", comando: "apply", entrada: JSON.stringify(world) })).text, /\+ local Praça/)
-    const pc = { name: "Ana", race: "Humana", class: "bardo", ac: 12, place: "Praça", abilities: { for: 8, des: 14, con: 12, int: 10, sab: 10, car: 16 } }
+    const pc = { name: "Ana", race: "Humana", class: "bardo", ac: 12, place: "l1", abilities: { for: 8, des: 14, con: 12, int: 10, sab: 10, car: 16 } }
     assert.match((await call("dnd_agir", { campanha: "conec", comando: "pc", args: ["create"], entrada: JSON.stringify(pc) })).text, /Ana/)
     await call("dnd_agir", { campanha: "conec", comando: "turn", args: ["begin", "--action", "Ana canta"] })
     assert.match((await call("dnd_agir", { campanha: "conec", comando: "check", args: ["pc", "atuacao", "--dc", "12", "--mesa"] })).text, /Pedido de rolagem/)
@@ -66,11 +66,23 @@ describe("conector MCP dndai (ChatGPT, sem shell)", () => {
       ["dnd_ler", { campanha: "conec", comando: "atlas", args: ["sync"] }, /use dnd_agir/],
       ["dnd_ler", { campanha: "conec", comando: "show", args: ["-c", "outra"] }, /não é permitida/],
       ["dnd_agir", { campanha: "conec", comando: "atlas", args: ["forget", "outra"] }, /não é permitido/],
+      ["dnd_agir", { campanha: "conec", comando: "check", args: ["pc", "atuacao", "--values", "20"] }, /não é permitida/],
+      ["dnd_ler", { campanha: "conec", comando: "show", args: ["--c=outra"] }, /não é permitida/],
+      ["dnd_agir", { campanha: "conec", comando: "roll-cancel", args: ["1"] }, /não permitido/],
     ]
     for (const [tool, args, re] of tries) {
       const r = await call(tool, args)
       assert.ok(r.error, `${tool} ${JSON.stringify(args)} deveria falhar`)
       assert.match(r.text, re)
     }
+  })
+
+  it("não lê outra campanha pelo mesmo segredo", async () => {
+    const { runCli } = await import("../src/cli.ts")
+    runCli(["campaign", "new", "outra", "--name", "Outra", "--premise", "p"])
+    const r = await call("dnd_ler", { campanha: "outra", comando: "context" })
+    assert.equal(r.error, true)
+    assert.match(r.text, /fora do escopo/i)
+    assert.doesNotMatch(r.text, /conec/)
   })
 })

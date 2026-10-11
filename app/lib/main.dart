@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api/client.dart';
+import 'api/token_store.dart';
 import 'api/models.dart';
 import 'theme.dart';
 import 'ui/game_screen.dart';
@@ -50,7 +51,7 @@ class _RootState extends State<Root> {
     final q = kIsWeb ? Uri.base.queryParameters : const <String, String>{};
     final defaultUrl = kIsWeb ? Uri.base.origin : '';
     final url = prefs.getString('server') ?? defaultUrl;
-    final token = q['token'] ?? prefs.getString('token');
+    final token = q['token'] ?? await readToken(prefs);
     setState(() {
       _prefs = prefs;
       if (url.isNotEmpty) _api = ApiClient(baseUrl: url, token: token);
@@ -60,7 +61,7 @@ class _RootState extends State<Root> {
 
   Future<void> _connect(String url, String token) async {
     await _prefs!.setString('server', url);
-    await _prefs!.setString('token', token);
+    await writeToken(_prefs!, token);
     setState(() => _api = ApiClient(baseUrl: url, token: token.isEmpty ? null : token));
   }
 

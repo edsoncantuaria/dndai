@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'events_stub.dart' if (dart.library.io) 'events_io.dart' if (dart.library.js_interop) 'events_web.dart' as events;
@@ -23,7 +24,10 @@ class ApiClient {
 
   Uri _uri(String path, [Map<String, String>? query]) {
     final base = Uri.parse(baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl);
-    return base.replace(path: '${base.path}$path', queryParameters: {...?query, if (token != null && token!.isNotEmpty) 'token': token!});
+    final params = {...?query};
+    // Fora da web o token vai só no header Authorization. Na web o EventSource não define header.
+    if (kIsWeb && token != null && token!.isNotEmpty) params['token'] = token!;
+    return base.replace(path: '${base.path}$path', queryParameters: params.isEmpty ? null : params);
   }
 
   Map<String, String> get _headers => {

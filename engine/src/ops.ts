@@ -2,6 +2,9 @@
 // tudo valida antes, tudo ou nada é gravado, e o resultado diz exatamente o que mudou.
 import { z } from "zod"
 import { all, type DB, index, log, metaNum, one } from "./db.ts"
+import { ensureCode, entityOfCode } from "./codes.ts"
+import { insertFact } from "./facts.ts"
+import { assertFlatDamage, assertHeal, assertTemp, noteMoneyGain, noteXpGain } from "./guard.ts"
 import { gainXp, heal, applyDamage, useSlot } from "./mechanics.ts"
 import { CLASSES, parseCondition } from "./rules.ts"
 import { advanceTime, move } from "./simulation.ts"
@@ -70,16 +73,27 @@ export const OpSchema = z.discriminatedUnion("op", [
     props: z.record(z.unknown()).optional(), features_add: z.array(text).optional(), spells_add: z.array(text).optional(),
     spells_remove: z.array(text).optional(), portrait: z.string().optional(), parent: ref.nullable().optional(),
   }).strict(),
-  z.object({ op: z.literal("hp"), who: ref, damage: z.number().int().positive().optional(), heal: z.number().int().positive().optional(), temp: z.number().int().min(0).optional() }).strict(),
+  z.object({
+    op: z.literal("hp"), who: ref, damage: z.number().int().positive().optional(), heal: z.number().int().positive().optional(),
+    temp: z.number().int().min(0).optional(), reason: z.string().optional(),
+    source: z.enum(["pocao", "magia", "descanso", "habilidade", "item", "outro"]).optional(),
+  }).strict(),
   z.object({ op: z.literal("condition"), who: ref, add: z.array(text).default([]), remove: z.array(text).default([]) }).strict(),
-  z.object({ op: z.literal("money"), who: ref, amount: z.union([z.number().int(), z.string()]), reason: z.string().default("") }).strict(),
+  z.object({ op: z.literal("money"), who: ref, amount: z.union([z.number().int(), z.string()]), reason: z.string().default(""), confirm: z.boolean().default(false) }).strict(),
   z.object({ op: z.literal("item.give"), item: ref, to: ref, qty: z.number().int().positive().optional() }).strict(),
   z.object({ op: z.literal("item.qty"), item: ref, delta: z.number().int() }).strict(),
   z.object({ op: z.literal("item.equip"), item: ref, equipped: z.boolean() }).strict(),
   z.object({ op: z.literal("attitude"), npc: ref, delta: z.number().int().min(-100).max(100), reason: text }).strict(),
   z.object({ op: z.literal("memory"), npcs: z.array(ref).min(1), text, importance: z.number().int().min(1).max(3).default(1) }).strict(),
-  z.object({ op: z.literal("fact"), text, about: ref.optional(), secret: z.boolean().default(false), lore: z.boolean().default(false) }).strict(),
-  z.object({ op: z.literal("reveal"), fact: z.number().int().positive() }).strict(),
+  z.object({
+    op: z.literal("fact"), text, about: ref.optional(), secret: z.boolean().default(false), lore: z.boolean().default(false),
+    source: z.enum(["motor", "jogador", "mestre", "npc"]).default("mestre"),
+    truth: z.enum(["verdade", "boato", "mentira"]).default("verdade"),
+    source_ref: z.string().default(""),
+  }).strict(),
+  z.object({ op: z.literal("hook"), kind: z.enum(["promessa", "ameaca", "misterio", "gancho"]), text, about: ref.optional() }).strict(),
+  z.object({ op: z.literal("hook.update"), hook: z.union([z.number().int().positive(), z.string()]), status: z.enum(["aberto", "resolvido", "abandonado"]) }).strict(),
+  z.object({ op: z.literal("reveal"), fact: z.union([z.number().int().positive(), z.string().trim().min(1)]) }).strict(),
   z.object({
     op: z.literal("quest.update"), quest: ref, status: z.enum(["ativa", "concluida", "falhou", "abandonada"]).optional(),
     complete: z.array(z.number().int().min(0)).default([]), add: z.array(text).default([]), summary: text.optional(), reveal: z.boolean().optional(),
@@ -87,7 +101,7 @@ export const OpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("clock.tick"), clock: ref, n: z.number().int().min(-12).max(12).default(1) }).strict(),
   z.object({ op: z.literal("clock.resolve"), clock: ref, outcome: text }).strict(),
   z.object({ op: z.literal("event.resolve"), event: z.number().int().positive(), outcome: text }).strict(),
-  z.object({ op: z.literal("xp"), who: ref, amount: z.number().int().positive() }).strict(),
+  z.object({ op: z.literal("xp"), who: ref, amount: z.number().int().positive(), confirm: z.boolean().default(false), reason: z.string().default("") }).strict(),
   z.object({ op: z.literal("slot.use"), who: ref, level: z.number().int().min(1).max(9) }).strict(),
   z.object({ op: z.literal("time"), advance: duration }).strict(),
 ])
@@ -153,7 +167,7 @@ function applyOne(tx: Tx, op: Op): string {
       remember(tx, op.as, id)
       for (const l of op.links) addLink(tx, id, r(tx, l.to, ["place"]), parseDuration(l.minutes), l.via, l.oneway)
       indexEntity(db, id, op.name, op.kind, op.summary, op.details)
-      return `+ local ${op.name} [${id}]${op.links.length ? ` com ${op.links.length} ligação(ões)` : ""}`
+      return `+ local ${op.name} [${ensureCode(db, id)}]${op.links.length ? ` com ${op.links.length} ligação(ões)` : ""}`
     }
     case "create.npc": {
       const place = op.place ? r(tx, op.place, ["place"]) : null
@@ -186,14 +200,14 @@ function applyOne(tx: Tx, op: Op): string {
       ).run(id, op.name, op.summary, place, hp, hp, ac, level, JSON.stringify(sheet), JSON.stringify(op.persona), op.attitude, faction, JSON.stringify(sched), op.companion ? 1 : 0, tx.turn)
       remember(tx, op.as, id)
       indexEntity(db, id, op.name, op.summary, op.persona.traits?.join(", ") ?? "", op.persona.wants ?? "")
-      return `+ NPC ${op.name} [${id}]${place ? ` em ${getPlace(db, place).name}` : ""}${srdNote}`
+      return `+ NPC ${op.name} [${ensureCode(db, id)}]${place ? ` em ${getPlace(db, place).name}` : ""}${srdNote}`
     }
     case "create.faction": {
       const id = newId(db, "faction", op.name)
       db.prepare("INSERT INTO factions(id, name, summary, goal, attitude, created_turn) VALUES(?,?,?,?,?,?)").run(id, op.name, op.summary, op.goal, op.attitude, tx.turn)
       remember(tx, op.as, id)
       indexEntity(db, id, op.name, op.summary, op.goal)
-      return `+ facção ${op.name} [${id}]`
+      return `+ facção ${op.name} [${ensureCode(db, id)}]`
     }
     case "create.item": {
       const owner = r(tx, op.owner, ["pc", "npc", "place"])
@@ -203,7 +217,7 @@ function applyOne(tx: Tx, op: Op): string {
         id, isPlace ? null : owner, isPlace ? owner : null, op.name, op.qty, op.kind, JSON.stringify(op.props), op.equipped ? 1 : 0, op.notes
       )
       remember(tx, op.as, id)
-      return `+ item ${op.qty}× ${op.name} [${id}] → ${owner}`
+      return `+ item ${op.qty}× ${op.name} [${ensureCode(db, id)}] → ${owner}`
     }
     case "create.quest": {
       const giver = op.giver ? r(tx, op.giver, CHAR) : null
@@ -214,7 +228,7 @@ function applyOne(tx: Tx, op: Op): string {
       )
       remember(tx, op.as, id)
       indexEntity(db, id, op.title, op.summary)
-      return `+ missão ${op.title} [${id}]`
+      return `+ missão ${op.title} [${ensureCode(db, id)}]`
     }
     case "create.clock": {
       const owner = op.owner ? r(tx, op.owner, ["npc", "faction", "place", "pc"]) : null
@@ -224,7 +238,7 @@ function applyOne(tx: Tx, op: Op): string {
         id, op.name, owner, op.segments, every, now(db), op.on_complete, op.secret ? 1 : 0, tx.turn
       )
       remember(tx, op.as, id)
-      return `+ agenda ${op.name} [${id}] 0/${op.segments}${every ? `, avança a cada ${every} min` : ", avança manualmente"}`
+      return `+ agenda ${op.name} [${ensureCode(db, id)}] 0/${op.segments}${every ? `, avança a cada ${every} min` : ", avança manualmente"}`
     }
     case "create.event": {
       const place = op.place ? r(tx, op.place, ["place"]) : null
@@ -245,11 +259,19 @@ function applyOne(tx: Tx, op: Op): string {
     case "hp": {
       const who = r(tx, op.who, CHAR)
       const out: string[] = []
-      if (op.damage) out.push(applyDamage(db, who, op.damage, false))
-      if (op.heal) out.push(heal(db, who, op.heal))
+      const target = () => getCharacter(db, who)
+      if (op.damage) {
+        assertFlatDamage(op.damage)
+        out.push(applyDamage(db, who, op.damage, false))
+      }
+      if (op.heal) {
+        assertHeal(op.heal, target().max_hp, target().name, op.reason, op.source)
+        out.push(heal(db, who, op.heal))
+      }
       if (op.temp !== undefined) {
+        assertTemp(op.temp, target().max_hp, target().name, op.reason)
         db.prepare("UPDATE characters SET temp_hp = MAX(temp_hp, ?) WHERE id = ?").run(op.temp, who)
-        out.push(`PV temporários de ${getCharacter(db, who).name}: ${getCharacter(db, who).temp_hp}`)
+        out.push(`PV temporários de ${target().name}: ${target().temp_hp}`)
       }
       if (!out.length) throw new Error("hp exige damage, heal ou temp.")
       return out.join(" ")
@@ -269,6 +291,7 @@ function applyOne(tx: Tx, op: Op): string {
       const c = getCharacter(db, who)
       const delta = parseMoney(op.amount)
       if (c.cp + delta < 0) throw new Error(`${c.name} tem ${fmtMoney(c.cp)}; não pode gastar ${fmtMoney(-delta)}.`)
+      noteMoneyGain(db, tx.turn, delta, op.confirm, op.reason)
       db.prepare("UPDATE characters SET cp = cp + ? WHERE id = ?").run(delta, who)
       return `~ ${c.name} ${delta >= 0 ? "recebe" : "gasta"} ${fmtMoney(Math.abs(delta))} → ${fmtMoney(c.cp + delta)}${op.reason ? ` (${op.reason})` : ""}`
     }
@@ -321,16 +344,34 @@ function applyOne(tx: Tx, op: Op): string {
     }
     case "fact": {
       const about = op.about ? resolveRef(db, op.about, ["pc", "npc", "place", "faction", "item", "quest"], tx.labels) : null
-      const res = db.prepare("INSERT INTO facts(about_id, text, secret, turn, at_min, lore) VALUES(?,?,?,?,?,?)").run(about, op.text, op.secret ? 1 : 0, tx.turn, now(db), op.lore ? 1 : 0)
-      index(db, `fact:${res.lastInsertRowid}`, op.secret ? "segredo" : "fato", op.text)
-      return `+ fato #${res.lastInsertRowid}${op.secret ? " (segredo)" : ""}${op.lore ? " (lore do multiverso)" : ""}: ${op.text}`
+      const id = insertFact(db, { about, text: op.text, secret: op.secret, lore: op.lore, source: op.source, truth: op.truth, sourceRef: op.source_ref, turn: tx.turn })
+      return `+ fato ${ensureCode(db, `fact:${id}`)}${op.secret ? " (segredo)" : ""}${op.truth !== "verdade" ? ` (${op.truth})` : ""}${op.lore ? " (lore do multiverso)" : ""}: ${op.text}`
+    }
+    case "hook": {
+      const about = op.about ? resolveRef(db, op.about, ["pc", "npc", "place", "faction", "quest"], tx.labels) : null
+      const res = db.prepare("INSERT INTO hooks(kind, text, about_id, turn, at_min) VALUES(?,?,?,?,?)").run(op.kind, op.text, about, tx.turn, now(db))
+      const hid = Number(res.lastInsertRowid)
+      const code = ensureCode(db, `hook:${hid}`)
+      return `+ gancho ${code} (${op.kind}): ${op.text}`
+    }
+    case "hook.update": {
+      const raw = String(op.hook)
+      const coded = entityOfCode(db, raw)
+      const id = coded?.startsWith("hook:") ? Number(coded.split(":")[1]) : Number(raw)
+      const row = one<{ text: string }>(db, "SELECT text FROM hooks WHERE id = ?", id)
+      if (!row) throw new Error(`Gancho ${op.hook} não existe.`)
+      db.prepare("UPDATE hooks SET status = ? WHERE id = ?").run(op.status, id)
+      return `~ gancho ${ensureCode(db, `hook:${id}`)}: ${op.status}`
     }
     case "reveal": {
-      const f = one<{ text: string; secret: number }>(db, "SELECT text, secret FROM facts WHERE id = ?", op.fact)
-      if (!f) throw new Error(`Fato #${op.fact} não existe.`)
-      db.prepare("UPDATE facts SET secret = 0 WHERE id = ?").run(op.fact)
-      index(db, `fact:${op.fact}`, "fato", f.text)
-      return `~ fato #${op.fact} agora é conhecido pelo jogador`
+      const raw = String(op.fact)
+      const coded = entityOfCode(db, raw)
+      const id = coded?.startsWith("fact:") ? Number(coded.slice(5)) : Number(raw)
+      const f = one<{ text: string; secret: number }>(db, "SELECT text, secret FROM facts WHERE id = ?", id)
+      if (!f || !Number.isInteger(id)) throw new Error(`Fato ${op.fact} não existe.`)
+      db.prepare("UPDATE facts SET secret = 0 WHERE id = ?").run(id)
+      index(db, `fact:${id}`, "fato", f.text)
+      return `~ fato ${ensureCode(db, `fact:${id}`)} agora é conhecido pelo jogador`
     }
     case "quest.update": {
       const id = r(tx, op.quest, ["quest"])
@@ -361,21 +402,22 @@ function applyOne(tx: Tx, op: Op): string {
       const c = one<{ name: string; status: string }>(db, "SELECT name, status FROM clocks WHERE id = ?", id)!
       if (c.status === "resolvido") throw new Error(`Agenda ${id} já resolvida.`)
       db.prepare("UPDATE clocks SET status = 'resolvido', outcome = ? WHERE id = ?").run(op.outcome, id)
-      const res = db.prepare("INSERT INTO facts(about_id, text, secret, turn, at_min) VALUES(?,?,1,?,?)").run(id, `${c.name}: ${op.outcome}`, tx.turn, now(db))
-      index(db, `fact:${res.lastInsertRowid}`, "segredo", `${c.name}: ${op.outcome}`)
-      return `~ agenda ${c.name} resolvida (fato secreto #${res.lastInsertRowid}; use reveal quando o jogador souber)`
+      const fid = insertFact(db, { about: id, text: `${c.name}: ${op.outcome}`, secret: true, source: "motor", truth: "verdade", turn: tx.turn })
+      return `~ agenda ${c.name} resolvida (fato secreto #${fid}; use reveal quando o jogador souber)`
     }
     case "event.resolve": {
       const e = one<{ text: string; status: string }>(db, "SELECT text, status FROM events WHERE id = ?", op.event)
       if (!e) throw new Error(`Evento #${op.event} não existe.`)
       if (e.status === "resolvido") throw new Error(`Evento #${op.event} já resolvido.`)
       db.prepare("UPDATE events SET status = 'resolvido', outcome = ? WHERE id = ?").run(op.outcome, op.event)
-      const res = db.prepare("INSERT INTO facts(about_id, text, secret, turn, at_min) VALUES(NULL,?,1,?,?)").run(`${e.text} → ${op.outcome}`, tx.turn, now(db))
-      index(db, `fact:${res.lastInsertRowid}`, "segredo", `${e.text} → ${op.outcome}`)
-      return `~ evento #${op.event} resolvido (fato secreto #${res.lastInsertRowid})`
+      const fid = insertFact(db, { text: `${e.text} → ${op.outcome}`, secret: true, source: "motor", truth: "verdade", turn: tx.turn })
+      return `~ evento #${op.event} resolvido (fato secreto #${fid})`
     }
-    case "xp":
-      return gainXp(db, r(tx, op.who, CHAR), op.amount)
+    case "xp": {
+      const who = r(tx, op.who, CHAR)
+      noteXpGain(db, who, op.amount, op.confirm, op.reason)
+      return gainXp(db, who, op.amount)
+    }
     case "slot.use":
       return useSlot(db, r(tx, op.who, CHAR), op.level)
     case "time":
@@ -412,14 +454,16 @@ function applyUpdate(tx: Tx, op: Extract<Op, { op: "update" }>): string {
     if (op.name) set("characters", "name", op.name)
     if (op.summary) set("characters", "summary", op.summary)
     if (op.status) {
+      if (op.status === "morto") throw new Error(`${c.name}: morte só ocorre por dano (attack, damage ou hp.damage).`)
+      if (op.status === "inconsciente" && c.hp > 0) throw new Error(`${c.name} ainda tem PV; inconsciência vem do dano, não de update.status.`)
       if (op.status === "vivo" && c.hp === 0) throw new Error(`${c.name} tem 0 PV; use hp.heal para trazê-lo de volta.`)
       set("characters", "status", op.status)
     }
-    if (op.ac !== undefined) set("characters", "ac", op.ac)
-    if (op.max_hp !== undefined) {
-      set("characters", "max_hp", op.max_hp)
-      db.prepare("UPDATE characters SET hp = MIN(hp, ?) WHERE id = ?").run(op.max_hp, id)
+    if (op.ac !== undefined) {
+      if (op.ac < 1 || op.ac > 30) throw new Error(`CA ${op.ac} fora do intervalo 1–30.`)
+      set("characters", "ac", op.ac)
     }
+    if (op.max_hp !== undefined) throw new Error("PV máximos só mudam no levelup (ou em magia que o motor ainda não modela como levelup).")
     if (op.persona) set("characters", "persona", JSON.stringify({ ...c.persona, ...op.persona } satisfies Persona))
     if (op.schedule) set("characters", "schedule", JSON.stringify(validateSchedule(tx, op.schedule)))
     if (op.companion !== undefined) set("characters", "companion", op.companion ? 1 : 0)

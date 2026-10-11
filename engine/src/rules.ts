@@ -117,6 +117,22 @@ export const CLASSES: Record<string, ClassDef> = {
   patrulheiro: { label: "Patrulheiro", hitDie: 10, saves: ["for", "des"], caster: "half", spellAbility: "sab" },
 }
 
+/** Ouro inicial do PHB: média e máximo da rolagem da classe (po). 0 no `pc create` vira a média. */
+export const STARTING_GP: Record<string, { avg: number; max: number }> = {
+  barbaro: { avg: 50, max: 80 },
+  bardo: { avg: 125, max: 200 },
+  bruxo: { avg: 100, max: 160 },
+  clerigo: { avg: 125, max: 200 },
+  druida: { avg: 50, max: 80 },
+  feiticeiro: { avg: 75, max: 120 },
+  guerreiro: { avg: 125, max: 200 },
+  ladino: { avg: 100, max: 160 },
+  mago: { avg: 100, max: 160 },
+  monge: { avg: 12, max: 20 },
+  paladino: { avg: 125, max: 200 },
+  patrulheiro: { avg: 125, max: 200 },
+}
+
 const CLASS_ALIASES: Record<string, string> = {
   barbarian: "barbaro", bard: "bardo", warlock: "bruxo", cleric: "clerigo", druid: "druida", sorcerer: "feiticeiro",
   fighter: "guerreiro", rogue: "ladino", wizard: "mago", monk: "monge", paladin: "paladino", ranger: "patrulheiro",

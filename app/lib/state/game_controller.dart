@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../api/client.dart';
 import '../api/models.dart';
+import '../api/sse_backoff.dart';
 
 /// Estado do jogo de uma campanha: espelha o motor em tempo real (SSE) e envia as ações do jogador.
 /// Toda regra fica no motor; aqui só há apresentação e envio.
@@ -24,6 +25,7 @@ class GameController extends ChangeNotifier {
   Timer? _retry;
   Timer? _poll;
   bool _disposed = false;
+  int _sseAttempt = 0;
   bool _refreshing = false;
   bool _again = false;
 
@@ -39,6 +41,7 @@ class GameController extends ChangeNotifier {
     try {
       _sub = api.changes(campaign).listen(
         (_) {
+          _sseAttempt = 0;
           if (!live) {
             live = true;
             _notify();
@@ -58,7 +61,7 @@ class GameController extends ChangeNotifier {
     live = false;
     _notify();
     _retry?.cancel();
-    if (!_disposed) _retry = Timer(const Duration(seconds: 3), _listen);
+    if (!_disposed) _retry = Timer(sseReconnectDelay(_sseAttempt++), _listen);
   }
 
   /// Relê o estado; chamadas simultâneas viram uma releitura extra no fim (sem perder mudanças).

@@ -1,5 +1,6 @@
 // Acesso tipado às entidades do mundo + resolução de referências.
 import { isSharedPrefix, reserveId } from "./atlas.ts"
+import { ensureCode, entityOfCode } from "./codes.ts"
 import { all, type DB, metaNum, one } from "./db.ts"
 import { type Ability, CLASSES, mod, norm, profBonus, spellSlots } from "./rules.ts"
 
@@ -196,6 +197,7 @@ export function newId(db: DB, prefix: string, name: string): string {
   const shared = isSharedPrefix(prefix)
   let id = base
   for (let i = 2; one(db, `SELECT 1 FROM ${table} WHERE id = ?`, id) || (shared && !reserveId(db, id)); i++) id = `${base}-${i}`
+  ensureCode(db, id)
   return id
 }
 
@@ -214,9 +216,21 @@ const NAME_TABLES: Record<string, { table: string; where?: string }> = {
   clock: { table: "clocks" },
 }
 
+let strictDepth = 0
+
+/** No conector, referências têm de ser id curto ou longo. A CLI local ainda aceita nome exato. */
+export function strictRefs<T>(fn: () => T): T {
+  strictDepth++
+  try {
+    return fn()
+  } finally {
+    strictDepth--
+  }
+}
+
 /**
- * Resolve uma referência para um id existente. Aceita id ("npc:mara"), rótulo de lote ("$mara")
- * ou nome exato (sem acento/caixa). Ambiguidade ou ausência viram erro com sugestões.
+ * Resolve uma referência para um id existente. Aceita id curto (n1, l2), id longo,
+ * "pc", nome exato ou $rótulo. No conector (strictRefs) o nome exato é recusado.
  */
 export function resolveRef(db: DB, ref: string, kinds: string[], labels?: Map<string, string>): string {
   const r = ref.trim()
@@ -230,11 +244,20 @@ export function resolveRef(db: DB, ref: string, kinds: string[], labels?: Map<st
     if (!id) throw new Error("Não há personagem do jogador.")
     return id
   }
+  const coded = entityOfCode(db, r)
+  if (coded) {
+    const prefix = coded.split(":")[0]
+    if (!kinds.includes(prefix)) throw new Error(`"${r}" (${coded}) não é do tipo esperado (${kinds.join("/")}).`)
+    return coded
+  }
   if (r.includes(":")) {
     const prefix = r.split(":")[0]
     if (!kinds.includes(prefix)) throw new Error(`"${r}" não é do tipo esperado (${kinds.join("/")}).`)
     if (exists(db, r)) return r
     throw new Error(`"${r}" não existe.${suggest(db, r.split(":")[1] ?? r, kinds)}`)
+  }
+  if (strictDepth > 0) {
+    throw new Error(`"${r}" não é um id. Use o id curto (n1, l2, i3, f4, q5, h6) ou o id longo. Nomes novos só nascem em create.`)
   }
   const wanted = norm(r)
   const matches: string[] = []

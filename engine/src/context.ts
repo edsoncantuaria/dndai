@@ -1,9 +1,13 @@
 // Briefings em texto para o Mestre (ChatGPT). Incluem segredos, sempre marcados.
+import { entityOfCode } from "./codes.ts"
 import { all, type DB, getMeta, metaNum, one } from "./db.ts"
+import { activeEmbedder, cosine, tokenize } from "./embed.ts"
+import { factLabel } from "./facts.ts"
 import { drawnWeapon, reactionOf } from "./items.ts"
 import { pendingRequests } from "./mechanics.ts"
 import { itemsOf } from "./ops.ts"
 import { ABILITIES, ABILITY_NAMES, attitudeLabel, CLASSES, fmtMod, levelForXp, SKILLS, XP_THRESHOLDS } from "./rules.ts"
+import { memoriesFor, renderScene } from "./scene.ts"
 import { getCombat } from "./simulation.ts"
 import {
   abilityMod, type Character, type CharacterRow, charProf, clockParts, fmtClock, fmtMoney, getCharacter, getPlace, now, pcId,
@@ -44,16 +48,8 @@ export function pcBlock(db: DB, c: Character): string[] {
   return lines
 }
 
-function memoriesOf(db: DB, npc: string, limit: number): string[] {
-  const rows = all<{ text: string; at_min: number; importance: number }>(
-    db,
-    `SELECT text, at_min, importance FROM (
-       SELECT * FROM memories WHERE npc_id = ? AND importance = 3
-       UNION SELECT * FROM (SELECT * FROM memories WHERE npc_id = ? ORDER BY id DESC LIMIT ?)
-     ) ORDER BY id`,
-    npc, npc, limit
-  )
-  return rows.map((m) => `[dia ${clockParts(m.at_min).day}]${m.importance === 3 ? "!" : ""} ${m.text}`)
+function memoriesOf(db: DB, npc: string, detailed: boolean): string[] {
+  return memoriesFor(db, npc, detailed).map((m) => `[dia ${clockParts(m.at_min).day}]${m.importance === 3 ? "!" : ""} ${m.text}`)
 }
 
 function npcBlock(db: DB, row: CharacterRow, detailed: boolean): string[] {
@@ -73,14 +69,20 @@ function npcBlock(db: DB, row: CharacterRow, detailed: boolean): string[] {
   if (p.secret) lines.push(`  🔒 SEGREDO (só Mestre): ${p.secret}`)
   if (p.notes) lines.push(`  Notas: ${p.notes}`)
   if (c.sheet.attacks.length && detailed) lines.push(`  Ataques: ${c.sheet.attacks.map((a) => `${a.name} ${fmtMod(a.bonus)} (${a.damage}${a.type ? ` ${a.type}` : ""})`).join("; ")}`)
-  const mem = memoriesOf(db, c.id, detailed ? 50 : 4)
+  const mem = memoriesOf(db, c.id, detailed)
   if (mem.length) lines.push(`  Lembra: ${mem.join(" | ")}`)
   else lines.push("  Lembra: (nada sobre o PC ainda — é a primeira interação)")
   return lines
 }
 
-/** Briefing obrigatório antes de narrar. Tudo o que a narração afirmar precisa estar aqui ou ser criado via apply. */
-export function buildContext(db: DB, slug: string): string {
+/** Briefing do Mestre. Padrão: TOON compacto (ou delta). `--full` devolve a prosa antiga; `--json` devolve o objeto. */
+export function buildContext(db: DB, slug: string, mode: { full?: boolean; json?: boolean } = {}): string {
+  if (mode.full) return buildContextProse(db, slug)
+  return renderScene(db, slug, { json: mode.json })
+}
+
+/** Prosa completa — linha de base de tokens e depuração. */
+export function buildContextProse(db: DB, slug: string): string {
   const out: string[] = []
   const turn = metaNum(db, "turn")
   const open = getMeta(db, "turn_open") === "1"
@@ -155,12 +157,12 @@ export function buildContext(db: DB, slug: string): string {
   }
 
   const sceneIds = [pc.id, pc.place_id, ...all<{ id: string }>(db, "SELECT id FROM characters WHERE place_id = ? AND kind = 'npc'", pc.place_id ?? "").map((x) => x.id)].filter(Boolean) as string[]
-  const facts = all<{ id: number; text: string; secret: number; about_id: string | null }>(
-    db, `SELECT id, text, secret, about_id FROM facts WHERE about_id IN (${sceneIds.map(() => "?").join(",")}) OR about_id IS NULL ORDER BY id DESC LIMIT 20`, ...sceneIds
+  const facts = all<{ id: number; text: string; secret: number; about_id: string | null; truth: string; source: string; source_ref: string }>(
+    db, `SELECT id, text, secret, about_id, truth, source, source_ref FROM facts WHERE about_id IN (${sceneIds.map(() => "?").join(",")}) OR about_id IS NULL ORDER BY id DESC LIMIT 20`, ...sceneIds
   )
   if (facts.length) {
     out.push("", "## FATOS ESTABELECIDOS (cena atual e gerais)")
-    for (const f of facts.reverse()) out.push(`- #${f.id}${f.secret ? " 🔒" : ""} ${f.text}`)
+    for (const f of facts.reverse()) out.push(`- #${f.id}${f.secret ? " 🔒" : ""} ${factLabel(f.truth, f.source, f.source_ref)}${f.text}`)
   }
 
   const turns = all<{ n: number; summary: string; started_min: number }>(db, "SELECT n, summary, started_min FROM turns WHERE ended = 1 ORDER BY n DESC LIMIT 6")
@@ -181,9 +183,23 @@ export function buildContext(db: DB, slug: string): string {
   return out.join("\n")
 }
 
-/** Detalhe completo de qualquer entidade (inclui segredos e todas as memórias). */
+/** Detalhe completo de qualquer entidade (inclui segredos e todas as memórias). Aceita id curto. */
 export function showEntity(db: DB, id: string): string {
-  const prefix = id.split(":")[0]
+  const resolved = entityOfCode(db, id) ?? id
+  if (resolved.startsWith("fact:")) {
+    const fid = Number(resolved.slice(5))
+    const f = one<{ text: string; secret: number; truth: string; source: string; source_ref: string; about_id: string | null }>(db, "SELECT text, secret, truth, source, source_ref, about_id FROM facts WHERE id = ?", fid)
+    if (!f) throw new Error(`Fato ${id} não existe.`)
+    return `${id} ${factLabel(f.truth, f.source, f.source_ref)}${f.secret ? "🔒 " : ""}${f.text}${f.about_id ? ` (sobre ${f.about_id})` : ""}`
+  }
+  if (resolved.startsWith("hook:")) {
+    const hid = Number(resolved.slice(5))
+    const h = one<{ kind: string; text: string; status: string; about_id: string | null }>(db, "SELECT kind, text, status, about_id FROM hooks WHERE id = ?", hid)
+    if (!h) throw new Error(`Gancho ${id} não existe.`)
+    return `${id} ${h.kind} (${h.status}): ${h.text}${h.about_id ? ` — ${h.about_id}` : ""}`
+  }
+  const prefix = resolved.split(":")[0]
+  id = resolved
   const out: string[] = []
   if (prefix === "pc" || prefix === "npc") {
     const c = getCharacter(db, id)
@@ -230,22 +246,61 @@ export function showEntity(db: DB, id: string): string {
   return out.filter((l) => l !== "").join("\n")
 }
 
-/** Busca textual (FTS5, sem acento) em fatos, memórias, entidades e resumos de turnos. */
+/** Busca FTS5 e, se houver embedder local, vizinhos semânticos. Sem API paga. */
 export function recall(db: DB, query: string, limit = 15): string {
-  const terms = query.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((t) => t.length >= 2)
-  if (!terms.length) throw new Error("Consulta vazia.")
-  const match = terms.map((t) => `"${t}"*`).join(" OR ")
-  const rows = all<{ ref: string; kind: string; text: string }>(db, "SELECT ref, kind, text FROM search WHERE search MATCH ? ORDER BY rank LIMIT ?", match, limit)
+  const terms = tokenize(query).filter((t) => t.length >= 2)
+  const loose = query.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((t) => t.length >= 2)
+  const used = terms.length ? terms : loose
+  if (!used.length) throw new Error("Consulta vazia.")
+  const match = used.map((t) => `"${t.replaceAll('"', "")}"*`).join(" OR ")
+  let rows: { ref: string; kind: string; text: string }[] = []
+  try {
+    rows = all(db, "SELECT ref, kind, text FROM search WHERE search MATCH ? ORDER BY rank LIMIT ?", match, limit)
+  } catch {
+    rows = []
+  }
+  const embedder = activeEmbedder()
+  if (embedder && rows.length < limit) {
+    const qv = embedder.embed(query)
+    const seen = new Set(rows.map((r) => r.ref))
+    const pool = all<{ ref: string; kind: string; text: string }>(db, "SELECT ref, kind, text FROM search")
+    const extra = pool
+      .map((row) => ({ row, score: cosine(qv, embedder.embed(row.text)) }))
+      .filter((hit) => hit.score >= 0.22 && !seen.has(hit.row.ref))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit - rows.length)
+      .map((hit) => hit.row)
+    rows = [...rows, ...extra]
+  }
   if (!rows.length) return `Nada encontrado para "${query}". Se não está registrado, NÃO é fato estabelecido.`
   return rows.map((r) => `- [${r.kind}${r.kind === "segredo" ? " 🔒" : ""}] ${r.ref}: ${r.text}`).join("\n")
 }
 
-/** Recapitulação longa para retomar a campanha num chat novo (ou após o chat perder contexto). */
-export function resume(db: DB, slug: string): string {
-  const out = [buildContext(db, slug), "", "## CRÔNICA COMPLETA (resumos)"]
-  for (const t of all<{ n: number; summary: string; action: string; started_min: number }>(db, "SELECT * FROM turns WHERE ended = 1 ORDER BY n")) {
-    out.push(`T${t.n} ${fmtClock(t.started_min)} — Jogador: ${t.action} → ${t.summary}`)
+/** Recapitulação paginada. O padrão são os últimos turnos mais os capítulos, não a crônica inteira. */
+export function resume(db: DB, slug: string, opts: { page?: number; limit?: number; chapter?: number } = {}): string {
+  const limit = Math.min(40, Math.max(1, opts.limit ?? 12))
+  const page = Math.max(1, opts.page ?? 1)
+  const out = [buildContext(db, slug), ""]
+  const chapters = all<{ n: number; from_turn: number; to_turn: number; summary: string }>(db, "SELECT n, from_turn, to_turn, summary FROM chapters ORDER BY n")
+  if (opts.chapter) {
+    const c = chapters.find((ch) => ch.n === opts.chapter)
+    if (!c) throw new Error(`Capítulo ${opts.chapter} não existe.`)
+    out.push(`## CAPÍTULO ${c.n} (T${c.from_turn}–T${c.to_turn})`, c.summary)
+  } else if (chapters.length) {
+    out.push("## CAPÍTULOS", ...chapters.map((c) => `- #${c.n} T${c.from_turn}–T${c.to_turn}: ${c.summary}`))
   }
+  const total = one<{ n: number }>(db, "SELECT COUNT(*) AS n FROM turns WHERE ended = 1")?.n ?? 0
+  const offset = (page - 1) * limit
+  out.push("", `## TURNOS (página ${page}, ${limit} por página, ${total} fechados)`)
+  const turns = all<{ n: number; summary: string; action: string; started_min: number }>(
+    db,
+    "SELECT n, summary, action, started_min FROM turns WHERE ended = 1 ORDER BY n DESC LIMIT ? OFFSET ?",
+    limit,
+    offset,
+  )
+  if (!turns.length) out.push("(nenhum turno fechado nesta página)")
+  for (const t of turns.reverse()) out.push(`T${t.n} ${fmtClock(t.started_min)} — Jogador: ${t.action} → ${t.summary}`)
+  if (offset + limit < total) out.push(`Há mais. Peça resume --page ${page + 1}.`)
   const places = all<{ id: string; name: string; summary: string; visited: number }>(db, "SELECT id, name, summary, visited FROM places ORDER BY created_turn")
   out.push("", "## LOCAIS DO MUNDO", ...places.map((p) => `- ${p.name} [${p.id}]${p.visited ? "" : " (inexplorado)"}: ${p.summary}`))
   const factions = all<{ id: string; name: string; summary: string }>(db, "SELECT id, name, summary FROM factions")

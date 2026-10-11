@@ -1,10 +1,21 @@
 import { publish, retract, sync } from "./atlas.ts"
-import { backupBeforeTurn, openCampaign, restoreBeforeTurn } from "./campaign.ts"
+import { backupBeforeTurn, openCampaign, restoreBeforeTurn, snapshotCampaign, withCampaignLock } from "./campaign.ts"
+import { closeIfNeeded } from "./chapters.ts"
 import { all, type DB, getMeta, index, log, metaNum, setMeta, transaction } from "./db.ts"
+import { assertWorld } from "./invariants.ts"
+import { assertCanUndo, recordTurnClosed, recordUndo } from "./journal.ts"
+import { assertNarration } from "./narration.ts"
+import { captureSceneSnap } from "./scene.ts"
 import { fmtMoney, getPlace, now, pcId, getCharacter } from "./world.ts"
 
+function prepSealed(db: DB): boolean {
+  return getMeta(db, "prep_sealed") === "1" || !!pcId(db)
+}
+
 export function requireOpenTurn(db: DB): void {
-  if (metaNum(db, "turn") === 0) return // preparação da campanha (antes do 1º turno)
+  // Preparação só existe antes do PC. Depois disso, turno 0 não aceita mutação
+  // (inclusive se um undo voltar ao backup da preparação já com personagem).
+  if (metaNum(db, "turn") === 0 && !prepSealed(db)) return
   if (getMeta(db, "turn_open") !== "1") {
     throw new Error('Nenhum turno aberto. Comece com: dnd turn begin --action "<o que o jogador fez/disse>"')
   }
@@ -17,11 +28,18 @@ export function beginTurn(db: DB, slug: string, action: string): string[] {
   }
   const pending = all<{ id: number; label: string }>(db, "SELECT id, label FROM roll_requests WHERE status = 'pendente'")
   if (pending.length) {
-    throw new Error(`Há rolagem pendente na mesa (${pending.map((r) => `#${r.id} ${r.label}`).join(", ")}). O jogador precisa rolar antes de seguir; se a rolagem não fizer mais sentido, cancele com roll-cancel <id>.`)
+    throw new Error(`Há rolagem pendente na mesa (${pending.map((r) => `#${r.id} ${r.label}`).join(", ")}). O jogador precisa rolar antes de seguir.`)
   }
   const n = metaNum(db, "turn") + 1
   backupBeforeTurn(db, slug, n)
   const news = transaction(db, () => {
+    if (getMeta(db, "turn_open") === "1") {
+      throw new Error(`O turno ${metaNum(db, "turn")} ainda está aberto. Feche com dnd turn end --summary "..." ou desfaça com dnd undo.`)
+    }
+    const pendingNow = all<{ id: number; label: string }>(db, "SELECT id, label FROM roll_requests WHERE status = 'pendente'")
+    if (pendingNow.length) {
+      throw new Error(`Há rolagem pendente na mesa (${pendingNow.map((r) => `#${r.id} ${r.label}`).join(", ")}). O jogador precisa rolar antes de seguir.`)
+    }
     db.prepare("INSERT INTO turns(n, started_min, action) VALUES(?,?,?)").run(n, now(db), action.trim())
     setMeta(db, "turn", n)
     setMeta(db, "turn_open", 1)
@@ -30,6 +48,11 @@ export function beginTurn(db: DB, slug: string, action: string): string[] {
     publish(db) // inclui o que foi criado na preparação (turno 0)
     return sync(db)
   })
+  try {
+    snapshotCampaign(slug, `turno-${n}`, db)
+  } catch (error) {
+    console.error(`[backup] ${slug}: ${(error as Error).message}`)
+  }
   return [`Turno ${n} aberto. Backup salvo (dnd undo volta para antes deste turno).`, ...news]
 }
 
@@ -37,6 +60,7 @@ export function beginTurn(db: DB, slug: string, action: string): string[] {
 export function narrate(db: DB, text: string): string[] {
   if (getMeta(db, "turn_open") !== "1") throw new Error("Não há turno aberto.")
   if (!text.trim()) throw new Error("Narração vazia.")
+  assertNarration(db, text)
   transaction(db, () => addNarration(db, metaNum(db, "turn"), text))
   return ["Narração registrada para a mesa."]
 }
@@ -52,16 +76,24 @@ function addNarration(db: DB, turn: number, text: string): void {
 export function endTurn(db: DB, summary: string, narration: string): string[] {
   if (getMeta(db, "turn_open") !== "1") throw new Error("Não há turno aberto.")
   if (summary.trim().length < 10) throw new Error("O resumo do turno precisa descrever o que aconteceu (mín. 10 caracteres). Ele é a memória de longo prazo.")
+  if (narration.trim()) assertNarration(db, narration)
   const n = metaNum(db, "turn")
   const warnings: string[] = []
-  transaction(db, () => {
+  const closed = transaction(db, () => {
     db.prepare("UPDATE turns SET summary = ?, ended = 1 WHERE n = ?").run(summary.trim(), n)
     if (narration.trim()) addNarration(db, n, narration)
     setMeta(db, "turn_open", 0)
     index(db, `turn:${n}`, "turno", summary.trim())
     log(db, "turno", `Turno ${n} fechado: ${summary.trim()}`)
     publish(db)
+    const chapter = closeIfNeeded(db)
+    const soft = assertWorld(db)
+    captureSceneSnap(db)
+    return { chapter, soft }
   })
+  recordTurnClosed(getMeta(db, "slug"), n)
+  if (closed.chapter) warnings.push(closed.chapter)
+  for (const soft of closed.soft) warnings.push(`Aviso: ${soft}`)
   const pendingRolls = all<{ id: number }>(db, "SELECT id FROM roll_requests WHERE status = 'pendente'")
   if (pendingRolls.length) warnings.push(`Atenção: rolagens pendentes na mesa: ${pendingRolls.map((r) => `#${r.id}`).join(", ")}.`)
   const due = all<{ id: number }>(db, "SELECT id FROM events WHERE status = 'vencido'")
@@ -74,12 +106,18 @@ export function endTurn(db: DB, summary: string, narration: string): string[] {
 
 /** Desfaz o turno atual (aberto) ou o último fechado, restaurando o backup feito no turn begin. */
 export function undoTurn(slug: string): string[] {
+  return withCampaignLock(slug, () => undoTurnLocked(slug))
+}
+
+function undoTurnLocked(slug: string): string[] {
   const db = openCampaign(slug)
   const n = metaNum(db, "turn")
   const version = metaNum(db, "version")
   db.close()
   if (n === 0) throw new Error("Nada a desfazer.")
+  assertCanUndo(slug)
   restoreBeforeTurn(slug, n)
+  recordUndo(slug, n)
   const restored = openCampaign(slug)
   try {
     const retracted = transaction(restored, () => {

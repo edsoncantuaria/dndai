@@ -34,7 +34,9 @@ CREATE TABLE IF NOT EXISTS chat (
   turn_id TEXT,
   claim TEXT,
   error TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  retry_at TEXT
 );
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 `
@@ -44,6 +46,9 @@ function openChat(slug: string): DatabaseSync {
   const db = new DatabaseSync(join(campaignDir(slug), "chat.db"))
   db.exec("PRAGMA busy_timeout = 5000; PRAGMA journal_mode = DELETE;")
   db.exec(CHAT_SCHEMA)
+  const cols = db.prepare("PRAGMA table_info(chat)").all() as { name: string }[]
+  if (!cols.some((c) => c.name === "attempts")) db.exec("ALTER TABLE chat ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
+  if (!cols.some((c) => c.name === "retry_at")) db.exec("ALTER TABLE chat ADD COLUMN retry_at TEXT")
   return db
 }
 
@@ -180,14 +185,22 @@ function narrationFor(slug: string, sinceId: number, response: string): string {
 export interface MasterOptions {
   pollWaitMs?: number
   retryDelayMs?: number
+  /** Tentativas de reenvio quando o Shellby cai. Erro de cota não entra aqui. */
+  maxSendAttempts?: number
+  retryBaseMs?: number
   log?: (msg: string) => void
 }
+
+const TRANSIENT = /Sem resposta do Shellby|fetch failed|indisponível|indisponivel|ECONNREFUSED|ETIMEDOUT|ECONNRESET|socket|AGENT_TARGET_LOST|AGENT_IDLE_EXPIRED|network/i
 
 /** Cria o "drenador" de filas. Use um único processo por servidor (o MCP dndai-mestre). */
 export function createMaster(transport: MasterTransport, opts: MasterOptions = {}) {
   const pollWaitMs = opts.pollWaitMs ?? 60_000
   const retryDelayMs = opts.retryDelayMs ?? 5_000
+  const maxSendAttempts = opts.maxSendAttempts ?? 5
+  const retryBaseMs = opts.retryBaseMs ?? 1000
   const log = opts.log ?? ((m: string) => console.error(`[mestre] ${m}`))
+  let drainRef: (slug: string) => Promise<void> = async () => undefined
   const running = new Map<string, Promise<void>>()
   const owner = `${process.pid}-${randomUUID()}`
 
@@ -228,11 +241,20 @@ export function createMaster(transport: MasterTransport, opts: MasterOptions = {
           db.prepare("UPDATE chat SET status = 'entregue' WHERE claim = ?").run(claim)
           db.prepare("INSERT INTO chat(role, text, status, created_at) VALUES('mestre', ?, 'entregue', ?)").run(narrationFor(slug, sinceTurn, result.response) || "(o Mestre não respondeu)", new Date().toISOString())
         } else {
-          db.prepare("UPDATE chat SET status = 'erro', error = ? WHERE claim = ?").run(result.error, claim)
-          if (/AGENT_TARGET_LOST|AGENT_IDLE_EXPIRED/.test(result.error)) {
-            // A conversa no ChatGPT se perdeu: a próxima mensagem abre outra (o motor guarda tudo).
+          const lost = /AGENT_TARGET_LOST|AGENT_IDLE_EXPIRED/.test(result.error)
+          if (lost) {
             setMeta(db, "generation", Number(meta(db, "generation", "1")) + 1)
             setMeta(db, "ready", 0)
+          }
+          const row = db.prepare("SELECT attempts FROM chat WHERE claim = ?").get(claim) as { attempts: number } | undefined
+          const attempts = (row?.attempts ?? 0) + 1
+          if (TRANSIENT.test(result.error) && attempts < maxSendAttempts) {
+            const wait = Math.min(60_000, retryBaseMs * 2 ** (attempts - 1))
+            const retryAt = new Date(Date.now() + wait).toISOString()
+            db.prepare("UPDATE chat SET status = 'fila', attempts = ?, retry_at = ?, error = ?, claim = NULL, turn_id = NULL WHERE claim = ?").run(attempts, retryAt, result.error, claim)
+            setTimeout(() => void drainRef(slug), wait).unref()
+          } else {
+            db.prepare("UPDATE chat SET status = 'erro', error = ?, attempts = ? WHERE claim = ?").run(result.error, attempts, claim)
           }
         }
       })
@@ -260,7 +282,7 @@ export function createMaster(transport: MasterTransport, opts: MasterOptions = {
         // Um turno por vez na conversa (o Shellby recusaria com AGENT_BUSY).
         const busy = db.prepare("SELECT 1 FROM chat WHERE status IN ('enviando','aguardando') LIMIT 1").get()
         if (busy) return []
-        db.prepare("UPDATE chat SET status = 'enviando', claim = ? WHERE status = 'fila'").run(claim)
+        db.prepare("UPDATE chat SET status = 'enviando', claim = ? WHERE status = 'fila' AND (retry_at IS NULL OR retry_at <= ?)").run(claim, new Date().toISOString())
         return db.prepare("SELECT role, text FROM chat WHERE claim = ? ORDER BY id").all(claim) as { role: string; text: string }[]
       })
     )
@@ -294,12 +316,12 @@ export function createMaster(transport: MasterTransport, opts: MasterOptions = {
     return p
   }
 
-  /** Ao iniciar: retoma turnos em andamento e marca envios incertos (nunca reenvia às cegas). */
+  /** Ao iniciar: reenfileira envios interrompidos e retoma os que já têm turno no Shellby. */
   const recover = (slugs: string[]): void => {
     for (const slug of slugs) {
       const pending = withChat(slug, (db) =>
         tx(db, () => {
-          db.prepare("UPDATE chat SET status = 'erro', error = 'Envio interrompido antes de confirmar; reenvie a mensagem.' WHERE status = 'enviando'").run()
+          db.prepare("UPDATE chat SET status = 'fila', claim = NULL, error = '' WHERE status = 'enviando'").run()
           return db.prepare("SELECT DISTINCT turn_id, claim FROM chat WHERE status = 'aguardando'").all() as { turn_id: string; claim: string }[]
         })
       )
@@ -331,5 +353,6 @@ export function createMaster(transport: MasterTransport, opts: MasterOptions = {
     )
   }
 
+  drainRef = drain
   return { drain, recover, reset }
 }
