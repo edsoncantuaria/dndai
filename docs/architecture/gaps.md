@@ -23,6 +23,7 @@ Registro **operacional** de riscos e melhorias — detalhe de design continua em
 | **P3** | Frontend | `gameService.ts` facade vs `penaiApi` direto | Tipos movidos para `src/types/worldMap.ts`; migrar imports gradualmente |
 | **P3** | Frontend | `tsc --noEmit` — ~261 erros fora paths PENAI | Gate `typecheck:penai` verde; dívida legado utils/SRD |
 | **P3** | Engine | Busca semântica é trigrama local + léxico de ofícios, não um modelo | `engine/src/embed.ts`; `DNDAI_EMBED=off` cai no FTS |
+| **P3** | App | Raridade e ganchos | `ItemView.rarity` fica null se `props.rarity` não for um nome conhecido; a ficha não inventa cor. Ganchos, boatos e persona continuam fora da visão do jogador (`engine/src/view.ts`) — o diário avisa isso em vez de pedir um campo novo. |
 
 ---
 

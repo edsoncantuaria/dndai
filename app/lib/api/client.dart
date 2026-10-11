@@ -69,6 +69,16 @@ class ApiClient {
 
   Future<void> message(String campaign, String text) => _post('/api/messages', campaign, {'text': text});
 
+  /// MP3 da narração (`key` = `chat-<id>` ou `turn-<n>`). O player não manda o header Bearer, então o token vai na query, como o contrato pede para `<audio>`.
+  Uri ttsUri(String campaign, String key) {
+    final base = Uri.parse(baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl);
+    return base.replace(path: '${base.path}/api/tts', queryParameters: {
+      'campaign': campaign,
+      'key': key,
+      if (token != null && token!.isNotEmpty) 'token': token!,
+    });
+  }
+
   /// Eventos de mudança (SSE). Cada evento = "releia o estado".
   Stream<void> changes(String campaign) => events.sseChanges(_uri('/api/events', {'campaign': campaign}), _headers);
 

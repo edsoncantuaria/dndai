@@ -8,6 +8,7 @@ import 'api/token_store.dart';
 import 'api/models.dart';
 import 'theme.dart';
 import 'ui/game_screen.dart';
+import 'ui/play_settings.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,14 +17,39 @@ void main() {
   runApp(const DndaiApp());
 }
 
-class DndaiApp extends StatelessWidget {
+class DndaiApp extends StatefulWidget {
   const DndaiApp({super.key});
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        title: 'Crônicas',
-        debugShowCheckedModeBanner: false,
-        theme: buildTheme(),
-        home: const Root(),
+  State<DndaiApp> createState() => _DndaiAppState();
+}
+
+class _DndaiAppState extends State<DndaiApp> {
+  final _settings = PlaySettings();
+
+  @override
+  void initState() {
+    super.initState();
+    _settings.load();
+  }
+
+  @override
+  Widget build(BuildContext context) => PlaySettingsScope(
+        notifier: _settings,
+        child: MaterialApp(
+          title: 'Crônicas',
+          debugShowCheckedModeBanner: false,
+          theme: buildTheme(),
+          builder: (context, child) => ListenableBuilder(
+            listenable: _settings,
+            builder: (context, _) {
+              final mq = MediaQuery.of(context);
+              final base = mq.textScaler.scale(100) / 100;
+              final factor = (_settings.largeText ? base * 1.3 : base).clamp(0.8, 2.4);
+              return MediaQuery(data: mq.copyWith(textScaler: TextScaler.linear(factor)), child: child ?? const SizedBox.shrink());
+            },
+          ),
+          home: const Root(),
+        ),
       );
 }
 
@@ -107,23 +133,27 @@ class _ConnectScreenState extends State<ConnectScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: ListView(
-                padding: const EdgeInsets.all(24),
-                shrinkWrap: true,
-                children: [
-                  Text('Crônicas', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontSize: 40)),
-                  const Text('Conecte-se à mesa do seu Mestre.', textAlign: TextAlign.center, style: TextStyle(color: Palette.textDim)),
-                  const SizedBox(height: 28),
-                  TextField(controller: _url, keyboardType: TextInputType.url, autocorrect: false, decoration: const InputDecoration(labelText: 'Endereço do servidor')),
-                  const SizedBox(height: 12),
-                  TextField(controller: _token, obscureText: true, autocorrect: false, decoration: const InputDecoration(labelText: 'Token (se o servidor exigir)')),
-                  const SizedBox(height: 20),
-                  FilledButton(onPressed: () => widget.onConnect(_url.text.trim(), _token.text.trim()), child: const Text('Conectar')),
-                ],
+        body: DecoratedBox(
+          decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF2A1C14), Palette.leather])),
+          child: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: ListView(
+                  padding: const EdgeInsets.all(24),
+                  shrinkWrap: true,
+                  children: [
+                    Text('Crônicas', textAlign: TextAlign.center, style: displayStyle(size: 40)),
+                    const SizedBox(height: 6),
+                    const Text('A mesa do seu Mestre.', textAlign: TextAlign.center, style: TextStyle(color: Palette.textDim, fontFamily: 'EBGaramond', fontSize: 18)),
+                    const SizedBox(height: 28),
+                    TextField(controller: _url, keyboardType: TextInputType.url, autocorrect: false, style: const TextStyle(color: Palette.ink, fontFamily: 'EBGaramond'), decoration: const InputDecoration(labelText: 'Endereço do servidor')),
+                    const SizedBox(height: 12),
+                    TextField(controller: _token, obscureText: true, autocorrect: false, style: const TextStyle(color: Palette.ink, fontFamily: 'EBGaramond'), decoration: const InputDecoration(labelText: 'Token (se o servidor exigir)')),
+                    const SizedBox(height: 20),
+                    FilledButton(onPressed: () => widget.onConnect(_url.text.trim(), _token.text.trim()), child: const Text('Entrar na mesa')),
+                  ],
+                ),
               ),
             ),
           ),

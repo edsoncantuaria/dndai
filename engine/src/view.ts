@@ -1,7 +1,7 @@
 // GameView: o que a mesa (jogador) pode ver. NUNCA inclui segredos, agendas ou persona interna dos NPCs.
 import { all, type DB, getMeta, metaNum, one } from "./db.ts"
 import { pendingRequests, type RollOutcome } from "./mechanics.ts"
-import { itemActions, itemEffect, reactionOf } from "./items.ts"
+import { itemActions, itemEffect, itemRarity, reactionOf } from "./items.ts"
 import { itemsOf } from "./ops.ts"
 import { ABILITIES, ABILITY_NAMES, attitudeLabel, CLASSES, levelForXp, SKILLS, XP_THRESHOLDS } from "./rules.ts"
 import { getCombat } from "./simulation.ts"
@@ -10,8 +10,10 @@ import {
 } from "./world.ts"
 
 function itemView(db: DB, i: ItemRow) {
+  const props = JSON.parse(i.props) as Record<string, unknown>
   return {
-    id: i.id, name: i.name, qty: i.qty, kind: i.kind, equipped: !!i.equipped, notes: i.notes, props: JSON.parse(i.props) as Record<string, unknown>,
+    id: i.id, name: i.name, qty: i.qty, kind: i.kind, equipped: !!i.equipped, notes: i.notes, props,
+    rarity: itemRarity(props.rarity),
     actions: itemActions(db, i), drawn: !!i.drawn, effect: itemEffect(i),
   }
 }
@@ -91,7 +93,7 @@ export function buildView(db: DB, slug: string) {
     round: combatState.round,
     order: combatState.order.map((o, i) => {
       const c = getCharacter(db, o.id)
-      return { id: c.id, name: c.name, initiative: o.init, hp: c.hp, maxHp: c.max_hp, status: c.status, current: i === combatState.index, isPc: c.kind === "pc" }
+      return { id: c.id, name: c.name, initiative: o.init, hp: c.hp, maxHp: c.max_hp, status: c.status, current: i === combatState.index, isPc: c.kind === "pc", portrait: c.sheet.portrait ?? null }
     }),
   }
 

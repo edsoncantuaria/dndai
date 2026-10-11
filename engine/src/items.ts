@@ -2,7 +2,7 @@
 import { all, type DB, index, log, one } from "./db.ts"
 import { roll } from "./dice.ts"
 import { heal } from "./mechanics.ts"
-import { attitudeLabel, mod } from "./rules.ts"
+import { attitudeLabel, mod, norm } from "./rules.ts"
 import { getCharacter, getPlace, type ItemRow, now, requirePc } from "./world.ts"
 
 export const ITEM_ACTIONS = ["usar", "equipar", "guardar", "empunhar", "embainhar", "largar"] as const
@@ -25,6 +25,21 @@ interface Props {
 
 function props(i: ItemRow): Props {
   return JSON.parse(i.props) as Props
+}
+
+const RARITY_ALIASES: Record<string, string> = {
+  comum: "comum", common: "comum",
+  incomum: "incomum", uncommon: "incomum",
+  raro: "raro", rare: "raro",
+  muitoraro: "muito raro", veryrare: "muito raro",
+  lendario: "lendário", legendary: "lendário",
+  artefato: "artefato", artifact: "artefato",
+}
+
+/** Raridade para a mesa. Só valores conhecidos; qualquer outro texto vira null. */
+export function itemRarity(raw: unknown): string | null {
+  if (typeof raw !== "string") return null
+  return RARITY_ALIASES[norm(raw)] ?? null
 }
 
 /** Resumo do efeito mecânico do item (exibido na mesa). */

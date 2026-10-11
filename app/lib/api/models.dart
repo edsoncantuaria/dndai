@@ -42,12 +42,28 @@ class Item {
         drawn = _b(j['drawn']),
         notes = _s(j['notes']),
         effect = j['effect'] as String?,
+        rarity = knownRarity(j['rarity'] is String ? j['rarity'] as String : (j['props'] is Map ? (j['props'] as Map)['rarity'] : null)),
         actions = _ls(j['actions']);
   final String id, name, kind, notes;
   final int qty;
   final bool equipped, drawn;
-  final String? effect;
+  final String? effect, rarity;
   final List<String> actions;
+}
+
+/// Raridades que o motor reconhece. Qualquer outro texto vira null.
+String? knownRarity(Object? raw) {
+  if (raw is! String || raw.trim().isEmpty) return null;
+  final folded = raw.toLowerCase().replaceAll(RegExp(r'[áàãâ]'), 'a').replaceAll(RegExp(r'[éê]'), 'e').replaceAll(RegExp(r'[íî]'), 'i').replaceAll(RegExp(r'[óôõ]'), 'o').replaceAll(RegExp(r'[úü]'), 'u').replaceAll(RegExp(r'[^a-z]'), '');
+  return switch (folded) {
+    'comum' || 'common' => 'comum',
+    'incomum' || 'uncommon' => 'incomum',
+    'raro' || 'rare' => 'raro',
+    'muitoraro' || 'veryrare' => 'muito raro',
+    'lendario' || 'legendary' => 'lendário',
+    'artefato' || 'artifact' => 'artefato',
+    _ => null,
+  };
 }
 
 class Pc {
@@ -55,7 +71,10 @@ class Pc {
       : id = _s(j['id']),
         name = _s(j['name']),
         race = _s(j['race']),
+        classKey = _s(j['class']),
         classLabel = _s(j['classLabel']),
+        subclass = _s(j['subclass']),
+        background = _s(j['background']),
         level = _i(j['level'], 1),
         xp = _i(j['xp']),
         nextLevelXp = j['nextLevelXp'] is num ? _i(j['nextLevelXp']) : null,
@@ -77,18 +96,24 @@ class Pc {
             e.key as String: Ability(_i(e.value['score']), _i(e.value['mod']), _i(e.value['save']), _b(e.value['proficientSave'])),
         },
         skills = _l(j['skills']).map((s) => Skill(_s(s['label']), _s(s['ability']), _i(s['bonus']), _b(s['proficient']), _b(s['expertise']))).toList(),
-        spellSaveDc = (j['spellcasting'] as Map?)?['saveDc'] as int?,
-        spellAttack = (j['spellcasting'] as Map?)?['attackBonus'] as int?,
+        spellSaveDc = (j['spellcasting'] as Map?)?['saveDc'] is num ? _i((j['spellcasting'] as Map)['saveDc']) : null,
+        spellAttack = (j['spellcasting'] as Map?)?['attackBonus'] is num ? _i((j['spellcasting'] as Map)['attackBonus']) : null,
+        spellAbilityLabel = _opt((j['spellcasting'] as Map?)?['abilityLabel']),
         slots = _l((j['spellcasting'] as Map?)?['slots']).map((s) => Slot(_i(s['level']), _i(s['max']), _i(s['used']))).toList(),
         spells = _ls((j['spellcasting'] as Map?)?['spells']),
+        hitDie = _i((j['hitDice'] as Map?)?['die']),
+        hitDiceMax = _i((j['hitDice'] as Map?)?['max']),
+        hitDiceUsed = _i((j['hitDice'] as Map?)?['used']),
+        portrait = _opt(j['portrait']),
         po = _i((j['money'] as Map?)?['po']),
         pp = _i((j['money'] as Map?)?['pp']),
         pcCoins = _i((j['money'] as Map?)?['pc']),
         inventory = _l(j['inventory']).map(Item.fromJson).toList(),
         features = _ls(j['features']);
-  final String id, name, race, classLabel, status;
-  final int level, xp, hp, maxHp, tempHp, ac, speed, initiative, profBonus, passivePerception, deathSuccess, deathFail, po, pp, pcCoins;
+  final String id, name, race, classKey, classLabel, subclass, background, status;
+  final int level, xp, hp, maxHp, tempHp, ac, speed, initiative, profBonus, passivePerception, deathSuccess, deathFail, po, pp, pcCoins, hitDie, hitDiceMax, hitDiceUsed;
   final int? nextLevelXp, spellSaveDc, spellAttack;
+  final String? spellAbilityLabel, portrait;
   final bool levelUpReady;
   final List<String> conditions, spells, features;
   final Map<String, Ability> abilities;
@@ -130,12 +155,13 @@ class Npc {
         companion = _b(j['companion']),
         hp = j['hp'] is num ? _i(j['hp']) : null,
         maxHp = j['maxHp'] is num ? _i(j['maxHp']) : null,
-        reaction = j['reaction'] as String?;
+        reaction = j['reaction'] as String?,
+        portrait = _opt(j['portrait']);
   final String id, name, summary, status, attitudeLabel;
   final int attitude;
   final bool companion;
   final int? hp, maxHp;
-  final String? reaction;
+  final String? reaction, portrait;
 }
 
 class Combatant {
@@ -147,20 +173,23 @@ class Combatant {
         maxHp = _i(j['maxHp'], 1),
         status = _s(j['status']),
         current = _b(j['current']),
-        isPc = _b(j['isPc']);
+        isPc = _b(j['isPc']),
+        portrait = _opt(j['portrait']);
   final String id, name, status;
   final int initiative, hp, maxHp;
   final bool current, isPc;
+  final String? portrait;
 }
 
 class Quest {
   Quest.fromJson(Json j)
-      : title = _s(j['title']),
+      : id = _s(j['id']),
+        title = _s(j['title']),
         summary = _s(j['summary']),
         status = _s(j['status']),
         giver = j['giver'] as String?,
         objectives = _l(j['objectives']).map((o) => (_s(o['text']), _b(o['done']))).toList();
-  final String title, summary, status;
+  final String id, title, summary, status;
   final String? giver;
   final List<(String, bool)> objectives;
 }
@@ -190,11 +219,24 @@ class MapPlace {
   final bool visited, current;
 }
 
+class Fact {
+  Fact.fromJson(Json j)
+      : id = _i(j['id']),
+        text = _s(j['text']),
+        about = _opt(j['about']),
+        day = _i(j['day']);
+  final int id, day;
+  final String text;
+  final String? about;
+}
+
 class MapLink {
-  MapLink(this.from, this.to, this.minutes);
-  final String from, to;
+  MapLink(this.from, this.to, this.minutes, [this.via = '']);
+  final String from, to, via;
   final int minutes;
 }
+
+String? _opt(Object? v) => v is String && v.trim().isNotEmpty ? v.trim() : null;
 
 class RollRequest {
   RollRequest.fromJson(Json j)
@@ -258,6 +300,7 @@ class GameView {
       : version = _i(j['version']),
         campaignName = _s((j['campaign'] as Map?)?['name']),
         premise = _s((j['campaign'] as Map?)?['premise']),
+        tone = _s((j['campaign'] as Map?)?['tone']),
         day = _i((j['clock'] as Map?)?['day'], 1),
         time = _s((j['clock'] as Map?)?['time']),
         period = _s((j['clock'] as Map?)?['period']),
@@ -268,16 +311,16 @@ class GameView {
         combatRound = (j['combat'] as Map?)?['round'] as int?,
         combat = _l((j['combat'] as Map?)?['order']).map(Combatant.fromJson).toList(),
         quests = _l(j['quests']).map(Quest.fromJson).toList(),
-        facts = _l(j['facts']).map((f) => (_s(f['text']), _i(f['day']))).toList(),
+        facts = _l(j['facts']).map(Fact.fromJson).toList(),
         journal = _l(j['journal']).map(Turn.fromJson).toList(),
         places = _l((j['map'] as Map?)?['places']).map(MapPlace.fromJson).toList(),
-        links = _l((j['map'] as Map?)?['links']).map((l) => MapLink(_s(l['from']), _s(l['to']), _i(l['minutes']))).toList(),
+        links = _l((j['map'] as Map?)?['links']).map((l) => MapLink(_s(l['from']), _s(l['to']), _i(l['minutes']), _s(l['via']))).toList(),
         pendingRolls = _l(j['pendingRolls']).map(RollRequest.fromJson).toList(),
         lastRolls = _l(j['lastRolls']).map(RollOutcome.fromJson).toList(),
         chat = _l(j['chat']).map(ChatMessage.fromJson).toList(),
         master = MasterState.fromJson((j['master'] as Map?)?.cast());
   final int version, day;
-  final String campaignName, premise, time, period;
+  final String campaignName, premise, tone, time, period;
   final bool turnOpen;
   final Pc? pc;
   final Location? location;
@@ -285,7 +328,7 @@ class GameView {
   final int? combatRound;
   final List<Combatant> combat;
   final List<Quest> quests;
-  final List<(String, int)> facts;
+  final List<Fact> facts;
   final List<Turn> journal;
   final List<MapPlace> places;
   final List<MapLink> links;

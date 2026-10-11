@@ -1,5 +1,7 @@
 # TODO — Arquitetura produção (motor × IA × escala)
 
+> **Neste branch:** a mesa do jogador é o app Flutter em `app/` (ver `docs/DESIGN_FRONTEND.md`, seção App Flutter). O roadmap abaixo é do stack PENAI anterior.
+>
 > **Prioridade atual** (maio 2026): **P5** concluído em código — validar em staging (split Docker + ações rápidas).
 >
 > **Documentação viva:** `docs/ECOSSISTEMA.md` · `docs/DESIGN_FRONTEND.md` · histórico em `docs/archive/`

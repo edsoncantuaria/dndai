@@ -4,7 +4,36 @@
 >
 > **Referência de atmosfera (não copiar assets):** [Dungeons & Dragons — site oficial](https://www.dungeonsanddragons.com/)
 >
-> **Última revisão:** junho de 2026 (death saves + HeroDeathScreen; V3 PENAI-only — `usePenaiTurnPipeline`; deep-dive: [`architecture/frontend-turn-pipeline.md`](./architecture/frontend-turn-pipeline.md))
+> **Última revisão:** 2026-10-11. Neste branch a mesa do jogador é o app Flutter em `app/` (seção abaixo). As seções 3–13 descrevem a UI React/PENAI anterior e não são o comportamento atual.
+
+---
+
+## App Flutter — mesa do jogador (este branch)
+
+O jogador usa `app/` (Android, iOS e web). O app só apresenta o `GameView` e envia texto, ações de item e rolagens. Contrato e campos: [`engine/API.md`](../engine/API.md). Visão do jogador não inclui ganchos, boatos, mentiras nem persona do Mestre.
+
+```mermaid
+flowchart TB
+  GameScreen --> Controller[GameController]
+  Controller --> Api["ApiClient HTTP + SSE /api/events"]
+  Api --> Engine["engine: GET /api/state, POST mensagens, ações, rolagens, GET /api/tts"]
+  GameScreen --> Roll["modal de dados 3D, não dispensável"]
+  GameScreen --> Table[GameTable]
+  Table --> Strip["barra compacta: vida, lugar, retratos"]
+  Table --> Journal["diário: histórico acima, última narração em página cheia"]
+  Table --> Actions["saídas e usar, acima do campo livre"]
+  Strip --> Drawers["gavetas no celular; laterais quando a largura é pelo menos 900 px"]
+```
+
+| Peça | Onde | O que faz |
+|------|------|-----------|
+| Mesa | `app/lib/ui/fantasy/table.dart` | No celular a narração ocupa a página. Personagem, vida, retratos e lugar ficam numa barra de 56 px que abre ao toque ou ao arrastar. Saídas, itens no chão e “Usar” ficam numa faixa acima do campo, sem cobrir o texto. Em largura ≥ 900 px a narração fica no centro, a situação à esquerda e a doca de painéis à direita. |
+| Gavetas | `app/lib/ui/fantasy/drawers.dart` | Ficha, bolsa (segurar e soltar em Equipar/Usar; botões continuam), grimório com espaços, diário de missões e fatos conhecidos, pessoas e mapa com locais arrastáveis. |
+| Aparência | `app/lib/theme.dart`, `fantasy/sigils.dart`, `fantasy/chrome.dart` | Couro escuro, pergaminho `#F4E6C8` com tinta `#24180F`, Cinzel e EB Garamond (OFL, em `app/assets/fonts/`). Sigilos de classe são desenhos próprios. Cor de raridade só quando `ItemView.rarity` não é null. |
+| Ajustes | `app/lib/ui/play_settings.dart`, `fantasy/voice.dart` | A−/A+ só na narração (18, 22, 26). “Texto maior” ainda escala a mesa inteira (×1,3, teto 2,4). “Ouvir” toca `GET /api/tts` com a chave `chat-<id>` ou `turn-<n>`. Vibração ligada por padrão; sons do sistema desligados. |
+| Fluxo | `game_screen.dart`, `state/game_controller.dart`, `api/` | SSE, auth Bearer (na web o `EventSource` usa `?token=`) e abertura automática da rolagem não mudam. Retrato só entra se for `http(s)` ou um caminho relativo à base da API. |
+
+A última narração do Mestre é uma página de pergaminho com a altura do diário. O que veio antes fica acima, no mesmo rolamento. Tocar uma saída preenche o compositor (`Sigo para …`). Itens no chão sugerem “Pego …”, sem ação de inventário que o motor não lista. NPCs em cena aparecem ao abrir a barra.
 
 ---
 

@@ -4,11 +4,11 @@ import '../api/client.dart';
 import '../state/game_controller.dart';
 import '../theme.dart';
 import 'dice.dart';
-import 'panels.dart';
-import 'scene_tab.dart';
-import 'widgets.dart';
+import 'fantasy/chrome.dart';
+import 'fantasy/table.dart';
+import 'fantasy/voice.dart';
 
-/// Tela do jogo. Mobile first: abas embaixo; em telas largas (web/tablet), cena + painel lado a lado.
+/// Tela do jogo. O fluxo (SSE, rolagem obrigatória, ações) fica no [GameController]; a mesa só apresenta.
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key, required this.api, required this.campaign, required this.onLeave});
   final ApiClient api;
@@ -21,8 +21,6 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   late final GameController game = GameController(widget.api, widget.campaign)..start();
-  int _tab = 0;
-  int _side = 0;
   bool _rollOpen = false;
 
   @override
@@ -35,6 +33,7 @@ class _GameScreenState extends State<GameScreen> {
   void dispose() {
     game.removeListener(_maybeOpenRoll);
     game.dispose();
+    TableVoice.instance.stop();
     super.dispose();
   }
 
@@ -51,92 +50,41 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
-  static const _tabs = [
-    (Icons.auto_stories_outlined, Icons.auto_stories, 'Cena'),
-    (Icons.person_outline, Icons.person, 'Ficha'),
-    (Icons.backpack_outlined, Icons.backpack, 'Bolsa'),
-    (Icons.map_outlined, Icons.map, 'Mapa'),
-    (Icons.menu_book_outlined, Icons.menu_book, 'Diário'),
-  ];
-
-  Widget _panel(int i) {
-    final v = game.view!;
-    return switch (i) {
-      0 => SceneTab(game: game),
-      1 => SheetTab(view: v),
-      2 => BagTab(game: game),
-      3 => MapTab(view: v),
-      _ => JournalTab(view: v),
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: game,
       builder: (context, _) {
-        final v = game.view;
-        final appBar = AppBar(
-          backgroundColor: Palette.bg,
-          titleSpacing: 16,
-          title: Text(v?.campaignName ?? 'Carregando…', style: Theme.of(context).textTheme.titleMedium, overflow: TextOverflow.ellipsis),
-          actions: [
-            Tooltip(
-              message: game.live ? 'Ao vivo' : 'Reconectando…',
-              child: Icon(Icons.circle, size: 10, color: game.live ? Palette.success : Palette.textDim),
-            ),
-            IconButton(tooltip: 'Trocar campanha', onPressed: widget.onLeave, icon: const Icon(Icons.logout)),
-          ],
-        );
-        if (v == null) {
+        final view = game.view;
+        if (view == null) {
           return Scaffold(
-            appBar: appBar,
-            body: Center(
-              child: game.error == null
-                  ? const CircularProgressIndicator()
-                  : Padding(padding: const EdgeInsets.all(24), child: Text(game.error!, textAlign: TextAlign.center, style: const TextStyle(color: Palette.failure))),
+            backgroundColor: Palette.leather,
+            appBar: AppBar(
+              backgroundColor: Palette.leather,
+              title: Text(game.error == null ? 'Carregando…' : 'Crônica', style: displayStyle(size: 18)),
+              actions: [IconButton(tooltip: 'Trocar campanha', onPressed: widget.onLeave, icon: const Icon(Icons.logout, color: Palette.gold))],
+            ),
+            body: LeatherBackdrop(
+              child: Center(
+                child: game.error == null
+                    ? const CircularProgressIndicator(color: Palette.gold)
+                    : Padding(padding: const EdgeInsets.all(24), child: Text(game.error!, textAlign: TextAlign.center, style: const TextStyle(color: Palette.failure, fontFamily: 'EBGaramond', fontSize: 18))),
+              ),
             ),
           );
         }
-        final wide = MediaQuery.sizeOf(context).width >= 900;
-        final hero = v.pc == null ? null : HeroBar(pc: v.pc!);
-        if (!wide) {
-          return Scaffold(
-            appBar: appBar,
-            body: Column(children: [
-              ?hero,
-              Expanded(child: _panel(_tab)),
-            ]),
-            bottomNavigationBar: NavigationBar(
-              selectedIndex: _tab,
-              onDestinationSelected: (i) => setState(() => _tab = i),
-              destinations: [for (final t in _tabs) NavigationDestination(icon: Icon(t.$1), selectedIcon: Icon(t.$2), label: t.$3)],
-            ),
-          );
-        }
-        return Scaffold(
-          appBar: appBar,
-          body: Column(children: [
-            ?hero,
-            Expanded(
-              child: Row(children: [
-                Expanded(flex: 3, child: _panel(0)),
-                const VerticalDivider(width: 1, color: Palette.line),
-                Expanded(
-                  flex: 2,
-                  child: Column(children: [
-                    NavigationBar(
-                      height: 64,
-                      selectedIndex: _side,
-                      onDestinationSelected: (i) => setState(() => _side = i),
-                      destinations: [for (final t in _tabs.skip(1)) NavigationDestination(icon: Icon(t.$1), selectedIcon: Icon(t.$2), label: t.$3)],
-                    ),
-                    Expanded(child: _panel(_side + 1)),
-                  ]),
-                ),
-              ]),
-            ),
-          ]),
+        return GameTable(
+          view: view,
+          live: game.live,
+          sending: game.sending,
+          portraitBase: widget.api.baseUrl,
+          onLeave: widget.onLeave,
+          onSend: game.send,
+          onListen: (key) => TableVoice.instance.toggle(widget.api.ttsUri(widget.campaign, key).toString()),
+          onItem: (action, id) async {
+            final err = await game.itemAction(action, id);
+            return err ?? game.lastActionText;
+          },
         );
       },
     );
