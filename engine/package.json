@@ -1,0 +1,28 @@
+{
+  "name": "dndai-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Motor de mundo do dndai: fonte única de verdade para campanhas mestradas pelo ChatGPT via Shellby MCP.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "bin": {
+    "dnd": "bin/dnd"
+  },
+  "scripts": {
+    "dnd": "node --no-warnings src/cli.ts",
+    "test": "node --no-warnings --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "serve": "node --no-warnings src/cli.ts serve --static ../mesa/dist",
+    "tts": "uv run --project tts python tts/server.py"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  }
+}

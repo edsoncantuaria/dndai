@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Wrapper do motor: executa o TypeScript direto (Node >= 22.18, type stripping).
+set -euo pipefail
+here="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+exec node --no-warnings "$here/../src/cli.ts" "$@"
