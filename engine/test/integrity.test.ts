@@ -190,7 +190,13 @@ describe("economia de tokens na conversa", () => {
     beginTurn(w, slug, "entra na forja e sai de novo")
     assert.match(apply([{ op: "move", who: "pc", to: "Forja" }]).join(), /chega a Forja/)
     assert.match(apply([{ op: "move", who: "pc", to: "l1" }]).join(), /chega a Vila/)
-    assert.throws(() => apply([{ op: "move", who: "pc", to: "Forja" }, { op: "move", who: "pc", to: "l2" }]), /Saídas daqui: Vila \[l1\]/)
+    // Forja → Mina passa pela Vila sozinho: soma o tempo e marca o caminho.
+    apply([{ op: "move", who: "pc", to: "Forja" }])
+    const before = w.prepare("SELECT value FROM meta WHERE key = 'now'").get() as { value: string }
+    assert.match(apply([{ op: "move", who: "pc", to: "l2" }]).join(), /Caminho: Vila → Mina \(10 min\)/)
+    assert.equal(Number((w.prepare("SELECT value FROM meta WHERE key = 'now'").get() as { value: string }).value) - Number(before.value), 10)
+    apply([{ op: "create.place", name: "Ilha", kind: "ilha", summary: "Sem ponte." }])
+    assert.throws(() => apply([{ op: "move", who: "pc", to: "Ilha" }]), /Não há caminho registrado de Mina para Ilha\. Saídas daqui: Vila \[l1\]/)
   })
 
   it("turn end recusa fechar sem narrar a rolagem que o jogador fez na mesa", () => {

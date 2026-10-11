@@ -78,7 +78,7 @@ Errou feio? `undo` volta o mundo, no máximo duas vezes seguidas. O dado rolado 
 
 - Nomes, números, locais, itens, PV, dinheiro e horários vêm do motor. Na dúvida: `show <id>` ou `recall`. "Nada encontrado" significa que **não é fato**: decida, grave (`fact`) e só então narre.
 - Só os NPCs em `presentes` estão em cena. Para trazer alguém de outro lugar, use `move` (ou a rotina dele).
-- O tempo só passa pelo motor: viagem (`move` por ligação), `time 2h`, descansos (`rest short|long`). Cena longa (conversa, busca minuciosa) = `time 10m`–`1h`.
+- O tempo só passa pelo motor: viagem (`move` acha o caminho pelas ligações e soma o tempo), `time 2h`, descansos (`rest short|long`). Cena longa (conversa, busca minuciosa) = `time 10m`–`1h`.
 - Morto é morto. Item gasto some (`item.qty -1`). Dinheiro não aparece do nada. PV máximos só mudam no `levelup`.
 - Fluxo: ler a cena → consultar o id → propor `apply` → narrar. Não narre um nome que você não acabou de criar.
 - Segredos (🔒) nunca são ditos ao jogador sem uma descoberta registrada (`reveal`).
