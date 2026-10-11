@@ -229,12 +229,15 @@ const MIGRATIONS = [
     code TEXT PRIMARY KEY,
     entity TEXT NOT NULL UNIQUE
   );`,
-  // v6: último turno em que cada entidade esteve em cena (fios esfriando) e mudanças de cada capítulo.
+  // v6: último turno em que cada entidade esteve em cena (fios esfriando), mudanças de cada capítulo e
+  // memórias consolidadas (as originais ficam, apontando para o resumo).
   `CREATE TABLE seen (
     entity TEXT PRIMARY KEY,
     turn INTEGER NOT NULL
   );
-  ALTER TABLE chapters ADD COLUMN changes TEXT NOT NULL DEFAULT '';`,
+  ALTER TABLE chapters ADD COLUMN changes TEXT NOT NULL DEFAULT '';
+  ALTER TABLE memories ADD COLUMN consolidated INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE memories ADD COLUMN merged_into INTEGER;`,
 ]
 
 export function openDb(path: string): DB {

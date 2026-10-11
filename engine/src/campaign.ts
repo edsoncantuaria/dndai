@@ -4,6 +4,7 @@ import { DatabaseSync } from "node:sqlite"
 import { basename, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { attachAtlas, sync } from "./atlas.ts"
+import { backfillCodes } from "./codes.ts"
 import { type DB, getMeta, openDb, setMeta, tighten, transaction } from "./db.ts"
 
 const KEEP_BACKUPS = 30
@@ -107,6 +108,7 @@ export function openCampaign(slug: string): DB {
   const db = openDb(dbPath(slug))
   attachAtlas(db, campaignsHome())
   if (!getMeta(db, "slug")) setMeta(db, "slug", slug)
+  backfillCodes(db)
   return db
 }
 

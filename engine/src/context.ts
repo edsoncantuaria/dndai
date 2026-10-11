@@ -50,7 +50,11 @@ export function pcBlock(db: DB, c: Character): string[] {
 }
 
 function memoriesOf(db: DB, npc: string, detailed: boolean): string[] {
-  return memoriesFor(db, npc, detailed).map((m) => `[dia ${clockParts(m.at_min).day}]${m.importance === 3 ? "!" : ""} ${m.text}`)
+  return memoriesFor(db, npc, detailed).map((m) => {
+    const tag = m.consolidated ? "RELAÇÃO " : ""
+    const merged = m.merged_into !== null ? ` (resumida em #${m.merged_into})` : ""
+    return `${detailed ? `#${m.id} ` : ""}${tag}[dia ${clockParts(m.at_min).day}]${m.importance === 3 ? "!" : ""} ${m.text}${merged}`
+  })
 }
 
 function npcBlock(db: DB, row: CharacterRow, detailed: boolean): string[] {

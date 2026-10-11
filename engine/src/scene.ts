@@ -15,21 +15,37 @@ function codeOf(db: DB, entity: string): string {
   return one<{ code: string }>(db, "SELECT code FROM codes WHERE entity = ?", entity)?.code ?? entity
 }
 
-/** Memórias que ainda valem a pena no contexto. Importância 3 fica; o resto envelhece. */
-export function memoriesFor(db: DB, npc: string, detailed = false): { text: string; importance: number; at_min: number }[] {
-  const rows = all<{ text: string; importance: number; at_min: number }>(
+export interface Memory {
+  id: number
+  text: string
+  importance: number
+  at_min: number
+  consolidated: number
+  merged_into: number | null
+}
+
+/** Memórias soltas (fora de resumo) a partir das quais a cena pede consolidação. */
+export const CONSOLIDATE_AT = 6
+
+/**
+ * Memórias que ainda valem a pena no contexto. O resumo consolidado (relação com o PC) sempre fica;
+ * importância 3 fica; o resto envelhece. `detailed` (show) lista todas, inclusive as já resumidas.
+ */
+export function memoriesFor(db: DB, npc: string, detailed = false): Memory[] {
+  const rows = all<Memory>(
     db,
-    "SELECT text, importance, at_min FROM memories WHERE npc_id = ? ORDER BY importance DESC, id DESC",
+    "SELECT id, text, importance, at_min, consolidated, merged_into FROM memories WHERE npc_id = ? ORDER BY merged_into IS NOT NULL, consolidated DESC, importance DESC, id DESC",
     npc,
   )
+  if (detailed) return rows
   const minutes = now(db)
-  const kept = rows.filter((m) => {
-    if (detailed || m.importance >= 3) return true
+  return rows.filter((m) => {
+    if (m.merged_into !== null) return false
+    if (m.consolidated || m.importance >= 3) return true
     const age = minutes - m.at_min
     if (m.importance === 2) return age <= 3 * 1440
     return age <= 1440
-  })
-  return kept.slice(0, detailed ? 50 : 4)
+  }).slice(0, 4)
 }
 
 function signature(db: DB): string {
@@ -95,12 +111,25 @@ export function sceneDoc(db: DB, slug: string, opts: { cena?: boolean } = {}): R
     const reaction = reactionOf(db, n.id)
     if (reaction) row.reacao = `Reagindo agora: ${reaction}`
     const mems = memoriesFor(db, n.id)
-    if (mems[0]) row.lembra = mems[0].text
+    const summary = mems.find((m) => m.consolidated)
+    const recent = mems.find((m) => !m.consolidated)
+    if (summary) row.relacao = summary.text
+    if (recent) row.lembra = recent.text
     const total = one<{ n: number }>(db, "SELECT COUNT(*) AS n FROM memories WHERE npc_id = ?", n.id)?.n ?? 0
-    if (total > (mems[0] ? 1 : 0)) row.memorias = `+${total - (mems[0] ? 1 : 0)} → show ${codeOf(db, n.id)}`
+    const shown = (summary ? 1 : 0) + (recent ? 1 : 0)
+    if (total > shown) row.memorias = `+${total - shown} → show ${codeOf(db, n.id)}`
     return row
   })
   const pendencias = pendingRequests(db).map((r) => `Rolagem #${r.id} aguardando o jogador na mesa: ${r.label}`)
+  const loose = all<{ id: string; name: string; n: number }>(
+    db,
+    "SELECT c.id, c.name, COUNT(*) AS n FROM memories m JOIN characters c ON c.id = m.npc_id WHERE m.merged_into IS NULL AND m.consolidated = 0 AND c.status <> 'morto' GROUP BY c.id HAVING n >= ? ORDER BY n DESC",
+    CONSOLIDATE_AT,
+  )
+  for (const l of loose.slice(0, 3)) {
+    pendencias.push(`Consolide as memórias de ${l.name} (${codeOf(db, l.id)}, ${l.n} soltas): show ${codeOf(db, l.id)} e grave memory.consolidate com os ids e o resumo da relação`)
+  }
+  if (loose.length > 3) pendencias.push(`+${loose.length - 3} NPCs com memórias para consolidar: ${loose.slice(3).map((l) => codeOf(db, l.id)).join(" ")}`)
   const sceneIds = [pc.id, pc.place_id, ...here.map((n) => n.id)].filter(Boolean) as string[]
   const { fios, dormentes, esfriando } = threadsFor(db, sceneIds)
   // Capítulos são fatos sem about_id, mas vivem no resume: não disputam espaço com os fatos da cena.

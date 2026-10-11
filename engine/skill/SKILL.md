@@ -89,6 +89,7 @@ Errou feio? `undo` volta o mundo, no máximo duas vezes seguidas. O dado rolado 
 - Cada NPC age pela **persona** (traços, voz, desejo, medo, segredo), pela **atitude** e pelas **memórias** listadas. Ele sabe apenas o que viu, ouviu ou consta nas memórias e nos fatos públicos.
 - NPCs têm agenda própria: perseguem o desejo deles, mentem para proteger o segredo, reagem ao que lembram. Atitude muda com motivo registrado.
 - Depois de toda interação relevante, grave `memory` para quem presenciou (importância 3 para o marcante). É assim que eles lembram semanas depois.
+- Quando a cena pedir em `pendencias` ("Consolide as memórias de…"), rode `show <id>`, escreva em 1 a 3 frases o que o NPC sente e sabe sobre o PC e o que mudou entre eles, e grave `memory.consolidate` com os `#ids` listados. O resumo vira a `relacao` do NPC na cena e não envelhece; as originais continuam no `show`. Inclua o resumo anterior (RELAÇÃO) nos ids para atualizá-lo.
 - Companheiros (`companion: true`) seguem o PC e opinam com a voz deles.
 
 ## Mundo vivo
@@ -126,7 +127,7 @@ create.event  {in:"3h", text, place?}                       link {from, to, minu
 move {who, to}   update {id, name?, summary?, details?, status?, ac?, max_hp?, persona?, schedule?, companion?, faction?, notes?, props?, features_add?, spells_add?, spells_remove?, portrait?, parent?, goal?}
 hp {who, damage?|heal?|temp?}   condition {who, add?[], remove?[]}   money {who, amount:"-5po"|"3pp", reason?}
 item.give {item, to, qty?}   item.qty {item, delta}   item.equip {item, equipped}
-attitude {npc, delta, reason}   memory {npcs:[...], text, importance?(1-3)}   fact {text, about?, secret?, lore?}   reveal {fact:<n>}
+attitude {npc, delta, reason}   memory {npcs:[...], text, importance?(1-3)}   memory.consolidate {npc, ids:[#,#,...], text, importance?}   fact {text, about?, secret?, lore?}   reveal {fact:<n>}
 quest.update {quest, status?, complete?:[índices], add?:[...], summary?, reveal?}
 clock.tick {clock, n?}   clock.resolve {clock, outcome}   event.resolve {event:<n>, outcome}
 xp {who, amount}   slot.use {who, level}   time {advance:"30m"}

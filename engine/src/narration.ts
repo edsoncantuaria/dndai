@@ -158,6 +158,11 @@ export function expandRefs(db: DB, text: string): string {
   })
 }
 
+/** Nomes próprios que o motor não conhece e ids curtos inexistentes (sem as regras de cena). */
+export function unknownNames(db: DB, text: string): string[] {
+  return citedProblems(db, text)
+}
+
 export function assertNarration(db: DB, text: string): void {
   const problems = narrationProblems(db, text)
   if (!problems.length) return

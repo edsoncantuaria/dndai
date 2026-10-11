@@ -216,6 +216,33 @@ describe("economia de tokens na conversa", () => {
     assert.deepEqual(changesOf(w, 1, 1), ["+ gancho h1 (promessa): Mara prometeu uma lâmina", "~ atitude de Mara: 0 → 25"])
   })
 
+  it("consolidação: o Mestre resume, o motor guarda as originais e mostra a relação", () => {
+    beginTurn(w, slug, "passa a semana ajudando na forja")
+    apply(Array.from({ length: 6 }, (_, i) => ({ op: "memory", npcs: ["n1"], text: `Kael ajudou na forja no dia ${i + 1}` })))
+    assert.match(buildContext(w, slug, { cena: true }), /Consolide as memórias de Mara \(n1, 6 soltas\)/)
+    const ids = (w.prepare("SELECT id FROM memories WHERE npc_id = 'npc:mara' ORDER BY id").all() as { id: number }[]).map((m) => m.id)
+    assert.match(runCli(["-c", slug, "show", "n1"]), new RegExp(`#${ids[0]} \\[dia`))
+    assert.throws(() => apply([{ op: "memory.consolidate", npc: "n1", ids, text: "Kael contou a Zorvak que é bom ferreiro." }]), /Zorvak/)
+    apply([{ op: "memory.consolidate", npc: "n1", ids, text: "Mara confia em {pc}: ele trabalhou seis dias na forja sem pedir nada." }])
+    assert.throws(() => apply([{ op: "memory.consolidate", npc: "n1", ids: ids.slice(0, 2), text: "de novo, outra vez resumindo" }]), /já foi resumida/)
+    apply([{ op: "time", advance: "10d" }])
+    const ctx = buildContext(w, slug, { cena: true })
+    assert.match(ctx, /Mara confia em Kael: ele trabalhou seis dias/)
+    assert.doesNotMatch(ctx, /Consolide as memórias/)
+    const show = runCli(["-c", slug, "show", "n1"])
+    assert.match(show, /RELAÇÃO \[dia \d+\] Mara confia em Kael/)
+    assert.match(show, /Kael ajudou na forja no dia 1 \(resumida em #\d+\)/)
+  })
+
+  it("campanha anterior aos ids curtos ganha códigos ao abrir", () => {
+    w.exec("DELETE FROM codes")
+    w.close()
+    w = openCampaign(slug)
+    const ctx = buildContext(w, slug, { cena: true })
+    assert.doesNotMatch(ctx, /npc:mara|place:vila/)
+    assert.match(ctx, /\bn\d+,Mara,/)
+  })
+
   it("skill: núcleo sem as seções sob demanda", () => {
     const full = skillText("tudo")
     const core = skillText()
