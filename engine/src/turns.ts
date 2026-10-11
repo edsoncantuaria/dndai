@@ -4,7 +4,7 @@ import { closeIfNeeded } from "./chapters.ts"
 import { all, type DB, getMeta, index, log, metaNum, setMeta, transaction } from "./db.ts"
 import { assertWorld } from "./invariants.ts"
 import { assertCanUndo, recordTurnClosed, recordUndo } from "./journal.ts"
-import { assertNarration } from "./narration.ts"
+import { assertNarration, expandRefs } from "./narration.ts"
 import { captureSceneSnap } from "./scene.ts"
 import { fmtMoney, getPlace, now, pcId, getCharacter } from "./world.ts"
 
@@ -57,9 +57,10 @@ export function beginTurn(db: DB, slug: string, action: string): string[] {
 }
 
 /** Narração exibida na mesa. Pode ser gravada em partes durante o turno (ex.: antes de pedir uma rolagem). */
-export function narrate(db: DB, text: string): string[] {
+export function narrate(db: DB, raw: string): string[] {
   if (getMeta(db, "turn_open") !== "1") throw new Error("Não há turno aberto.")
-  if (!text.trim()) throw new Error("Narração vazia.")
+  if (!raw.trim()) throw new Error("Narração vazia.")
+  const text = expandRefs(db, raw)
   assertNarration(db, text)
   transaction(db, () => addNarration(db, metaNum(db, "turn"), text))
   return ["Narração registrada para a mesa."]
@@ -73,8 +74,9 @@ function addNarration(db: DB, turn: number, text: string): void {
   db.prepare("UPDATE turns SET narration = ? WHERE n = ?").run(all.map((r) => r.text).join("\n\n"), turn)
 }
 
-export function endTurn(db: DB, summary: string, narration: string): string[] {
+export function endTurn(db: DB, summary: string, raw: string): string[] {
   if (getMeta(db, "turn_open") !== "1") throw new Error("Não há turno aberto.")
+  const narration = expandRefs(db, raw)
   if (summary.trim().length < 10) throw new Error("O resumo do turno precisa descrever o que aconteceu (mín. 10 caracteres). Ele é a memória de longo prazo.")
   if (narration.trim()) assertNarration(db, narration)
   const n = metaNum(db, "turn")
@@ -100,7 +102,7 @@ export function endTurn(db: DB, summary: string, narration: string): string[] {
   if (due.length) warnings.push(`Atenção: eventos vencidos não resolvidos: ${due.map((e) => `#${e.id}`).join(", ")}.`)
   const fired = all<{ id: string }>(db, "SELECT id FROM clocks WHERE status = 'disparado'")
   if (fired.length) warnings.push(`Atenção: agendas disparadas não resolvidas: ${fired.map((c) => c.id).join(", ")}.`)
-  const state = pcStateLine(db)
+  const state = transaction(db, () => pcStateChange(db))
   return [`Turno ${n} fechado e registrado na crônica.`, ...(state ? [state] : []), ...warnings]
 }
 
@@ -140,4 +142,16 @@ export function pcStateLine(db: DB): string | undefined {
   const place = pc.place_id ? getPlace(db, pc.place_id).name : "nenhum local"
   const present = all<{ name: string }>(db, "SELECT name FROM characters WHERE kind = 'npc' AND status <> 'morto' AND place_id = ?", pc.place_id ?? "").map((c) => c.name)
   return `Estado do PC no motor: ${pc.name} em ${place} · PV ${pc.hp}/${pc.max_hp} · ${fmtMoney(pc.cp)} · com ${present.join(", ") || "ninguém"}.`
+}
+
+/**
+ * A linha de conferência só quando mudou desde a última que o Mestre viu: repetir a mesma linha a cada
+ * apply só engorda a conversa. Chame dentro de transação.
+ */
+export function pcStateChange(db: DB): string | undefined {
+  const line = pcStateLine(db)
+  if (!line) return undefined
+  if (getMeta(db, "pc_state_shown") === line) return "Estado do PC no motor: sem mudança."
+  setMeta(db, "pc_state_shown", line)
+  return line
 }

@@ -49,7 +49,8 @@ function signature(db: DB): string {
   })
 }
 
-export function sceneDoc(db: DB, slug: string): Record<string, unknown> {
+/** `cena: true` ignora o delta (conversa nova do Mestre não viu a cena anterior). */
+export function sceneDoc(db: DB, slug: string, opts: { cena?: boolean } = {}): Record<string, unknown> {
   const turn = metaNum(db, "turn")
   const open = getMeta(db, "turn_open") === "1"
   const doc: Record<string, unknown> = {
@@ -123,7 +124,7 @@ export function sceneDoc(db: DB, slug: string): Record<string, unknown> {
     indice,
   }
   const snapRaw = getMeta(db, "scene_snap")
-  if (!snapRaw) return { ...doc, modo: "cena", ...corpo }
+  if (!snapRaw || opts.cena) return { ...doc, modo: "cena", ...corpo }
   const snap = JSON.parse(snapRaw) as { turn: number; sig: string }
   const sig = signature(db)
   if (snap.sig === sig) {
@@ -132,8 +133,8 @@ export function sceneDoc(db: DB, slug: string): Record<string, unknown> {
   return { ...doc, modo: "delta", desde: snap.turn, mudou: true, ...corpo, dia: clockParts(now(db)).day }
 }
 
-export function renderScene(db: DB, slug: string, opts: { json?: boolean } = {}): string {
-  const doc = sceneDoc(db, slug)
+export function renderScene(db: DB, slug: string, opts: { json?: boolean; cena?: boolean } = {}): string {
+  const doc = sceneDoc(db, slug, opts)
   return opts.json ? JSON.stringify(doc) : encodeToon(doc)
 }
 

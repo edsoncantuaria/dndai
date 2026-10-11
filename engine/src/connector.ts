@@ -31,7 +31,7 @@ const ALLOW: Record<string, Set<string>> = {
   rest: new Set(["dice"]),
   levelup: new Set(["roll"]),
   narrate: new Set(["text"]),
-  context: new Set(["full", "json"]),
+  context: new Set(["full", "json", "cena"]),
   resume: new Set(["page", "limit", "chapter"]),
   recall: new Set(["limit"]),
 }
@@ -130,7 +130,7 @@ export function buildConnector(secret: string): McpServer {
   server.registerTool(
     "dnd_ler",
     {
-      description: "Lê sem alterar nada. Saída em TOON com ids curtos (n1, l2, i3, f4, q5, h5). context (delta desde o último turno), context --full, context --json, resume, show <id>, fact <id>, chapter, recall <termos>, rolls, log, validate, atlas, srd monster|spell <busca>, skill, help.",
+      description: "Lê sem alterar nada. Saída em TOON com ids curtos (n1, l2, i3, f4, q5, h5). context (delta desde o último turno), context --cena (cena inteira), context --full, context --json, resume, show <id>, fact <id>, chapter, recall <termos>, rolls, log, validate, atlas, srd monster|spell <busca>, skill, help.",
       inputSchema: shape,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },

@@ -76,9 +76,9 @@ function npcBlock(db: DB, row: CharacterRow, detailed: boolean): string[] {
 }
 
 /** Briefing do Mestre. Padrão: TOON compacto (ou delta). `--full` devolve a prosa antiga; `--json` devolve o objeto. */
-export function buildContext(db: DB, slug: string, mode: { full?: boolean; json?: boolean } = {}): string {
+export function buildContext(db: DB, slug: string, mode: { full?: boolean; json?: boolean; cena?: boolean } = {}): string {
   if (mode.full) return buildContextProse(db, slug)
-  return renderScene(db, slug, { json: mode.json })
+  return renderScene(db, slug, { json: mode.json, cena: mode.cena })
 }
 
 /** Prosa completa — linha de base de tokens e depuração. */
@@ -280,7 +280,7 @@ export function recall(db: DB, query: string, limit = 15): string {
 export function resume(db: DB, slug: string, opts: { page?: number; limit?: number; chapter?: number } = {}): string {
   const limit = Math.min(40, Math.max(1, opts.limit ?? 12))
   const page = Math.max(1, opts.page ?? 1)
-  const out = [buildContext(db, slug), ""]
+  const out = [buildContext(db, slug, { cena: true }), ""]
   const chapters = all<{ n: number; from_turn: number; to_turn: number; summary: string }>(db, "SELECT n, from_turn, to_turn, summary FROM chapters ORDER BY n")
   if (opts.chapter) {
     const c = chapters.find((ch) => ch.n === opts.chapter)
@@ -301,6 +301,9 @@ export function resume(db: DB, slug: string, opts: { page?: number; limit?: numb
   if (!turns.length) out.push("(nenhum turno fechado nesta página)")
   for (const t of turns.reverse()) out.push(`T${t.n} ${fmtClock(t.started_min)} — Jogador: ${t.action} → ${t.summary}`)
   if (offset + limit < total) out.push(`Há mais. Peça resume --page ${page + 1}.`)
+  // Continuidade de voz para uma conversa nova do Mestre: a última narração exibida, como foi.
+  const last = page === 1 ? one<{ turn: number; text: string }>(db, "SELECT turn, text FROM narrations ORDER BY id DESC LIMIT 1") : undefined
+  if (last) out.push("", `## ÚLTIMA NARRAÇÃO (T${last.turn})`, last.text)
   const places = all<{ id: string; name: string; summary: string; visited: number }>(db, "SELECT id, name, summary, visited FROM places ORDER BY created_turn")
   out.push("", "## LOCAIS DO MUNDO", ...places.map((p) => `- ${p.name} [${p.id}]${p.visited ? "" : " (inexplorado)"}: ${p.summary}`))
   const factions = all<{ id: string; name: string; summary: string }>(db, "SELECT id, name, summary FROM factions")

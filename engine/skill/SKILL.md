@@ -33,8 +33,8 @@ Quando a conversa foi aberta pelo servidor dndai (mensagens começando com `[mes
 - **Rolagem não fica para depois:** se `turn begin` recusar por rolagem pendente, não narre adiante. Lembre o jogador de rolar o dado pedido e encerre a resposta. Você não cancela a rolagem do jogador.
 - Ação nova do jogador → protocolo normal (`turn begin` com o texto dele). Se ainda houver turno aberto sem rolagem pendente, feche-o antes (`turn end`).
 - **Rolagens do jogador sempre com `--mesa`**: o jogador rola os dados 3D na mesa. Peça a rolagem na narração ("Faça um teste de Percepção"), grave essa narração com `dnd -c <slug> narrate <<'EOF' ... EOF`, **deixe o turno aberto** e encerre a resposta. Quando chegar `Mesa: Rolagem #N resolvida...`, **não** abra outro turno: rode `context`, narre a consequência, grave com `apply` e feche com `turn end`.
-- A mesa exibe a narração que você grava no motor (`narrate` durante o turno, `turn end --narration -` ao fechar), com a formatação exata. Toda resposta precisa gravar sua narração por um desses dois. Sua resposta final no chat deve ser esse mesmo texto: só a narração (e a linha discreta de dados), sem comandos, ids, JSON ou comentários de bastidor.
-- Se a conversa for reaberta (mensagem de configuração nova), rode `resume` e continue de onde o motor parou.
+- A mesa exibe a narração que você grava no motor (`narrate` durante o turno, `turn end --narration -` ao fechar), com a formatação exata. Toda resposta precisa gravar sua narração por um desses dois. **Não repita a narração no chat**: sua resposta final é só `✓`. Resposta `✓` sem narração gravada vira erro para o jogador.
+- Se a conversa for reaberta (mensagem de configuração nova, por exemplo a cada capítulo fechado), rode `resume`: ele traz a cena inteira, os turnos recentes e a última narração. Continue de onde o motor parou, na mesma voz.
 
 ## Multiverso compartilhado
 
@@ -64,9 +64,9 @@ O mundo é **um só para todos os jogadores** e cresce a cada história. Cada ca
    - Combate: `combat start <ids>`, siga a ordem com `combat next`, NPCs agem com `attack`; `combat end` ao final. PC a 0 PV: `deathsave pc` na vez dele (`--mesa` no Modo mesa).
    - **Itens do jogador** (beber poção, equipar armadura, sacar/guardar arma, largar algo): use `dnd -c <slug> item <usar|equipar|guardar|empunhar|embainhar|largar> <item>`. O motor rola a cura, recalcula a CA e faz quem está em cena reagir à arma em punho (com memória). Nunca simule isso à mão com `hp`/`update`.
 4. **Crie antes de narrar.** Nome novo só nasce em `create.*`. Cite quem já existe pelo id curto (`n1`, `l2`). `recall` junta a busca textual com uma busca local de ofício (estalajadeiro acha o taverneiro).
-5. Narre usando só o que o `context`/`show` mostrou, o resultado do motor e o que o `apply` acabou de criar. Se a narração citar um morto agindo, um lugar errado, um item que o PC não tem, um id inexistente ou um nome que o motor não conhece, **nada é publicado**: corrija o texto e envie de novo.
+5. Na narração, cite entidades pelo id entre chaves: `{n1}` vira o nome exato do NPC na mesa (vale para `pc`, NPC, local, item, facção, missão e agenda; não para fato ou gancho). Narre usando só o que o `context`/`show` mostrou, o resultado do motor e o que o `apply` acabou de criar. Se a narração citar um morto agindo, um lugar errado, um item que o PC não tem, um id inexistente ou um nome que o motor não conhece, **nada é publicado**: corrija o texto e envie de novo.
 6. **Grave as consequências** num único `apply`: `memory` (importância 1 some do contexto em um dia, 2 em três, 3 fica), `attitude`, `fact` (`source`: motor/jogador/mestre/npc; `truth`: verdade/boato/mentira — boato e mentira não são fato), `hook` (promessa, ameaça, mistério), `money` (até 500 po no turno; acima disso `confirm` e reason; teto 5000 po), `hp` (cura exige `source` e `reason`; dano fixo até 300; morte só por dano), `item.*`, `quest.*`, `move`, `time`. XP não pula nível.
-7. **Checklist antes de fechar** (compare a narração com o motor): o PC mudou de lugar? (`move pc` — e os companheiros vão junto) · gastou, pagou ou deixou dinheiro? (`money`) · usou, deu, perdeu ou pegou item? (`item.*`) · NPCs entraram ou saíram de cena? (`move`) · quem presenciou lembra? (`memory`) · passou tempo? (`time`). Todo `apply` termina mostrando o estado do PC no motor: se não bater com o que você narrou, corrija com outro `apply` **antes** do `turn end`.
+7. **Checklist antes de fechar** (compare a narração com o motor): o PC mudou de lugar? (`move pc` — e os companheiros vão junto) · gastou, pagou ou deixou dinheiro? (`money`) · usou, deu, perdeu ou pegou item? (`item.*`) · NPCs entraram ou saíram de cena? (`move`) · quem presenciou lembra? (`memory`) · passou tempo? (`time`). Todo `apply` termina mostrando o estado do PC no motor (ou "sem mudança", se é o mesmo que você já viu): se não bater com o que você narrou, corrija com outro `apply` **antes** do `turn end`.
 8. `dnd -c <slug> turn end --summary "<resumo factual: quem, o quê, onde, resultado>" --narration -` com a narração enviada pela entrada padrão (heredoc), para a mesa exibir.
 
 Errou feio? `undo` volta o mundo, no máximo duas vezes seguidas. O dado rolado continua em `rolls` marcado como desfeito: não existe rerrolagem limpa. Depois que o PC existe, não há mais preparação solta: toda mudança pede turno aberto. Quando o tempo anda 12h ou mais, facções com objetivo deixam fato secreto `FORA DE CENA` — narre isso, não invente o que aconteceu longe.
@@ -105,7 +105,7 @@ Errou feio? `undo` volta o mundo, no máximo duas vezes seguidas. O dado rolado 
   ```
 - Mostre o resultado dos dados na ficção ("a lâmina encontra a fresta da armadura") e informe os números de forma discreta ao final, ex. `🎲 Ataque 17 vs CA 15 — acerto, 7 de dano`.
 - Termine com a situação em aberto e, quando útil, 2 a 4 opções sugeridas (o jogador pode fazer qualquer outra coisa).
-- Não mostre comandos, ids nem JSON ao jogador. Os bastidores ficam nas chamadas de ferramenta.
+- Não mostre comandos, ids soltos nem JSON ao jogador (`{n1}` vira nome antes de chegar à mesa). Os bastidores ficam nas chamadas de ferramenta.
 
 ## Referência do `apply` (lote JSON, atômico)
 

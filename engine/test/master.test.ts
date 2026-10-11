@@ -17,7 +17,7 @@ const { firstTurn, shellbyTransport } = await import("../src/master/shellby.ts")
 const { startMasterServer } = await import("../src/master/mcp.ts")
 const { startServer } = await import("../src/server.ts")
 const { openCampaign } = await import("../src/campaign.ts")
-const { beginTurn, narrate } = await import("../src/turns.ts")
+const { beginTurn, endTurn, narrate } = await import("../src/turns.ts")
 
 /** Shellby falso: exige start_here por escopo e responde ecoando o prompt. */
 function fakeShellby() {
@@ -147,6 +147,54 @@ describe("ponte mesa → Mestre (Shellby falso)", () => {
     const last = chatView("narr").messages.at(-1)!
     assert.equal(last.role, "mestre")
     assert.equal(last.text, "Parágrafo um.\n\nFaça um teste de Furtividade.")
+  })
+
+  it("resposta ✓ sem narração gravada vira erro visível, não um ✓ na mesa", async () => {
+    createCampaign("seco", { name: "S", premise: "p", tone: "" }).close()
+    let lastPrompt = ""
+    const m = createMaster({
+      submit: async (_s: string, _a: string, prompt: string) => {
+        lastPrompt = prompt
+        return "t"
+      },
+      poll: async () => ({ status: "completed" as const, response: lastPrompt.includes("configuração") ? "PRONTO" : "✓" }),
+    }, { log: () => undefined })
+    enqueue("seco", "jogador", "oi")
+    await m.drain("seco")
+    assert.match(lastPrompt, /só ✓/)
+    const v = chatView("seco")
+    assert.equal(v.master.status, "erro")
+    assert.match(v.master.error ?? "", /sem gravar a narração/)
+    assert.ok(!v.messages.some((x) => x.role === "mestre"))
+  })
+
+  it("capítulo fechado abre conversa nova do Mestre na próxima mensagem", async () => {
+    createCampaign("cap", { name: "C", premise: "p", tone: "" }).close()
+    const sent: { agent: string; prompt: string }[] = []
+    const m = createMaster({
+      submit: async (_s: string, agent: string, prompt: string) => {
+        sent.push({ agent, prompt })
+        return `t${sent.length}`
+      },
+      poll: async () => {
+        const last = sent.at(-1)!
+        if (last.prompt.includes("configuração")) return { status: "completed" as const, response: "PRONTO" }
+        const db = openCampaign("cap")
+        beginTurn(db, "cap", "segue")
+        endTurn(db, "Kael seguiu pela estrada sem incidentes.", "A estrada segue.")
+        if (sent.filter((x) => !x.prompt.includes("configuração")).length === 2) {
+          db.prepare("INSERT INTO chapters(n, from_turn, to_turn, summary) VALUES(1, 1, 2, 'c1')").run()
+        }
+        db.close()
+        return { status: "completed" as const, response: "✓" }
+      },
+    }, { log: () => undefined })
+    for (const text of ["um", "dois", "três"]) {
+      enqueue("cap", "jogador", text)
+      await m.drain("cap")
+    }
+    assert.deepEqual(sent.map((x) => (x.prompt.includes("configuração") ? `boot:${x.agent}` : x.agent)), ["boot:mestre-1", "mestre-1", "mestre-1", "boot:mestre-2", "mestre-2"])
+    assert.equal(chatView("cap").messages.filter((x) => x.role === "mestre").at(-1)!.text, "A estrada segue.")
   })
 
   it("erro do Mestre fica visível e não trava a fila", async () => {

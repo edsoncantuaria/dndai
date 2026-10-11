@@ -92,31 +92,70 @@ function knownTokens(db: DB): Set<string> {
   return known
 }
 
-function citedProblems(db: DB, text: string): string[] {
+/**
+ * Nome próprio no meio da frase precisa existir no motor. A primeira palavra de uma frase ou de uma fala
+ * (depois de travessão, aspas de abertura ou marca de voz) é maiúscula por ortografia e passa.
+ */
+function citedProblems(db: DB, raw: string): string[] {
   const problems: string[] = []
   const known = knownTokens(db)
-  let sentenceStart = true
+  const text = raw.replace(/\{[mf]\}/g, " ")
+  let start = true
   let cursor = 0
-  for (const raw of text.matchAll(/\S+/g)) {
-    const at = raw.index ?? 0
-    if (/[.!?\n]/.test(text.slice(cursor, at))) sentenceStart = true
-    cursor = at + raw[0].length
-    const core = raw[0].replace(/^[^\p{L}\d]+|[^\p{L}\d]+$/gu, "")
-    if (!core) continue
+  const unknown = new Set<string>()
+  const openers = new Map<string, [string, number]>()
+  for (const match of text.matchAll(/\S+/g)) {
+    const token = match[0]
+    const at = match.index ?? 0
+    if (text.slice(cursor, at).includes("\n")) start = true
+    cursor = at + token.length
+    const core = token.replace(/^[^\p{L}\d]+|[^\p{L}\d]+$/gu, "")
+    if (!core) {
+      if (/^[—–“«"]/.test(token)) start = true
+      continue
+    }
+    const opensSpeech = /^[—–“«"]/.test(token)
     if (isShortCode(core) && !entityOfCode(db, core)) {
       problems.push(`A narração cita ${core}, que não existe. Consulte com show ou crie com apply.`)
     }
-    if (/^\p{Lu}/u.test(core)) {
-      const word = core.replace(/[^\p{L}]/gu, "")
-      if (word.length >= 3) {
-        const f = fold(word)
-        const ok = known.has(f) || allowedToken(word) || (sentenceStart && STARTERS.has(f))
-        if (!ok) problems.push(`"${word}" não é uma entidade do motor. Nomes novos só nascem via apply; cite quem já existe pelo nome que está no contexto.`)
-      }
+    const word = core.replace(/[^\p{L}]/gu, "")
+    if (/^\p{Lu}/u.test(core) && word.length >= 3 && !known.has(fold(word)) && !allowedToken(word)) {
+      if (!start && !opensSpeech) unknown.add(word)
+      else openers.set(fold(word), [word, (openers.get(fold(word))?.[1] ?? 0) + 1])
     }
-    sentenceStart = false
+    start = /[.!?:…][”»"')\]]*$/.test(token)
+  }
+  // Abertura repetida em mais de uma frase costuma ser nome (“Zorvak ergue… Zorvak ri.”), não ortografia.
+  for (const [word, n] of openers.values()) if (n >= 2) unknown.add(word)
+  for (const word of unknown) {
+    problems.push(`"${word}" não é uma entidade do motor. Nomes novos só nascem via apply; cite quem já existe pelo nome que está no contexto.`)
   }
   return problems
+}
+
+const NAME_SQL: Record<string, string> = {
+  pc: "SELECT name FROM characters WHERE id = ?",
+  npc: "SELECT name FROM characters WHERE id = ?",
+  place: "SELECT name FROM places WHERE id = ?",
+  item: "SELECT name FROM items WHERE id = ?",
+  faction: "SELECT name FROM factions WHERE id = ?",
+  quest: "SELECT title AS name FROM quests WHERE id = ?",
+  clock: "SELECT name FROM clocks WHERE id = ?",
+}
+
+/**
+ * `{n1}` na narração vira o nome que está no motor ("Bram"). O Mestre escreve o id curto e a mesa
+ * recebe o nome exato. As marcas de voz `{m}`/`{f}` não são ids e ficam como estão.
+ */
+export function expandRefs(db: DB, text: string): string {
+  return text.replace(/\{(pc|[nlifqhkg]\d+)\}/g, (_, code: string) => {
+    const entity = entityOfCode(db, code)
+    if (!entity) throw new Error(`A narração cita {${code}}, que não existe. Consulte com show ou crie com apply. Nada foi gravado.`)
+    const sql = NAME_SQL[entity.split(":")[0]]
+    const name = sql ? (all<{ name: string }>(db, sql, entity)[0]?.name) : undefined
+    if (!name) throw new Error(`{${code}} não tem nome para exibir (fatos e ganchos não entram na narração por id). Nada foi gravado.`)
+    return name
+  })
 }
 
 export function assertNarration(db: DB, text: string): void {

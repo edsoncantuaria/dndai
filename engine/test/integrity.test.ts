@@ -22,6 +22,8 @@ const { countTokens } = await import("../src/toon.ts")
 const { buildView } = await import("../src/view.ts")
 const { strictRefs } = await import("../src/world.ts")
 const { parseReplay, replaySteps } = await import("../src/replay.ts")
+const { skillText } = await import("../src/skill.ts")
+const { narrationProblems } = await import("../src/narration.ts")
 
 let slug = ""
 let w: ReturnType<typeof openCampaign>
@@ -105,6 +107,10 @@ describe("mundo que não alucina", () => {
     assert.throws(() => narrate(w, "Mara saca a espada e ataca."), /morto/)
     assert.throws(() => narrate(w, "Você vê Borin na porta."), /Borin/)
     assert.throws(() => narrate(w, "O símbolo n99 brilha na parede."), /n99/)
+    // Início de frase ou de fala é maiúsculo por ortografia; nome no meio da frase, não.
+    assert.deepEqual(narrationProblems(w, "— {m} Forasteiros, hein? — resmunga Kael. — Paguem adiantado.\nChuva fina cai. Ela sussurra: “{f}Não confie nele.”"), [])
+    assert.deepEqual(narrationProblems(w, "Lá fora, Zorvak espera. Silêncio."), ['"Zorvak" não é uma entidade do motor. Nomes novos só nascem via apply; cite quem já existe pelo nome que está no contexto.'])
+    assert.match(narrationProblems(w, "Zorvak ergue a espada. Zorvak ri.").join(), /Zorvak/)
     narrate(w, "Parágrafo um.\n\nFaça um teste de Furtividade.")
     endTurn(w, "Kael derrubou Mara e ficou atento.", "")
   })
@@ -166,6 +172,47 @@ describe("TOON", () => {
     assert.ok(tt < tp * 0.75, `TOON ${tt} deveria ser bem menor que a prosa ${tp}`)
     assert.match(toon, /trai a vila/)
     assert.match(toon, /n1|Borin/)
+  })
+})
+
+describe("economia de tokens na conversa", () => {
+  it("{id} na narração vira o nome do motor; voz {f} fica; id inexistente recusa", () => {
+    beginTurn(w, slug, "conversa com a ferreira")
+    narrate(w, "— {f} Volte amanhã — diz {n1}, na forja de {l1}.")
+    const text = (w.prepare("SELECT text FROM narrations ORDER BY id DESC LIMIT 1").get() as { text: string }).text
+    assert.equal(text, "— {f} Volte amanhã — diz Mara, na forja de Vila.")
+    assert.throws(() => narrate(w, "{n99} aparece."), /\{n99\}, que não existe/)
+  })
+
+  it("estado do PC só reaparece quando muda", () => {
+    runCli(["-c", slug, "turn", "begin", "--action", "anda pela vila"])
+    const first = runCli(["-c", slug, "apply"], JSON.stringify([{ op: "memory", npcs: ["n1"], text: "Kael passou pela forja" }]))
+    const same = runCli(["-c", slug, "apply"], JSON.stringify([{ op: "memory", npcs: ["n1"], text: "Kael olhou as lâminas" }]))
+    const moved = runCli(["-c", slug, "apply"], JSON.stringify([{ op: "move", who: "pc", to: "l2" }]))
+    assert.match(first, /Estado do PC no motor: Kael em Vila/)
+    assert.match(same, /sem mudança/)
+    assert.match(moved, /Kael em Mina/)
+  })
+
+  it("resume traz a cena inteira e a última narração mesmo depois do turn end", () => {
+    beginTurn(w, slug, "olha a vila")
+    endTurn(w, "Kael olhou a vila e não viu nada estranho.", "A vila dorme sob a chuva.")
+    assert.match(buildContext(w, slug), /modo: delta/)
+    const r = runCli(["-c", slug, "resume"])
+    assert.match(r, /modo: cena/)
+    assert.match(r, /ÚLTIMA NARRAÇÃO \(T1\)\nA vila dorme sob a chuva\./)
+  })
+
+  it("skill: núcleo sem as seções sob demanda", () => {
+    const full = skillText("tudo")
+    const core = skillText()
+    assert.doesNotMatch(core, /## Preparação/)
+    assert.match(core, /## Modo mesa/)
+    assert.match(core, /skill preparacao/)
+    assert.match(skillText("preparacao"), /^## Preparação/)
+    assert.throws(() => skillText("xyz"), /não existe/)
+    console.log(`TOKENS skill tudo=${countTokens(full)} nucleo=${countTokens(core)}`)
+    assert.ok(countTokens(core) < countTokens(full))
   })
 })
 

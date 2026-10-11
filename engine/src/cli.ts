@@ -25,7 +25,8 @@ import { startMasterServer } from "./master/mcp.ts"
 import { startServer } from "./server.ts"
 import { advanceTime, endCombat, getCombat, nextTurn, startCombat } from "./simulation.ts"
 import { searchSrd } from "./srd.ts"
-import { beginTurn, endTurn, narrate, pcStateLine, requireOpenTurn, undoTurn } from "./turns.ts"
+import { skillText } from "./skill.ts"
+import { beginTurn, endTurn, narrate, pcStateChange, requireOpenTurn, undoTurn } from "./turns.ts"
 import { getCharacter, parseDuration, pcId, resolveRef } from "./world.ts"
 
 const BOOL_FLAGS = new Set(["adv", "dis", "mesa", "spell", "roll", "help", "full", "json"])
@@ -194,9 +195,9 @@ function dispatch(argv: string[], input?: string): string {
       })
     }
     case "skill":
-      return readFileSync(join(import.meta.dirname, "..", "skill", "SKILL.md"), "utf8")
+      return skillText(sub)
     case "context":
-      return withCampaign(args, (db, slug) => buildContext(db, slug, { full: args.flags.full === true, json: args.flags.json === true }))
+      return withCampaign(args, (db, slug) => buildContext(db, slug, { full: args.flags.full === true, json: args.flags.json === true, cena: args.flags.cena === true }))
     case "resume":
       return withCampaign(args, (db, slug) => resume(db, slug, { page: num(args, "page"), limit: num(args, "limit"), chapter: num(args, "chapter") }))
     case "chapter":
@@ -284,7 +285,7 @@ function dispatch(argv: string[], input?: string): string {
     case "apply":
       return mutate(args, (db) => {
         const out = applyOps(db, parseOps(readJson(args)))
-        const state = pcStateLine(db)
+        const state = pcStateChange(db)
         return state ? [...out, `${state} Confira com a narração antes do turn end.`] : out
       })
     case "time":
