@@ -87,6 +87,7 @@ interface ItemView {
   actions: ("usar" | "equipar" | "guardar" | "empunhar" | "embainhar" | "largar")[]   // válidas agora (vazio no chão ou se o PC não pode agir)
   drawn: boolean                       // arma em punho (visível a todos em cena)
   effect: string | null                // ex.: "Cura 2d4+2 PV", "Dano 1d8 cortante", "CA 12 + Des", "CA +2"
+  rarity: "comum" | "incomum" | "raro" | "muito raro" | "lendário" | "artefato" | null  // só se props.rarity for um desses (ou o inglês equivalente); senão null
 }
 
 interface LocationView {
@@ -107,7 +108,7 @@ interface NpcView {
 
 interface CombatView {
   round: number
-  order: { id: string; name: string; initiative: number; hp: number; maxHp: number; status: string; current: boolean; isPc: boolean }[]
+  order: { id: string; name: string; initiative: number; hp: number; maxHp: number; status: string; current: boolean; isPc: boolean; portrait: string | null }[]
 }
 
 interface QuestView { id: string; title: string; summary: string; status: "ativa" | "concluida" | "falhou" | "abandonada"; giver: string | null; objectives: { text: string; done: boolean }[] }

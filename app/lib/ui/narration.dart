@@ -15,7 +15,7 @@ List<InlineSpan> _inline(String text, TextStyle base) {
   for (final m in re.allMatches(text)) {
     if (m.start > i) spans.add(TextSpan(text: text.substring(i, m.start)));
     if (m.group(1) != null) {
-      spans.add(TextSpan(text: m.group(1), style: base.copyWith(fontWeight: FontWeight.w700, color: Palette.gold)));
+      spans.add(TextSpan(text: m.group(1), style: base.copyWith(fontWeight: FontWeight.w700, color: Palette.inkEmph)));
     } else {
       spans.add(TextSpan(text: m.group(2), style: base.copyWith(fontStyle: FontStyle.italic)));
     }

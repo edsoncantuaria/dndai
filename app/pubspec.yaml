@@ -9,7 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  google_fonts: ^8.0.0
   http: ^1.6.0
   flutter_secure_storage: ^9.2.4
   shared_preferences: ^2.5.6
@@ -22,3 +21,16 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  fonts:
+    - family: Cinzel
+      fonts:
+        - asset: assets/fonts/Cinzel-Regular.ttf
+        - asset: assets/fonts/Cinzel-SemiBold.ttf
+          weight: 600
+    - family: EBGaramond
+      fonts:
+        - asset: assets/fonts/EBGaramond-Regular.ttf
+        - asset: assets/fonts/EBGaramond-Italic.ttf
+          style: italic
+        - asset: assets/fonts/EBGaramond-Bold.ttf
+          weight: 700

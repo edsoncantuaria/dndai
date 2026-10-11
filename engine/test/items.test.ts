@@ -112,6 +112,28 @@ describe("ações de item", () => {
     assert.match(beginTurn(w, db.getMeta(w, "slug"), "faz outra coisa")[0], /Turno 1 aberto/)
   })
 
+  it("raridade só entra na visão quando é conhecida; retrato do combate vem da ficha", async () => {
+    const { startCombat } = await import("../src/simulation.ts")
+    db.transaction(w, () => {
+      applyOps(w, parseOps([
+        { op: "create.item", owner: "pc", name: "Manto", kind: "manto", props: { rarity: "very rare" } },
+        { op: "create.item", owner: "pc", name: "Seixo", kind: "equipamento", props: { rarity: "brilhante" } },
+        { op: "update", id: "pc", portrait: "https://example.test/lyra.png" },
+        { op: "update", id: "npc:brom", portrait: "https://example.test/brom.png" },
+      ]))
+      startCombat(w, ["npc:brom"])
+    })
+    const view = buildView(w, "x")
+    const inv = view.pc!.inventory as { name: string; rarity: string | null }[]
+    assert.equal(inv.find((i) => i.name === "Manto")!.rarity, "muito raro")
+    assert.equal(inv.find((i) => i.name === "Seixo")!.rarity, null)
+    assert.equal(inv.find((i) => i.name === "Rapieira")!.rarity, null)
+    const order = view.combat!.order as { name: string; portrait: string | null }[]
+    assert.equal(order.find((o) => o.name === "Lyra")!.portrait, "https://example.test/lyra.png")
+    assert.equal(order.find((o) => o.name === "Brom")!.portrait, "https://example.test/brom.png")
+    assert.doesNotMatch(JSON.stringify(view), /gancho|boato|persona/)
+  })
+
   it("chegar com a arma em punho provoca reação no novo local e limpa a do anterior", () => {
     act("empunhar", "Rapieira")
     db.transaction(w, () => applyOps(w, parseOps([{ op: "move", who: "pc", to: "Trilha" }])))

@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../api/models.dart';
 import '../dice3d/math3d.dart';
@@ -11,6 +10,7 @@ import '../dice3d/physics.dart';
 import '../dice3d/renderer.dart';
 import '../state/game_controller.dart';
 import '../theme.dart';
+import 'play_settings.dart';
 
 final _rng = Random.secure();
 
@@ -55,7 +55,7 @@ class _RollSheetState extends State<_RollSheet> with SingleTickerProviderStateMi
     _anim.addListener(() {
       final f = (_anim.value * (_rec.frames.length - 1)).round();
       if (f != _frame) {
-        if (_rec.impacts.contains(f)) HapticFeedback.lightImpact();
+        if (_rec.impacts.contains(f)) _feel(light: true);
         setState(() => _frame = f);
       }
     });
@@ -70,7 +70,7 @@ class _RollSheetState extends State<_RollSheet> with SingleTickerProviderStateMi
   /// Arremessa: sorteia os valores (gerador seguro), simula a física e toca a gravação; depois o motor confere.
   Future<void> _roll({V3? dir, double strength = 0.75}) async {
     if (_rolling || _outcome != null) return;
-    HapticFeedback.mediumImpact();
+    _feel();
     final values = widget.req.dice.map((s) => _rng.nextInt(s) + 1).toList();
     final rec = simulate(widget.req.dice, values: values, rng: _rng, throwDir: dir, strength: strength);
     setState(() {
@@ -81,7 +81,7 @@ class _RollSheetState extends State<_RollSheet> with SingleTickerProviderStateMi
     });
     _anim.duration = Duration(milliseconds: (rec.frames.length * 1000 / 60).round());
     await _anim.forward(from: 0);
-    HapticFeedback.heavyImpact();
+    _feel(heavy: true);
     final err = await widget.game.resolveRoll(widget.req.id, values);
     if (!mounted) return;
     setState(() {
@@ -92,6 +92,20 @@ class _RollSheetState extends State<_RollSheet> with SingleTickerProviderStateMi
         _outcome = widget.game.lastOutcome;
       }
     });
+  }
+
+  void _feel({bool heavy = false, bool light = false}) {
+    final settings = PlaySettingsScope.of(context);
+    if (settings.haptics) {
+      if (heavy) {
+        HapticFeedback.heavyImpact();
+      } else if (light) {
+        HapticFeedback.lightImpact();
+      } else {
+        HapticFeedback.mediumImpact();
+      }
+    }
+    if (settings.sounds) SystemSound.play(heavy ? SystemSoundType.alert : SystemSoundType.click);
   }
 
   /// Vantagem/desvantagem: o d20 descartado fica apagado; 20 natural mantido brilha.
@@ -211,7 +225,7 @@ class _OutcomeBanner extends StatelessWidget {
     };
     final mod = outcome.modifier == 0 ? '' : (outcome.modifier > 0 ? ' + ${outcome.modifier}' : ' − ${-outcome.modifier}');
     return Column(children: [
-      Text(label, style: GoogleFonts.cinzel(fontSize: 30, fontWeight: FontWeight.w800, color: color, letterSpacing: 2)),
+      Text(label, style: displayStyle(size: 30, color: color).copyWith(letterSpacing: 2, fontWeight: FontWeight.w800)),
       Text('${outcome.kept.isEmpty ? outcome.dice.join(' + ') : outcome.kept.first}$mod = ${outcome.total}${outcome.dc != null ? ' vs ${outcome.dc}' : ''}',
           style: const TextStyle(fontSize: 16, color: Palette.textDim)),
     ]);

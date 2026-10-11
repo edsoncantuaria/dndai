@@ -2,7 +2,7 @@
 
 > **Documento canônico** para revisão sênior, onboarding e agentes de IA. Descreve o sistema **como está implementado** (maio/2026). Complemento visual: **DESIGN_FRONTEND.md**. Índice de revisão: **VALIDACAO_SENIOR.md**.
 >
-> **Última revisão:** 2026-10-11. Neste branch o runtime jogável é o motor em `engine/` (SQLite, CLI `dnd`, conector MCP). O contrato, o contexto TOON e o isolamento do Mestre estão em [`engine/README.md`](../engine/README.md) e [`engine/API.md`](../engine/API.md). O texto abaixo descreve o stack PENAI anterior e não é o comportamento deste branch.
+> **Última revisão:** 2026-10-11. Neste branch o runtime jogável é o motor em `engine/` (SQLite, CLI `dnd`, conector MCP). O contrato, o contexto TOON e o isolamento do Mestre estão em [`engine/README.md`](../engine/README.md) e [`engine/API.md`](../engine/API.md). A mesa do jogador é o app Flutter em `app/` — layout, gavetas e acessibilidade em [`DESIGN_FRONTEND.md`](./DESIGN_FRONTEND.md). O texto abaixo descreve o stack PENAI anterior e não é o comportamento deste branch.
 
 ---
 
