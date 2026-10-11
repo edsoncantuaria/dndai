@@ -1,5 +1,7 @@
 # Contrato HTTP do motor (`dnd serve`)
 
+> **Última revisão:** 2026-10-11. A visão do jogador não inclui segredo, gancho, boato nem mentira — só fato com `truth = verdade` e `secret = 0`.
+
 > Multiverso: todas as campanhas compartilham o mesmo mundo (atlas). Locais, NPCs e facções de outras crônicas aparecem normalmente em `map`, `present` etc.; NPCs com resumo "aventureiro(a) da crônica X" são heróis de outros jogadores.
 
 Servidor local sem dependências (`node:http`), padrão `http://127.0.0.1:8790`.
@@ -24,7 +26,7 @@ A mesa mostra o estado, a narração de cada turno e as rolagens pedidas pelo Me
 
 Erros: `{ "error": "mensagem PT-BR" }` com status 4xx/5xx (404 campanha inexistente, 401 token).
 
-Autenticação: se o servidor tiver token (`--token`/`DNDAI_TOKEN`, obrigatório fora do loopback), envie `Authorization: Bearer <token>` ou `?token=<token>` (o SSE via `EventSource` precisa do query param). A mesa lê o token de `?token=` na própria URL e o guarda em `sessionStorage`.
+Autenticação: se o servidor tiver token (`--token`/`DNDAI_TOKEN`, obrigatório fora do loopback), envie **`Authorization: Bearer <token>`**. `?token=` continua aceito para o `EventSource` da web, que não define header. O app fora da web manda só o Bearer e guarda o token no armazenamento seguro do aparelho. O heartbeat do SSE é `: ping` a cada 15s; o cliente móvel trata 45s sem nenhuma linha como queda.
 
 Implantação: `dnd serve --static ../mesa/dist` serve a mesa e a API na mesma origem (sem CORS).
 

@@ -55,7 +55,7 @@ describe("tetos do mestre", () => {
     assert.throws(() => apply([{ op: "update", id: "Mara", status: "morto" }]), /morte só ocorre por dano/)
     assert.throws(() => apply([{ op: "money", who: "pc", amount: "100000po" }]), /teto/)
     assert.throws(() => apply([{ op: "xp", who: "pc", amount: 355000 }]), /pular nível|próximo/)
-    const kill = db.transaction(w, () => rollNow(w, { kind: "ataque", who: "pc:kael", target: "npc:mara", with: null, spell: false, damage: null, mode: "normal", bonus: 0, reason: "" }, [15, 6]))
+    const kill = db.transaction(w, () => rollNow(w, { kind: "ataque", who: "pc:kael", target: "npc:mara", with: null, spell: false, damage: null, mode: "normal", bonus: 0, reason: "" }, [15]))
     assert.equal(kill.outcome, "sucesso")
     assert.throws(() => db.transaction(w, () => rollNow(w, { kind: "ataque", who: "pc:kael", target: "npc:mara", with: null, spell: false, damage: null, mode: "normal", bonus: 0, reason: "" }, [15, 6])), /já está morto/)
   })
@@ -101,7 +101,7 @@ describe("dados fora do undo", () => {
 describe("mundo que não alucina", () => {
   it("rejeita narração de morto, nome novo e id inexistente; aceita a perícia", () => {
     beginTurn(w, slug, "Kael ataca")
-    db.transaction(w, () => rollNow(w, { kind: "ataque", who: "pc:kael", target: "npc:mara", with: null, spell: false, damage: null, mode: "normal", bonus: 0, reason: "" }, [15, 8]))
+    db.transaction(w, () => rollNow(w, { kind: "ataque", who: "pc:kael", target: "npc:mara", with: null, spell: false, damage: null, mode: "normal", bonus: 0, reason: "" }, [15]))
     assert.throws(() => narrate(w, "Mara saca a espada e ataca."), /morto/)
     assert.throws(() => narrate(w, "Você vê Borin na porta."), /Borin/)
     assert.throws(() => narrate(w, "O símbolo n99 brilha na parede."), /n99/)

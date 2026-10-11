@@ -1,5 +1,6 @@
 // Cena compacta para o Mestre: TOON por padrão, delta depois do primeiro turno fechado.
 import { all, type DB, getMeta, metaNum, one, setMeta } from "./db.ts"
+import { drawnWeapon, reactionOf } from "./items.ts"
 import { pendingRequests } from "./mechanics.ts"
 import { encodeToon } from "./toon.ts"
 import { clockParts, fmtClock, getCharacter, getPlace, now, pcId, type CharacterRow } from "./world.ts"
@@ -78,6 +79,8 @@ export function sceneDoc(db: DB, slug: string): Record<string, unknown> {
       status: c.status,
     }
     if (c.persona.secret) row.segredo = c.persona.secret
+    const reaction = reactionOf(db, n.id)
+    if (reaction) row.reacao = `Reagindo agora: ${reaction}`
     const mem = memoriesFor(db, n.id)[0]
     if (mem) row.lembra = mem.text
     return row
@@ -95,6 +98,7 @@ export function sceneDoc(db: DB, slug: string): Record<string, unknown> {
     ...(place ? [{ id: codeOf(db, place.id), nome: place.name, tipo: "local" }] : []),
     ...here.map((n) => ({ id: codeOf(db, n.id), nome: n.name, tipo: "npc" })),
   ]
+  const weapon = drawnWeapon(db, pc.id)
   const corpo = {
     pc: {
       id: codeOf(db, pc.id),
@@ -103,6 +107,7 @@ export function sceneDoc(db: DB, slug: string): Record<string, unknown> {
       ca: pc.ac,
       status: pc.status,
       local: place ? codeOf(db, place.id) : "",
+      ...(weapon ? { punho: `EM PUNHO: ${weapon}` } : {}),
     },
     local: place ? { id: codeOf(db, place.id), nome: place.name, tipo: place.kind, resumo: place.summary } : null,
     presentes,

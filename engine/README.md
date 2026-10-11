@@ -1,5 +1,7 @@
 # dndai engine
 
+> **Última revisão:** 2026-10-11 (conector com escopo, contexto TOON, anti-alucinação).
+
 Motor de mundo do dndai. É a **fonte única de verdade** de campanhas mestradas pelo ChatGPT via [Shellby MCP](../../../../Projetos/shellby-mcp). Substitui o backend PENAI (Fastify, Postgres, Temporal, Qdrant e Gemini), que fica no repo só para consulta.
 
 ```
@@ -14,7 +16,8 @@ Jogador ─▶ mesa (navegador) ─▶ dnd serve :8790 ─MCP─▶ dnd mestre :
 Também dá para jogar direto no ChatGPT (sem mesa), usando a skill.
 
 - **Sem infraestrutura:** Node ≥ 22.18 roda o TypeScript direto e o banco é `node:sqlite` com FTS5 para a memória. Dependências: `zod` e o SDK oficial de MCP.
-- **Anti-alucinação:** o Mestre só muda o mundo por `apply` (lote validado e atômico). Toda rolagem é feita pelo motor ou pela mesa. O `context` lista exatamente quem está em cena, o que cada NPC lembra e o que é fato.
+- **Anti-alucinação:** o Mestre só muda o mundo por `apply` (lote validado e atômico) e, no conector, só por id curto ou longo — nome novo nasce no `create`. A narração é recusada se citar morto agindo, lugar errado, item que o PC não tem, id inexistente ou nome que o motor não conhece. `turn end` confere invariantes (vivo com 0 PV, PV acima do máximo, referência solta).
+- **Contexto enxuto:** `dnd context` sai em TOON. A primeira leitura é a cena; as seguintes são o delta desde o último turno, com ids `n1`/`l2`/`i3`/`f4`/`q5`/`h6`. Detalhe sob demanda (`show`, `fact`). `--full` é a prosa antiga; `--json` é o objeto. Numa cena de teste (PC, três presentes, missão, gancho, fatos): **334 tokens de prosa, 173 de TOON (48% a menos), 364 de JSON**.
 - **Mundo vivo:** NPCs com persona, rotina, atitude e memórias próprias. Agendas (relógios) e eventos avançam sozinhos quando o tempo passa.
 - **Turnos com rollback:** `turn begin` guarda um backup e `dnd undo` restaura o estado anterior ao turno.
 
@@ -58,7 +61,9 @@ systemctl --user status dndai-conector dndai-tunnel
 journalctl --user -u dndai-conector -f
 ```
 
-Para trocar o segredo: apague `campaigns/conector-secret`, rode `systemctl --user restart dndai-conector` e atualize a URL do plugin no ChatGPT.
+Para trocar o segredo legado: apague `campaigns/conector-secret`, rode `systemctl --user restart dndai-conector` e atualize a URL do plugin no ChatGPT.
+
+O segredo legado só lê os slugs listados em `campaigns/conector-scope` (um por linha). Com uma campanha só, o arquivo é criado na primeira chamada. Com várias e sem o arquivo, o legado não lê mundo: use a URL `/mcp/<conteúdo de campaigns/<slug>/connector.secret>`, uma por campanha. Essa URL não cria outras campanhas. Auditoria em `campaigns/connector-audit.log` (hash do segredo, sem o segredo e sem o JSON). `world.db`, segredos e o diário ficam no modo 600.
 
 ## App (Flutter) e mesa visual
 
@@ -100,6 +105,9 @@ Para mudar vozes ou velocidade, edite o topo de `tts/server.py` e troque `VERSIO
 | `DNDAI_ESPEAK_LIB` / `DNDAI_ESPEAK_DATA` | do sistema | espeak-ng fora do caminho padrão |
 | `DNDAI_MESTRE_TOKEN` | — | token do MCP dndai-mestre |
 | `DNDAI_SRD_DIR` | `data/srd/2014/normalized` | snapshot SRD para `srd` e `create.npc {srd}` |
+| `DNDAI_BACKUP_DIR` | — | cópias de world/chat/atlas fora do repo; sem ela, o excesso de backups de turno vai para `backups/archive` |
+| `DNDAI_EMBED` | ligado | `off` deixa o `recall` só no FTS5 |
+| `DNDAI_RECORD` | — | caminho de um JSONL que grava cada comando da CLI para `dnd replay` |
 
 ## Código
 
@@ -112,7 +120,10 @@ Para mudar vozes ou velocidade, edite o topo de `tts/server.py` e troque `VERSIO
 | `src/mechanics.ts` | testes, ataques, dano, morte, descanso, nível, pedidos de rolagem |
 | `src/simulation.ts` | passagem do tempo, rotinas, agendas, eventos, viagem, combate |
 | `src/ops.ts` | lote `apply` (única via de mudança narrativa) |
-| `src/context.ts` | `context`, `resume`, `show`, `recall` (visão do Mestre, com segredos) |
+| `src/context.ts`, `src/scene.ts`, `src/toon.ts` | contexto do Mestre: prosa (`--full`), TOON e JSON |
+| `src/guard.ts`, `src/narration.ts`, `src/invariants.ts` | tetos de regra, narração e invariantes |
+| `src/journal.ts`, `src/scope.ts` | diário de dados append-only e escopo do conector |
+| `src/facts.ts`, `src/embed.ts`, `src/chapters.ts`, `src/codes.ts` | fatos com proveniência, busca local, capítulos, ids curtos |
 | `src/view.ts`, `src/server.ts` | visão do jogador e API HTTP da mesa (sem segredos) |
 | `src/master/` | MCP dndai-mestre: fila de conversa, cliente do Shellby, servidor MCP |
 | `src/cli.ts` | CLI `dnd` |

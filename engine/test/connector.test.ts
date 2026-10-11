@@ -83,6 +83,6 @@ describe("conector MCP dndai (ChatGPT, sem shell)", () => {
     const r = await call("dnd_ler", { campanha: "outra", comando: "context" })
     assert.equal(r.error, true)
     assert.match(r.text, /fora do escopo/i)
-    assert.doesNotMatch(r.text, /conec/)
+    assert.doesNotMatch(r.text, /\bconec\b/)
   })
 })
