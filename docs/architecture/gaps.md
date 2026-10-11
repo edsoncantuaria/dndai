@@ -2,7 +2,7 @@
 
 Registro **operacional** de riscos e melhorias — detalhe de design continua em `docs/ECOSSISTEMA.md`, módulos `docs/architecture/` e roadmap em `TODO-ARQUITETURA.md`.
 
-**Última revisão:** 2026-06-06 (triggers + BYOK UI + poda Redis snapshot)
+**Última revisão:** 2026-10-11
 
 ---
 
@@ -22,6 +22,7 @@ Registro **operacional** de riscos e melhorias — detalhe de design continua em
 | **P3** | Frontend | `turnPipelineStore` pub/sub manual vs XState | Skill F.1 — parcialmente endereçado |
 | **P3** | Frontend | `gameService.ts` facade vs `penaiApi` direto | Tipos movidos para `src/types/worldMap.ts`; migrar imports gradualmente |
 | **P3** | Frontend | `tsc --noEmit` — ~261 erros fora paths PENAI | Gate `typecheck:penai` verde; dívida legado utils/SRD |
+| **P3** | Engine | Busca semântica é trigrama local + léxico de ofícios, não um modelo | `engine/src/embed.ts`; `DNDAI_EMBED=off` cai no FTS |
 
 ---
 
@@ -29,6 +30,7 @@ Registro **operacional** de riscos e melhorias — detalhe de design continua em
 
 | Data | Gap | Resolução |
 |------|-----|-----------|
+| 2026-10-11 | Mestre podia ler outra campanha, escolher o dado, inflar economia e apagar o log no undo | Conector com escopo e allowlist, tetos em `guard.ts`, `rolls.db` append-only. Runtime: `engine/README.md` |
 | 2026-06-06 | UI BYOK vs billing créditos | UI BYOK-only; `clientAiAccess` sem ramo platform credits |
 | 2026-06-06 | Snapshot Redis não integrado PENAI | Won't fix — Postgres `session_snapshots` + Qdrant; Redis só pub/sub WS |
 | 2026-06-06 | Dupla fonte loading F.1 | `isLoading` derivado de `turnPipelinePhase`; removido `setIsLoading` PENAI |

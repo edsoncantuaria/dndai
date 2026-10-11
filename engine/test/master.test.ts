@@ -158,4 +158,23 @@ describe("ponte mesa → Mestre (Shellby falso)", () => {
     assert.equal(v.master.status, "erro")
     assert.match(v.master.error ?? "", /RATE_LIMITED/)
   })
+
+  it("reenvia sozinho quando o Shellby cai de rede", async () => {
+    let n = 0
+    const flaky = createMaster({
+      submit: async () => {
+        n++
+        if (n === 1) throw new Error("fetch failed")
+        return "turno-1"
+      },
+      poll: async () => ({ status: "completed" as const, response: "voltei" }),
+    }, { log: () => undefined, retryBaseMs: 15, maxSendAttempts: 3 })
+    createCampaign("retry", { name: "R", premise: "p", tone: "" }).close()
+    enqueue("retry", "jogador", "oi")
+    await flaky.drain("retry")
+    await new Promise((r) => setTimeout(r, 250))
+    const v = chatView("retry")
+    assert.notEqual(v.master.status, "erro")
+    assert.match(v.messages.map((m) => m.text).join("\n"), /voltei/)
+  })
 })

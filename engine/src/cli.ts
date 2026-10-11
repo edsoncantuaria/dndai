@@ -1,15 +1,20 @@
 // CLI `dnd`: interface do Mestre (ChatGPT via Shellby) com o motor.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { randomBytes } from "node:crypto"
 import { join } from "node:path"
 import { atlasStats, forgetCampaign, publish, sync } from "./atlas.ts"
-import { campaignsHome, createCampaign, listCampaigns, openCampaign, resolveCampaign } from "./campaign.ts"
+import { campaignsHome, createCampaign, listCampaigns, openCampaign, resolveCampaign, withCampaignLock } from "./campaign.ts"
+import { closeChapterNow, listChapters, showChapter } from "./chapters.ts"
+import { entityOfCode } from "./codes.ts"
 import { startConnector } from "./connector.ts"
 import { buildContext, recall, resume, showEntity } from "./context.ts"
 import { all, type DB, transaction } from "./db.ts"
+import { formatRollJournal } from "./journal.ts"
+import { worldProblems } from "./invariants.ts"
+import { parseReplay, replaySteps } from "./replay.ts"
 import { roll } from "./dice.ts"
 import {
-  cancelRequest, deathSave, levelUp, longRest, parseCheckKey, parseMode, pendingRequests, requestRoll, resolveCharRef,
+  cancelRequest, levelUp, longRest, parseCheckKey, parseMode, pendingRequests, requestRoll, resolveCharRef,
   type RollSpec, rollNow, shortRest,
 } from "./mechanics.ts"
 import { applyItemAction, ITEM_ACTIONS } from "./items.ts"
@@ -23,7 +28,7 @@ import { searchSrd } from "./srd.ts"
 import { beginTurn, endTurn, narrate, pcStateLine, requireOpenTurn, undoTurn } from "./turns.ts"
 import { getCharacter, parseDuration, pcId, resolveRef } from "./world.ts"
 
-const BOOL_FLAGS = new Set(["adv", "dis", "mesa", "spell", "roll", "help"])
+const BOOL_FLAGS = new Set(["adv", "dis", "mesa", "spell", "roll", "help", "full", "json"])
 
 interface Args {
   pos: string[]
@@ -84,7 +89,7 @@ function readJson(args: Args): unknown {
 const HELP = `dnd — motor de mundo do dndai (fonte única de verdade). Campanha: export DND_CAMPAIGN=<slug> ou -c <slug>.
 
 Campanha:   campaign new <slug> --name N --premise P [--tone T] · campaign list
-Leitura:    context · resume · show <ref> · recall <termos> · rolls · log [n] · validate · atlas [sync]
+Leitura:    context [--full|--json] · resume [--page N] [--limit N] [--chapter N] · show <id> · recall <termos> [--limit N] · fact <id> · chapter [n] · rolls · log [n] · validate · atlas [sync] · replay <arquivo>
 PC:         pc create  (JSON via stdin)
 Turno:      turn begin --action "..." · narrate (stdin) · turn end --summary "..." [--narration "..."|--narration -] · undo
 Mundo:      apply  (lote JSON via stdin; ver skill) · time <30m|2h|1d>
@@ -93,7 +98,7 @@ Testes:     check <quem> <perícia|atributo> [--dc N] [--adv|--dis] [--bonus N] 
 Combate:    attack <atacante> <alvo> [--with arma|ataque] [--spell --damage 1d10] [--adv|--dis] [--bonus N] [--mesa]
             damage <alvo> <expr> [--by quem] [--mesa] · roll <expr> [--reason R] [--mesa]
             combat start <ids...> · combat next · combat end · combat status
-Recursos:   rest short|long [quem] [--dice N] · levelup <quem> [--roll] · roll-cancel <id>
+Recursos:   rest short|long [quem] [--dice N] · levelup <quem> [--roll] · roll-cancel <id> (só CLI local) · chapter close
 Itens:      item usar|equipar|guardar|empunhar|embainhar|largar <item>   (mesma regra da mesa)
 SRD:        srd monster|spell <busca>
 Mesa:       serve [--port 8790] [--host 127.0.0.1] [--static ../mesa/dist] [--token T]
@@ -103,19 +108,21 @@ Conector:   conector [--port 8794]   (MCP "dndai" para o ChatGPT: ferramentas do
 
 function withCampaign<T>(args: Args, fn: (db: DB, slug: string) => T): T {
   const slug = resolveCampaign(str(args, "c"))
-  const db = openCampaign(slug)
-  try {
-    return fn(db, slug)
-  } finally {
-    db.close()
-  }
+  return withCampaignLock(slug, () => {
+    const db = openCampaign(slug)
+    try {
+      return fn(db, slug)
+    } finally {
+      db.close()
+    }
+  })
 }
 
 /** Mutação: exige turno aberto (ou fase de preparação) e roda atomicamente. */
 function mutate(args: Args, fn: (db: DB, slug: string) => string | string[]): string {
   return withCampaign(args, (db, slug) => {
-    requireOpenTurn(db)
     const out = transaction(db, () => {
+      requireOpenTurn(db)
       const r = fn(db, slug)
       publish(db) // o que o universo criou entra no multiverso na mesma transação
       return r
@@ -134,6 +141,15 @@ function rollOrRequest(args: Args, spec: RollSpec): string {
 
 /** Executa um comando `dnd` e devolve a saída (lança erro com mensagem PT-BR). */
 export function runCli(argv: string[], input?: string): string {
+  const out = dispatch(argv, input)
+  const record = process.env.DNDAI_RECORD
+  if (record && argv[0] !== "replay") {
+    appendFileSync(record, `${JSON.stringify({ argv, input, exact: out })}\n`)
+  }
+  return out
+}
+
+function dispatch(argv: string[], input?: string): string {
   const args = parseArgs(argv)
   args.input = input
   const [cmd, sub, ...rest] = args.pos
@@ -180,27 +196,43 @@ export function runCli(argv: string[], input?: string): string {
     case "skill":
       return readFileSync(join(import.meta.dirname, "..", "skill", "SKILL.md"), "utf8")
     case "context":
-      return withCampaign(args, (db, slug) => buildContext(db, slug))
+      return withCampaign(args, (db, slug) => buildContext(db, slug, { full: args.flags.full === true, json: args.flags.json === true }))
     case "resume":
-      return withCampaign(args, (db, slug) => resume(db, slug))
+      return withCampaign(args, (db, slug) => resume(db, slug, { page: num(args, "page"), limit: num(args, "limit"), chapter: num(args, "chapter") }))
+    case "chapter":
+      if (sub === "close") return withCampaign(args, (db) => transaction(db, () => closeChapterNow(db)))
+      if (sub && /^\d+$/.test(sub)) return withCampaign(args, (db) => showChapter(db, Number(sub)))
+      return withCampaign(args, (db) => listChapters(db))
+    case "fact":
+      if (!sub) throw new Error("Uso: dnd fact <id curto ou número>")
+      return withCampaign(args, (db) => showEntity(db, /^\d+$/.test(sub) ? `fact:${sub}` : sub))
     case "show":
       if (!sub) throw new Error("Uso: dnd show <id|nome>")
       return withCampaign(args, (db) => {
-        const id = sub.includes(":") ? sub : (() => {
+        const raw = [sub, ...rest].join(" ")
+        const coded = entityOfCode(db, raw)
+        const id = coded ?? (raw.includes(":") ? raw : (() => {
           for (const kinds of [["npc", "pc"], ["place"], ["faction"], ["quest"], ["item"], ["clock"]]) {
             try {
-              return resolveRef(db, [sub, ...rest].join(" "), kinds)
+              return resolveRef(db, raw, kinds)
             } catch { /* tenta o próximo tipo */ }
           }
-          throw new Error(`"${[sub, ...rest].join(" ")}" não encontrado. Use dnd recall para buscar.`)
-        })()
+          throw new Error(`"${raw}" não encontrado. Use dnd recall para buscar.`)
+        })())
         return showEntity(db, id)
       })
     case "recall":
       if (!sub) throw new Error("Uso: dnd recall <termos>")
-      return withCampaign(args, (db) => recall(db, [sub, ...rest].join(" ")))
+      return withCampaign(args, (db) => recall(db, [sub, ...rest].join(" "), num(args, "limit") ?? 15))
+    case "replay": {
+      if (!sub) throw new Error("Uso: dnd replay <arquivo.jsonl>")
+      const steps = parseReplay(readFileSync(sub, "utf8"))
+      const result = replaySteps((a, i) => dispatch(a, i), steps)
+      if (!result.ok) throw new Error(result.lines.join("\n"))
+      return result.lines.join("\n") || "Replay ok."
+    }
     case "rolls":
-      return withCampaign(args, (db) => {
+      return withCampaign(args, (db, slug) => {
         const pending = pendingRequests(db).map((r) => `⏳ #${r.id} ${r.label} — aguardando o jogador na mesa`)
         const done = all<{ id: number; result: string }>(db, "SELECT id, result FROM roll_requests WHERE status = 'resolvida' ORDER BY id DESC LIMIT 8")
           .reverse()
@@ -208,7 +240,8 @@ export function runCli(argv: string[], input?: string): string {
             const o = JSON.parse(r.result) as { text: string; source: string }
             return `✔ #${r.id} [${o.source}] ${o.text.replaceAll("\n", " · ")}`
           })
-        return [...done, ...pending].join("\n") || "Nenhuma rolagem."
+        const journal = formatRollJournal(slug)
+        return [...done, ...pending, ...(journal ? ["", "Diário de dados (sobrevive ao undo):", journal] : [])].join("\n") || "Nenhuma rolagem."
       })
     case "log":
       return withCampaign(args, (db) =>
@@ -221,8 +254,8 @@ export function runCli(argv: string[], input?: string): string {
         const integrity = all<{ integrity_check: string }>(db, "PRAGMA integrity_check")
         if (integrity[0]?.integrity_check !== "ok") problems.push(`integridade: ${JSON.stringify(integrity)}`)
         for (const fk of all<Record<string, unknown>>(db, "PRAGMA foreign_key_check")) problems.push(`chave estrangeira: ${JSON.stringify(fk)}`)
-        for (const c of all<{ id: string }>(db, "SELECT id FROM characters WHERE status = 'vivo' AND hp = 0")) problems.push(`${c.id} vivo com 0 PV`)
-        for (const c of all<{ id: string }>(db, "SELECT id FROM characters WHERE hp > max_hp")) problems.push(`${c.id} com PV acima do máximo`)
+        const report = worldProblems(db)
+        problems.push(...report.hard, ...report.soft)
         return problems.length ? problems.join("\n") : "Mundo íntegro."
       })
     case "pc":
@@ -305,7 +338,8 @@ export function runCli(argv: string[], input?: string): string {
     case "deathsave": {
       const who = withCampaign(args, (db) => resolveCharRef(db, sub ?? "pc"))
       if (args.flags.mesa) return mutate(args, (db) => requestRoll(db, { kind: "morte", who, reason: reason() }).text)
-      return mutate(args, (db) => deathSave(db, who, undefined, num(args, "value")))
+      const value = num(args, "value")
+      return mutate(args, (db) => rollNow(db, { kind: "morte", who, reason: reason() }, value !== undefined ? [value] : undefined).text)
     }
     case "rest": {
       if (sub !== "short" && sub !== "long") throw new Error("Uso: dnd rest short|long [quem] [--dice N]")

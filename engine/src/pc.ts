@@ -1,6 +1,6 @@
 import { z } from "zod"
-import { type DB, index, metaNum } from "./db.ts"
-import { CLASSES, mod, parseClass, parseSkill, spellSlots } from "./rules.ts"
+import { type DB, index, metaNum, setMeta } from "./db.ts"
+import { CLASSES, mod, parseClass, parseSkill, STARTING_GP, spellSlots } from "./rules.ts"
 import { defaultSheet, newId, parseMoney, pcId, resolveRef } from "./world.ts"
 
 const PcSchema = z
@@ -13,8 +13,8 @@ const PcSchema = z
     summary: z.string().default(""),
     level: z.number().int().min(1).max(20).default(1),
     abilities: z.object({
-      for: z.number().int().min(1).max(30), des: z.number().int().min(1).max(30), con: z.number().int().min(1).max(30),
-      int: z.number().int().min(1).max(30), sab: z.number().int().min(1).max(30), car: z.number().int().min(1).max(30),
+      for: z.number().int().min(1).max(20), des: z.number().int().min(1).max(20), con: z.number().int().min(1).max(20),
+      int: z.number().int().min(1).max(20), sab: z.number().int().min(1).max(20), car: z.number().int().min(1).max(20),
     }).strict(),
     skills: z.array(z.string()).default([]),
     expertise: z.array(z.string()).default([]),
@@ -50,7 +50,20 @@ export function createPc(db: DB, input: unknown): string[] {
   const expertise = p.expertise.map(toSkill)
   const con = mod(p.abilities.con)
   const avg = Math.floor(def.hitDie / 2) + 1
-  const hp = p.hp ?? def.hitDie + con + (p.level - 1) * Math.max(1, avg + con)
+  const computedHp = def.hitDie + con + (p.level - 1) * Math.max(1, avg + con)
+  const perLevel = Math.max(1, def.hitDie + con)
+  const hpCeiling = perLevel * p.level
+  if (p.hp !== undefined && p.hp > hpCeiling) {
+    throw new Error(`PV iniciais ${p.hp} acima do máximo rolável da classe (${hpCeiling}). O motor usa ${Math.max(1, computedHp)} se você omitir hp.`)
+  }
+  const hp = Math.max(1, p.hp ?? computedHp)
+  if (p.ac < 8 || p.ac > 25) throw new Error(`CA ${p.ac} fora do intervalo inicial 8–25.`)
+  const wealth = STARTING_GP[cls]
+  const askedCp = Math.max(0, parseMoney(p.money))
+  const startingCp = askedCp === 0 ? wealth.avg * 100 : askedCp
+  if (startingCp > wealth.max * 100) {
+    throw new Error(`Dinheiro inicial acima do máximo da classe ${def.label} (${wealth.max} po). Omita money para usar a média (${wealth.avg} po).`)
+  }
   const slots: Record<string, { max: number; used: number }> = {}
   for (const [lvl, max] of Object.entries(spellSlots(cls, p.level))) slots[lvl] = { max, used: 0 }
   const sheet = defaultSheet({
@@ -63,7 +76,8 @@ export function createPc(db: DB, input: unknown): string[] {
   const turn = metaNum(db, "turn")
   db.prepare(
     "INSERT INTO characters(id, kind, name, summary, place_id, hp, max_hp, ac, level, cp, sheet, attitude, created_turn) VALUES(?, 'pc', ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)"
-  ).run(id, p.name, p.summary, place, hp, hp, p.ac, p.level, Math.max(0, parseMoney(p.money)), JSON.stringify(sheet), turn)
+  ).run(id, p.name, p.summary, place, hp, hp, p.ac, p.level, startingCp, JSON.stringify(sheet), turn)
+  setMeta(db, "prep_sealed", 1)
   if (place) db.prepare("UPDATE places SET visited = 1 WHERE id = ?").run(place)
   for (const it of p.items) {
     db.prepare("INSERT INTO items(id, owner_char, name, qty, kind, props, equipped, notes) VALUES(?,?,?,?,?,?,?,?)").run(

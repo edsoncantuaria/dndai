@@ -1,5 +1,6 @@
 // Mundo vivo: o tempo só passa pelo motor, e cada passagem move rotinas, agendas e eventos.
-import { all, type DB, getMeta, log, one, setMeta } from "./db.ts"
+import { all, type DB, getMeta, log, metaNum, one, setMeta } from "./db.ts"
+import { insertFact } from "./facts.ts"
 import { cryptoRng, type Rng } from "./dice.ts"
 import { clearReactions, drawnWeapon, reactToDrawnWeapon } from "./items.ts"
 import { initiativeBonus } from "./mechanics.ts"
@@ -48,9 +49,33 @@ export function advanceTime(db: DB, minutes: number): string[] {
   for (const n of npcs) {
     const target = scheduledPlace(JSON.parse(n.schedule), to)
     if (!target || target === n.place_id) continue
+    const left = n.place_id
     db.prepare("UPDATE characters SET place_id = ? WHERE id = ?").run(target, n.id)
-    if (pcPlace && (pcPlace === target || pcPlace === n.place_id)) {
-      out.push(pcPlace === target ? `${n.name} [${n.id}] chegou ao local do PC (rotina).` : `${n.name} [${n.id}] saiu do local do PC para ${getPlace(db, target).name} (rotina).`)
+    const dest = getPlace(db, target).name
+    insertFact(db, { about: n.id, text: `FORA DE CENA: ${n.name} foi para ${dest} pela rotina.`, secret: true, source: "motor", truth: "verdade" })
+    if (pcPlace && (pcPlace === target || pcPlace === left)) {
+      out.push(pcPlace === target ? `${n.name} [${n.id}] chegou ao local do PC (rotina).` : `${n.name} [${n.id}] saiu do local do PC para ${dest} (rotina).`)
+    }
+  }
+
+  const chunk = 12 * 60
+  if (minutes >= chunk) {
+    const steps = Math.floor(minutes / chunk)
+    for (const f of all<{ id: string; name: string; goal: string }>(db, "SELECT id, name, goal FROM factions WHERE goal <> ''")) {
+      const key = `offscreen:${f.id}`
+      const already = metaNum(db, key)
+      if (already >= to) continue
+      for (let i = 0; i < steps; i++) {
+        insertFact(db, {
+          about: f.id,
+          text: `FORA DE CENA: ${f.name} avançou o objetivo "${f.goal}" enquanto o PC estava longe.`,
+          secret: true,
+          source: "motor",
+          truth: "verdade",
+        })
+      }
+      setMeta(db, key, to)
+      out.push(`Fora de cena: ${f.name} moveu a agenda (${steps} passo(s)). Fato secreto para narrar.`)
     }
   }
   log(db, "tempo", out.join(" | "))

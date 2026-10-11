@@ -103,7 +103,7 @@ export function buildView(db: DB, slug: string) {
     objectives: JSON.parse(q.objectives) as { text: string; done: boolean }[],
   }))
 
-  const facts = all<{ id: number; text: string; about_id: string | null; at_min: number }>(db, "SELECT id, text, about_id, at_min FROM facts WHERE secret = 0 ORDER BY id DESC LIMIT 100")
+  const facts = all<{ id: number; text: string; about_id: string | null; at_min: number }>(db, "SELECT id, text, about_id, at_min FROM facts WHERE secret = 0 AND truth = 'verdade' ORDER BY id DESC LIMIT 100")
     .map((f) => ({ id: f.id, text: f.text, about: f.about_id, day: clockParts(f.at_min).day }))
 
   const journal = all<{ n: number; started_min: number; action: string; summary: string; narration: string }>(

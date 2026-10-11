@@ -1,8 +1,16 @@
+import { chmodSync } from "node:fs"
 import { DatabaseSync } from "node:sqlite"
 
 export type DB = DatabaseSync
 
-const SCHEMA_VERSION = 4
+const SCHEMA_VERSION = 5
+
+/** Arquivo de campanha legível só pelo usuário do servidor (o túnel público não deve herdar 644). */
+export function tighten(path: string): void {
+  try {
+    chmodSync(path, 0o600)
+  } catch { /* :memory: ou filesystem sem chmod */ }
+}
 
 const SCHEMA = `
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -197,6 +205,30 @@ const MIGRATIONS = [
     text TEXT NOT NULL,
     penalized_at INTEGER NOT NULL
   );`,
+  // v5: proveniência dos fatos, ganchos e capítulos.
+  `ALTER TABLE facts ADD COLUMN source TEXT NOT NULL DEFAULT 'mestre';
+  ALTER TABLE facts ADD COLUMN truth TEXT NOT NULL DEFAULT 'verdade';
+  ALTER TABLE facts ADD COLUMN source_ref TEXT NOT NULL DEFAULT '';
+  CREATE TABLE hooks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('promessa','ameaca','misterio','gancho')),
+    text TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'aberto' CHECK (status IN ('aberto','resolvido','abandonado')),
+    about_id TEXT,
+    turn INTEGER NOT NULL,
+    at_min INTEGER NOT NULL
+  );
+  CREATE TABLE chapters (
+    n INTEGER PRIMARY KEY,
+    from_turn INTEGER NOT NULL,
+    to_turn INTEGER NOT NULL,
+    summary TEXT NOT NULL,
+    fact_id INTEGER
+  );
+  CREATE TABLE codes (
+    code TEXT PRIMARY KEY,
+    entity TEXT NOT NULL UNIQUE
+  );`,
 ]
 
 export function openDb(path: string): DB {
@@ -217,6 +249,7 @@ export function openDb(path: string): DB {
   } else if (user_version > SCHEMA_VERSION) {
     throw new Error(`Campanha criada por versão mais nova do motor (schema ${user_version}).`)
   }
+  tighten(path)
   return db
 }
 

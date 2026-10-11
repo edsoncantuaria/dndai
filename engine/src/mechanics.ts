@@ -1,6 +1,8 @@
 // Resolução mecânica determinística. Todas as rolagens viram registro em roll_requests
 // (resolvidas na hora pelo motor ou pendentes para o jogador rolar na mesa).
-import { all, type DB, log, metaNum, one } from "./db.ts"
+import { all, type DB, getMeta, log, metaNum, one } from "./db.ts"
+import { assertBonus } from "./guard.ts"
+import { recordRoll } from "./journal.ts"
 import { cryptoRng, parseDice, type Rng } from "./dice.ts"
 import {
   ABILITY_NAMES, type Ability, CLASSES, fmtMod, levelForXp, mod, parseAbility, parseSkill, SKILLS, XP_THRESHOLDS,
@@ -111,6 +113,11 @@ function norm2(s: string): string {
 }
 
 function prepare(db: DB, spec: RollSpec): Prepared {
+  if ("bonus" in spec) assertBonus(spec.bonus)
+  if ((spec.kind === "ataque" || spec.kind === "dano") && spec.target) {
+    const target = getCharacter(db, spec.target)
+    if (target.status === "morto") throw new Error(`${target.name} já está morto. Não há ataque nem dano contra um corpo.`)
+  }
   const c = getCharacter(db, spec.who)
   if (spec.kind === "pericia" || spec.kind === "atributo" || spec.kind === "resistencia") {
     let modifier: number
@@ -254,6 +261,7 @@ export function resolveRequest(db: DB, id: number, values: number[], source: Rol
   }
   db.prepare("UPDATE roll_requests SET status = 'resolvida', result = ? WHERE id = ?").run(JSON.stringify(outcomeRow), id)
   log(db, "rolagem", `#${id} [${source}] ${spec.reason ? `(${spec.reason}) ` : ""}${text}`)
+  recordRoll(getMeta(db, "slug"), row.created_turn, { worldId: id, label: row.label, text, values, source, reason: spec.reason })
   return outcomeRow
 }
 
@@ -312,23 +320,25 @@ export function heal(db: DB, id: string, amount: number): string {
   return `${t.name} recupera ${hp - t.hp} PV: ${hp}/${t.max_hp}.`
 }
 
-export function deathSave(db: DB, id: string, rng: Rng = cryptoRng, manual?: number): string {
+/** Aplica o resultado já rolado de um teste contra a morte. Quem chama é que registra o dado. */
+export function applyDeathNat(db: DB, id: string, nat: number): string {
   const t = getCharacter(db, id)
   if (t.hp > 0 || t.status === "morto") throw new Error(`${t.name} não está fazendo testes contra a morte.`)
   if (t.sheet.death.success >= 3) return `${t.name} já está estável.`
-  const nat = manual ?? rng(20)
-  if (nat === 20) {
-    log(db, "rolagem", `Teste contra a morte de ${t.name}: 20 natural`)
-    return `Teste contra a morte: 20 natural! ${heal(db, id, 1)}`
-  }
+  if (nat === 20) return `Teste contra a morte: 20 natural! ${heal(db, id, 1)}`
   if (nat === 1) t.sheet.death.fail += 2
   else if (nat >= 10) t.sheet.death.success += 1
   else t.sheet.death.fail += 1
   saveSheet(db, id, t.sheet)
-  log(db, "rolagem", `Teste contra a morte de ${t.name}: d20=${nat}`)
   if (t.sheet.death.fail >= 3) return `Teste contra a morte: d20=${nat}. ${setDead(db, t, "três falhas contra a morte")}`
   if (t.sheet.death.success >= 3) return `Teste contra a morte: d20=${nat}. ${t.name} está ESTÁVEL (inconsciente, 0 PV).`
   return `Teste contra a morte: d20=${nat} → sucessos ${t.sheet.death.success}/3, falhas ${t.sheet.death.fail}/3.`
+}
+
+export function deathSave(db: DB, id: string, rng: Rng = cryptoRng, manual?: number): string {
+  const text = applyDeathNat(db, id, manual ?? rng(20))
+  log(db, "rolagem", text)
+  return text
 }
 
 // ---------- descanso, XP e nível ----------

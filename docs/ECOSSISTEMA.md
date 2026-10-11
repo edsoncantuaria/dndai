@@ -2,7 +2,7 @@
 
 > **Documento canônico** para revisão sênior, onboarding e agentes de IA. Descreve o sistema **como está implementado** (maio/2026). Complemento visual: **DESIGN_FRONTEND.md**. Índice de revisão: **VALIDACAO_SENIOR.md**.
 >
-> **Última revisão:** junho de 2026 (corte PENAI-only — ADR 0002; MySQL/BullMQ/Express removidos do código)
+> **Última revisão:** 2026-10-11. Neste branch o runtime jogável é o motor em `engine/` (SQLite, CLI `dnd`, conector MCP). O contrato, o contexto TOON e o isolamento do Mestre estão em [`engine/README.md`](../engine/README.md) e [`engine/API.md`](../engine/API.md). O texto abaixo descreve o stack PENAI anterior e não é o comportamento deste branch.
 
 ---
 

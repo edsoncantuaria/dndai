@@ -4,7 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { extname, join, normalize, resolve } from "node:path"
 import { Readable } from "node:stream"
 import { timingSafeEqual } from "node:crypto"
-import { listCampaigns, openCampaign, resolveCampaign } from "./campaign.ts"
+import { listCampaigns, openCampaign, resolveCampaign, snapshotCampaign, withCampaignLock } from "./campaign.ts"
 import { type DB, metaNum, transaction } from "./db.ts"
 import { applyItemAction } from "./items.ts"
 import { pendingRequests, resolveRequest } from "./mechanics.ts"
@@ -36,13 +36,26 @@ class HttpError extends Error {
 
 export function startServer(opts: ServeOptions) {
   // Abre/fecha por uso: o `dnd undo` troca o arquivo do banco e conexões longas veriam o arquivo antigo.
-  const withDb = <T>(slug: string, fn: (db: DB) => T): T => {
-    const db = openCampaign(slug)
-    try {
-      return fn(db)
-    } finally {
-      db.close()
-    }
+  const withDb = <T>(slug: string, fn: (db: DB) => T): T =>
+    withCampaignLock(slug, () => {
+      const db = openCampaign(slug)
+      try {
+        return fn(db)
+      } finally {
+        db.close()
+      }
+    })
+  if (process.env.DNDAI_BACKUP_DIR) {
+    const timer = setInterval(() => {
+      for (const c of listCampaigns()) {
+        try {
+          snapshotCampaign(c.slug, "periodico")
+        } catch (error) {
+          console.error(`[backup] ${c.slug}: ${(error as Error).message}`)
+        }
+      }
+    }, 15 * 60 * 1000)
+    timer.unref()
   }
   const slugOf = (url: URL) => resolveCampaign(url.searchParams.get("campaign") ?? undefined)
 
