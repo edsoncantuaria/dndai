@@ -2,10 +2,14 @@
 import { all, type DB, getMeta, metaNum, one, setMeta } from "./db.ts"
 import { drawnWeapon, reactionOf } from "./items.ts"
 import { pendingRequests } from "./mechanics.ts"
+import { exitsOf, threadsFor } from "./threads.ts"
 import { encodeToon } from "./toon.ts"
 import { clockParts, fmtClock, getCharacter, getPlace, now, pcId, type CharacterRow } from "./world.ts"
 
 type Cell = string | number | boolean | null
+
+/** Fatos da cena mostrados por inteiro; o resto vira contagem com ponteiro. */
+const FACTS = 8
 
 function codeOf(db: DB, entity: string): string {
   return one<{ code: string }>(db, "SELECT code FROM codes WHERE entity = ?", entity)?.code ?? entity
@@ -38,7 +42,15 @@ function signature(db: DB): string {
   const facts = all<{ id: number }>(db, "SELECT id FROM facts ORDER BY id")
   const hooks = all<{ id: number; status: string }>(db, "SELECT id, status FROM hooks ORDER BY id")
   const pend = pendingRequests(db).map((r) => r.id)
+  const quests = all<{ id: string; status: string; updated_turn: number }>(db, "SELECT id, status, updated_turn FROM quests ORDER BY id")
+  const clocks = all<{ id: string; filled: number; status: string }>(db, "SELECT id, filled, status FROM clocks ORDER BY id")
+  const events = all<{ id: number; status: string }>(db, "SELECT id, status FROM events ORDER BY id")
+  const places = one<{ n: number }>(db, "SELECT COUNT(*) AS n FROM places")?.n ?? 0
   return JSON.stringify({
+    quests,
+    clocks,
+    events,
+    places,
     place: pc?.place_id ?? null,
     pc: pc ? [pc.hp, pc.max_hp, pc.cp, pc.status, pc.place_id] : null,
     npcs,
@@ -82,18 +94,24 @@ export function sceneDoc(db: DB, slug: string, opts: { cena?: boolean } = {}): R
     if (c.persona.secret) row.segredo = c.persona.secret
     const reaction = reactionOf(db, n.id)
     if (reaction) row.reacao = `Reagindo agora: ${reaction}`
-    const mem = memoriesFor(db, n.id)[0]
-    if (mem) row.lembra = mem.text
+    const mems = memoriesFor(db, n.id)
+    if (mems[0]) row.lembra = mems[0].text
+    const total = one<{ n: number }>(db, "SELECT COUNT(*) AS n FROM memories WHERE npc_id = ?", n.id)?.n ?? 0
+    if (total > (mems[0] ? 1 : 0)) row.memorias = `+${total - (mems[0] ? 1 : 0)} → show ${codeOf(db, n.id)}`
     return row
   })
   const pendencias = pendingRequests(db).map((r) => `Rolagem #${r.id} aguardando o jogador na mesa: ${r.label}`)
-  const hooks = all<{ id: number; kind: string; text: string }>(db, "SELECT id, kind, text FROM hooks WHERE status = 'aberto' ORDER BY id DESC LIMIT 8")
   const sceneIds = [pc.id, pc.place_id, ...here.map((n) => n.id)].filter(Boolean) as string[]
+  const { fios, dormentes, esfriando } = threadsFor(db, sceneIds)
+  // Capítulos são fatos sem about_id, mas vivem no resume: não disputam espaço com os fatos da cena.
+  const factWhere = `(${sceneIds.length ? `about_id IN (${sceneIds.map(() => "?").join(",")}) OR ` : ""}about_id IS NULL OR text LIKE 'FORA DE CENA:%') AND id NOT IN (SELECT fact_id FROM chapters WHERE fact_id IS NOT NULL)`
   const facts = all<{ id: number; text: string; truth: string; source: string; secret: number }>(
     db,
-    `SELECT id, text, truth, source, secret FROM facts WHERE ${sceneIds.length ? `about_id IN (${sceneIds.map(() => "?").join(",")}) OR ` : ""}about_id IS NULL OR text LIKE 'FORA DE CENA:%' ORDER BY id DESC LIMIT 8`,
+    `SELECT id, text, truth, source, secret FROM facts WHERE ${factWhere} ORDER BY id DESC LIMIT ${FACTS}`,
     ...sceneIds,
   )
+  const factTotal = one<{ n: number }>(db, `SELECT COUNT(*) AS n FROM facts WHERE ${factWhere}`, ...sceneIds)?.n ?? 0
+  const map = place ? exitsOf(db, place.id) : null
   const indice = [
     { id: codeOf(db, pc.id), nome: pc.name, tipo: "pc" },
     ...(place ? [{ id: codeOf(db, place.id), nome: place.name, tipo: "local" }] : []),
@@ -111,9 +129,12 @@ export function sceneDoc(db: DB, slug: string, opts: { cena?: boolean } = {}): R
       ...(weapon ? { punho: `EM PUNHO: ${weapon}` } : {}),
     },
     local: place ? { id: codeOf(db, place.id), nome: place.name, tipo: place.kind, resumo: place.summary } : null,
+    ...(map ? { saidas: map.saidas, mapa: map.mapa } : {}),
     presentes,
     pendencias,
-    ganchos: hooks.map((h) => ({ id: codeOf(db, `hook:${h.id}`), tipo: h.kind, texto: h.text })),
+    fios,
+    ...(dormentes ? { dormentes: `${dormentes} → show <id>` } : {}),
+    ...(esfriando ? { esfriando } : {}),
     fatos: facts.reverse().map((f) => ({
       id: codeOf(db, `fact:${f.id}`),
       texto: f.text,
@@ -121,6 +142,7 @@ export function sceneDoc(db: DB, slug: string, opts: { cena?: boolean } = {}): R
       fonte: f.source,
       secreto: f.secret === 1,
     })),
+    ...(factTotal > facts.length ? { fatos_mais: `+${factTotal - facts.length} mais antigos → recall <termos> ou fact <id>` } : {}),
     indice,
   }
   const snapRaw = getMeta(db, "scene_snap")

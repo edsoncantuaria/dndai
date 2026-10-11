@@ -3,7 +3,7 @@ import { DatabaseSync } from "node:sqlite"
 
 export type DB = DatabaseSync
 
-const SCHEMA_VERSION = 5
+const SCHEMA_VERSION = 6
 
 /** Arquivo de campanha legível só pelo usuário do servidor (o túnel público não deve herdar 644). */
 export function tighten(path: string): void {
@@ -228,6 +228,11 @@ const MIGRATIONS = [
   CREATE TABLE codes (
     code TEXT PRIMARY KEY,
     entity TEXT NOT NULL UNIQUE
+  );`,
+  // v6: último turno em que cada entidade esteve em cena (fios esfriando).
+  `CREATE TABLE seen (
+    entity TEXT PRIMARY KEY,
+    turn INTEGER NOT NULL
   );`,
 ]
 

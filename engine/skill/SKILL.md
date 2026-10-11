@@ -56,7 +56,10 @@ O mundo é **um só para todos os jogadores** e cresce a cada história. Cada ca
 ## Protocolo de cada turno (obrigatório)
 
 1. `dnd -c <slug> turn begin --action "<o que o jogador fez/disse, fiel>"`
-2. `dnd -c <slug> context`. A primeira leitura é a cena; depois de um turno fechado, vem o **delta** desde o último turno mais o índice de ids. Para detalhe, `show <id>` (nunca peça a cena inteira de novo).
+2. `dnd -c <slug> context`. A primeira leitura é a cena; depois de um turno fechado, vem o **delta** desde o último turno mais o índice de ids. Para detalhe, `show <id>` (nunca peça a cena inteira de novo). Como ler a cena:
+   - `fios`: missões, ganchos, agendas e eventos mais urgentes, ligados à cena ou recentes (`estado` traz o próximo objetivo e as pistas; `alerta` diz o que fazer). `dormentes` lista os demais só pelo id; `*` marca fio parado há muito tempo: traga-o de volta à história ou encerre-o (`hook.update`, `quest.update`).
+   - `saidas`: para onde dá para ir daqui, em minutos (`via: dentro/fora` = sublocal/local de cima). `mapa` conta o mundo conhecido.
+   - `memorias: +N → show n1` e `fatos_mais` avisam que há mais: nada sumiu, só não coube. Busque pelo id ou por `recall`.
 3. **Resolva a ação com o motor.** Toda incerteza vira teste; você nunca inventa número de dado. Não use `--values` (o dado é do motor ou da mesa). `--bonus` é só circunstancial, no máximo ±10:
    - `check <quem> <perícia|atributo> --dc N [--adv|--dis]`, `save <quem> <atributo> --dc N`
    - `attack <atacante> <alvo> [--with arma]`, `damage <alvo> 2d6 --by <quem>`, `roll 1d100`

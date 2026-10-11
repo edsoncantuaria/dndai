@@ -17,7 +17,8 @@ Também dá para jogar direto no ChatGPT (sem mesa), usando a skill.
 
 - **Sem infraestrutura:** Node ≥ 22.18 roda o TypeScript direto e o banco é `node:sqlite` com FTS5 para a memória. Dependências: `zod` e o SDK oficial de MCP.
 - **Anti-alucinação:** o Mestre só muda o mundo por `apply` (lote validado e atômico) e, no conector, só por id curto ou longo — nome novo nasce no `create`. A narração é recusada se citar morto agindo, lugar errado, item que o PC não tem, id inexistente ou nome que o motor não conhece. `turn end` confere invariantes (vivo com 0 PV, PV acima do máximo, referência solta).
-- **Contexto enxuto:** `dnd context` sai em TOON. A primeira leitura é a cena; as seguintes são o delta desde o último turno, com ids `n1`/`l2`/`i3`/`f4`/`q5`/`h6`. Detalhe sob demanda (`show`, `fact`). `--full` é a prosa antiga; `--json` é o objeto; `--cena` força a cena inteira. Numa cena de teste (PC, três presentes, missão, gancho, fatos): **334 tokens de prosa, 173 de TOON (48% a menos), 364 de JSON**.
+- **Contexto enxuto:** `dnd context` sai em TOON. A primeira leitura é a cena; as seguintes são o delta desde o último turno, com ids `n1`/`l2`/`i3`/`f4`/`q5`/`h6`. Detalhe sob demanda (`show`, `fact`). `--full` é a prosa antiga; `--json` é o objeto; `--cena` força a cena inteira. Numa cena de teste (PC, três presentes, missão, gancho, fatos): **334 tokens de prosa, 230 de TOON (31% a menos), 479 de JSON**. O TOON subiu de 173 quando passou a trazer fios e saídas.
+- **Nada some sem ponteiro:** a cena traz os `fios` (missões, ganchos, agendas e eventos) ordenados por urgência, ligação com a cena e recência; os demais aparecem em `dormentes` pelo id, com `*` nos parados há 10+ turnos. Traz também as `saidas` do local. Fatos e memórias que não cabem viram contagem com ponteiro (`fatos_mais`, `memorias`). Num teste de 100 turnos (30 locais, 40 NPCs, 49 fios abertos), a cena fica em ~450 tokens e todo fio aberto continua visível (`test/context.test.ts`).
 - **Conversa enxuta com o Mestre:** no Modo mesa a narração vai só para o motor (`narrate`/`turn end`) e a resposta do chat é `✓` (sem narração gravada, a mensagem vira erro). A narração cita entidades por `{n1}`/`{l2}`, que o motor troca pelo nome exato. A linha de estado do PC só reaparece no `apply` quando muda. A cada capítulo fechado (8 turnos), a próxima mensagem abre uma conversa nova no ChatGPT, que relê a skill e o `resume` (cena inteira, turnos recentes e última narração). `dnd skill` entrega o núcleo; `skill preparacao`, `skill chat` e `skill tudo` vêm sob demanda.
 - **Mundo vivo:** NPCs com persona, rotina, atitude e memórias próprias. Agendas (relógios) e eventos avançam sozinhos quando o tempo passa.
 - **Turnos com rollback:** `turn begin` guarda um backup e `dnd undo` restaura o estado anterior ao turno.
@@ -123,6 +124,7 @@ Para mudar vozes ou velocidade, edite o topo de `tts/server.py` e troque `VERSIO
 | `src/ops.ts` | lote `apply` (única via de mudança narrativa) |
 | `src/context.ts`, `src/scene.ts`, `src/toon.ts` | contexto do Mestre: prosa (`--full`), TOON e JSON |
 | `src/skill.ts` | skill do Mestre em núcleo + seções sob demanda |
+| `src/threads.ts` | fios da campanha e saídas do local para a cena |
 | `src/guard.ts`, `src/narration.ts`, `src/invariants.ts` | tetos de regra, narração e invariantes |
 | `src/journal.ts`, `src/scope.ts` | diário de dados append-only e escopo do conector |
 | `src/facts.ts`, `src/embed.ts`, `src/chapters.ts`, `src/codes.ts` | fatos com proveniência, busca local, capítulos, ids curtos |

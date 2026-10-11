@@ -6,6 +6,7 @@ import { assertWorld } from "./invariants.ts"
 import { assertCanUndo, recordTurnClosed, recordUndo } from "./journal.ts"
 import { assertNarration, expandRefs } from "./narration.ts"
 import { captureSceneSnap } from "./scene.ts"
+import { markSeen } from "./threads.ts"
 import { fmtMoney, getPlace, now, pcId, getCharacter } from "./world.ts"
 
 function prepSealed(db: DB): boolean {
@@ -88,6 +89,7 @@ export function endTurn(db: DB, summary: string, raw: string): string[] {
     index(db, `turn:${n}`, "turno", summary.trim())
     log(db, "turno", `Turno ${n} fechado: ${summary.trim()}`)
     publish(db)
+    markSeen(db)
     const chapter = closeIfNeeded(db)
     const soft = assertWorld(db)
     captureSceneSnap(db)
