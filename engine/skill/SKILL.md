@@ -34,7 +34,7 @@ Quando a conversa foi aberta pelo servidor dndai (mensagens começando com `[mes
 - Ação nova do jogador → protocolo normal (`turn begin` com o texto dele). Se ainda houver turno aberto sem rolagem pendente, feche-o antes (`turn end`).
 - **Rolagens do jogador sempre com `--mesa`**: o jogador rola os dados 3D na mesa. Peça a rolagem na narração ("Faça um teste de Percepção"), grave essa narração com `dnd -c <slug> narrate <<'EOF' ... EOF`, **deixe o turno aberto** e encerre a resposta. Quando chegar `Mesa: Rolagem #N resolvida...`, **não** abra outro turno: rode `context`, narre a consequência, grave com `apply` e feche com `turn end`.
 - A mesa exibe a narração que você grava no motor (`narrate` durante o turno, `turn end --narration -` ao fechar), com a formatação exata. Toda resposta precisa gravar sua narração por um desses dois. **Não repita a narração no chat**: sua resposta final é só `✓`. Resposta `✓` sem narração gravada vira erro para o jogador.
-- Se a conversa for reaberta (mensagem de configuração nova, por exemplo a cada capítulo fechado), rode `resume`: ele traz a cena inteira, os turnos recentes e a última narração. Continue de onde o motor parou, na mesma voz.
+- Se a conversa for reaberta (mensagem de configuração nova, por exemplo a cada capítulo fechado), rode `resume`: ele traz premissa e tom, a cena inteira, os arcos fechados em uma linha, os capítulos do arco atual com as mudanças, os turnos desde o último capítulo e a última narração. Para o detalhe de algo antigo: `resume --chapter N` (mudanças e turnos do capítulo) ou `resume --page N`. Continue de onde o motor parou, na mesma voz.
 
 ## Multiverso compartilhado
 

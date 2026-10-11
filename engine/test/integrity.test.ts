@@ -24,6 +24,7 @@ const { strictRefs } = await import("../src/world.ts")
 const { parseReplay, replaySteps } = await import("../src/replay.ts")
 const { skillText } = await import("../src/skill.ts")
 const { narrationProblems } = await import("../src/narration.ts")
+const { changesOf } = await import("../src/chapters.ts")
 
 let slug = ""
 let w: ReturnType<typeof openCampaign>
@@ -201,6 +202,18 @@ describe("economia de tokens na conversa", () => {
     const r = runCli(["-c", slug, "resume"])
     assert.match(r, /modo: cena/)
     assert.match(r, /ÚLTIMA NARRAÇÃO \(T1\)\nA vila dorme sob a chuva\./)
+  })
+
+  it("mudanças do capítulo: marcos do log e atitude líquida, sem memória nem fato comum", () => {
+    beginTurn(w, slug, "ajuda na forja")
+    apply([
+      { op: "attitude", npc: "n1", delta: 15, reason: "ajudou na forja o dia todo" },
+      { op: "attitude", npc: "n1", delta: 10, reason: "pagou bem pelo serviço" },
+      { op: "memory", npcs: ["n1"], text: "Kael ajudou na forja" },
+      { op: "fact", text: "a forja tem fole novo" },
+      { op: "hook", kind: "promessa", text: "Mara prometeu uma lâmina" },
+    ])
+    assert.deepEqual(changesOf(w, 1, 1), ["+ gancho h1 (promessa): Mara prometeu uma lâmina", "~ atitude de Mara: 0 → 25"])
   })
 
   it("skill: núcleo sem as seções sob demanda", () => {

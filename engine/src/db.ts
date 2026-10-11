@@ -229,11 +229,12 @@ const MIGRATIONS = [
     code TEXT PRIMARY KEY,
     entity TEXT NOT NULL UNIQUE
   );`,
-  // v6: último turno em que cada entidade esteve em cena (fios esfriando).
+  // v6: último turno em que cada entidade esteve em cena (fios esfriando) e mudanças de cada capítulo.
   `CREATE TABLE seen (
     entity TEXT PRIMARY KEY,
     turn INTEGER NOT NULL
-  );`,
+  );
+  ALTER TABLE chapters ADD COLUMN changes TEXT NOT NULL DEFAULT '';`,
 ]
 
 export function openDb(path: string): DB {

@@ -32,6 +32,7 @@ function openThreadCodes(): string[] {
 
 describe("campanha de 100 turnos", () => {
   let small = 0
+  let resume68 = 0
 
   before(() => {
     apply(Array.from({ length: PLACES }, (_, i) => ({
@@ -61,6 +62,7 @@ describe("campanha de 100 turnos", () => {
       if (t % 7 === 0) ops.push({ op: "hook.update", hook: t / 7, status: "resolvido" })
       apply(ops)
       endTurn(w, `Kael seguiu viagem no turno ${t} sem incidentes graves.`, `O caminho segue no turno ${t}.`)
+      if (t === 68) resume68 = countTokens(resume(w, slug))
     }
   })
 
@@ -84,7 +86,14 @@ describe("campanha de 100 turnos", () => {
 
   it("resume continua de tamanho limitado", () => {
     const r = resume(w, slug)
-    console.log(`TOKENS resume turno100=${countTokens(r)}`)
+    const tokens = countTokens(r)
+    console.log(`TOKENS resume turno68=${resume68} turno100=${tokens}`)
+    if (process.env.SHOW_RESUME) console.log(r)
+    // Mesmo formato nos dois pontos (arco atual com 4 capítulos): 32 turnos a mais quase não pesam.
+    assert.ok(tokens < resume68 * 1.15, `resume cresceu de ${resume68} para ${tokens}`)
+    assert.match(r, /## ARCOS\n- Arco 1 .*\+\d+ missões.*→ resume --chapter/)
+    assert.match(r, /Premissa: uma campanha de cem turnos/)
     assert.match(r, /ÚLTIMA NARRAÇÃO \(T100\)/)
+    assert.match(resume(w, slug, { chapter: 1 }), /Mudanças:\n  \+ gancho h1 [\s\S]*\+ missão Tarefa 5 \[q1\][\s\S]*- T1: segue viagem 1/)
   })
 })
