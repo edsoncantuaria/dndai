@@ -1,0 +1,228 @@
+@import "tailwindcss";
+
+/* Tokens dnd-* (docs/DESIGN_FRONTEND.md · src/design-system/tokens.css do projeto antigo) */
+@theme {
+  --color-dnd-obsidian: #050506;
+  --color-dnd-obsidian-raised: #121216;
+  --color-dnd-obsidian-tint: #1a1a22;
+  --color-dnd-ember: #e40712;
+  --color-dnd-ember-hover: #ff2430;
+  --color-dnd-ember-deep: #9b0610;
+  --color-dnd-gold: #d4af37;
+  --color-dnd-gold-bright: #f0d878;
+  --color-dnd-gold-dim: #7a6520;
+  --color-dnd-parchment: #f7f0e3;
+  --color-dnd-parchment-muted: #b8a88c;
+  --color-dnd-success: #3fae66;
+  --color-dnd-danger: #ff4a52;
+  --color-dnd-success-deep: #1d5c34;
+  --color-dnd-warning: #e8a83a;
+  --color-dnd-warning-deep: #8a5a12;
+  --color-dnd-arcane: #8c9bff;
+  --color-dnd-arcane-deep: #3a3f9e;
+  --color-dnd-frost: #9fd6f0;
+
+  --font-display: "Cinzel Decorative", "Cinzel", Georgia, serif;
+  --font-title: "Cinzel", Georgia, serif;
+  --font-narrative: "IM Fell English", Georgia, serif;
+  --font-ui: "Inter", system-ui, sans-serif;
+
+  --animate-fade-in: fade-in 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-rise: rise 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-pulse-gold: pulse-gold 2.4s ease-in-out infinite;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes pulse-gold {
+    0%, 100% { box-shadow: 0 0 0 1px rgb(212 175 55 / 0.5), 0 0 18px -6px rgb(212 175 55 / 0.6); }
+    50% { box-shadow: 0 0 0 1px rgb(240 216 120 / 0.9), 0 0 30px -4px rgb(240 216 120 / 0.8); }
+  }
+}
+
+:root {
+  color-scheme: dark;
+  --dnd-shadow-card: 0 8px 32px rgb(0 0 0 / 0.65), 0 0 0 1px rgb(212 175 55 / 0.14), inset 0 1px 0 rgb(255 255 255 / 0.05);
+  --dnd-shadow-elevated: 0 20px 50px rgb(0 0 0 / 0.75), 0 0 40px -12px rgb(228 7 18 / 0.55), 0 0 0 1px rgb(212 175 55 / 0.22);
+}
+
+html,
+body {
+  background: #050506;
+  color: var(--color-dnd-parchment);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+::selection {
+  background: rgb(212 175 55 / 0.35);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-dnd-gold-bright);
+  outline-offset: 2px;
+}
+
+/* Fundo cinematográfico com vinheta */
+.dnd-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 130% 70% at 50% -25%, rgb(228 7 18 / 0.22), transparent 58%),
+    radial-gradient(ellipse 55% 45% at 95% 85%, rgb(212 175 55 / 0.08), transparent 50%),
+    linear-gradient(185deg, #030304 0%, #0a0a0c 42%, #0f0809 100%);
+  box-shadow: inset 0 0 160px rgb(0 0 0 / 0.9);
+}
+
+.dnd-backdrop-image {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.16;
+  filter: saturate(0.7) blur(1px);
+  transition: opacity 900ms, background-image 900ms;
+  mask-image: linear-gradient(180deg, #000 0%, rgb(0 0 0 / 0.6) 50%, transparent 100%);
+}
+
+.dnd-panel {
+  border-radius: 0.75rem;
+  border: 1px solid rgb(212 175 55 / 0.16);
+  background: linear-gradient(165deg, rgb(22 22 28 / 0.92) 0%, rgb(8 8 10 / 0.96) 100%);
+  box-shadow: var(--dnd-shadow-card);
+}
+
+.dnd-border-gold {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--color-dnd-obsidian-raised), var(--color-dnd-obsidian-raised)) padding-box,
+    linear-gradient(135deg, var(--color-dnd-gold-dim), var(--color-dnd-gold-bright), var(--color-dnd-gold-dim)) border-box;
+}
+
+.dnd-text-gold {
+  background: linear-gradient(180deg, var(--color-dnd-gold-bright) 0%, var(--color-dnd-gold) 45%, var(--color-dnd-gold-dim) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.dnd-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(212 175 55 / 0.45), transparent);
+}
+
+.dnd-label {
+  font-family: var(--font-ui);
+  font-size: 0.65rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--color-dnd-gold);
+}
+
+.dnd-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(212 175 55 / 0.35) transparent;
+}
+
+/* Narração: capitular no 1º parágrafo e cursor de digitação no último */
+.dnd-narration > p:first-child::first-letter {
+  float: left;
+  margin-right: 0.5rem;
+  font-family: var(--font-display);
+  font-size: 3.75rem;
+  line-height: 0.85;
+  color: var(--color-dnd-gold);
+}
+
+.dnd-typing > p:last-child::after {
+  content: "";
+  display: inline-block;
+  width: 0.5ch;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.12em;
+  background: var(--color-dnd-gold);
+  animation: caret 900ms steps(1) infinite;
+}
+
+@keyframes caret {
+  50% { opacity: 0; }
+}
+
+/* Modal nativo <dialog> */
+dialog.dnd-dialog {
+  max-width: none;
+  max-height: none;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+dialog.dnd-dialog::backdrop {
+  background: rgb(5 5 6 / 0.78);
+  backdrop-filter: blur(6px);
+}
+
+.dnd-flash-critical {
+  animation: flash-gold 1.2s ease-out;
+}
+.dnd-flash-failure {
+  animation: flash-ember 1.2s ease-out;
+}
+
+@keyframes flash-gold {
+  0% { box-shadow: inset 0 0 0 9999px rgb(240 216 120 / 0.35); }
+  100% { box-shadow: inset 0 0 0 9999px transparent; }
+}
+@keyframes flash-ember {
+  0% { box-shadow: inset 0 0 0 9999px rgb(228 7 18 / 0.35); }
+  100% { box-shadow: inset 0 0 0 9999px transparent; }
+}
+
+.dnd-shake {
+  animation: shake 420ms ease-in-out;
+}
+@keyframes shake {
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+.dnd-float-up {
+  animation: float-up 1.6s ease-out forwards;
+}
+@keyframes float-up {
+  0% { opacity: 0; transform: translateY(6px) scale(0.9); }
+  15% { opacity: 1; transform: translateY(0) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-28px) scale(1); }
+}
+
+#dice-canvas-host canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
