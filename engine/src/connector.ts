@@ -91,6 +91,7 @@ function execute(secret: string, kind: "ler" | "agir", campanha: string | undefi
   }
   let ok = false
   let failure = ""
+  let chars = 0
   try {
     validate(kind, comando, args)
     const legacyFile = join(campaignsHome(), "conector-secret")
@@ -116,13 +117,14 @@ function execute(secret: string, kind: "ler" | "agir", campanha: string | undefi
     const out = strictRefs(() => runCli(argv, entrada))
     if (comando === "campaign" && args[0] === "new" && args[1]) addSlugToScope(args[1])
     ok = true
+    chars = (out || "ok").length
     return { content: [{ type: "text" as const, text: out || "ok" }] }
   } catch (error) {
     const message = (error as Error).message.replace(/Existentes:.*$/, "Fora do escopo deste conector.")
     failure = message
     return { isError: true, content: [{ type: "text" as const, text: `ERRO: ${message}` }] }
   } finally {
-    auditCall(secret, `${comando}${args[0] && !args[0].startsWith("-") ? ` ${args[0]}` : ""}`, ok, failure)
+    auditCall(secret, `${comando}${args[0] && !args[0].startsWith("-") ? ` ${args[0]}` : ""}`, ok, failure, chars)
   }
 }
 

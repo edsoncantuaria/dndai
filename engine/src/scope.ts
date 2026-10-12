@@ -98,12 +98,13 @@ export function assertInScope(scope: SecretScope, slug: string | undefined, coma
 const auditPath = () => join(campaignsHome(), "connector-audit.log")
 
 /** Uma linha por chamada. Em erro, o motivo (linhas unidas, 300 caracteres) para entender o que confundiu o Mestre. */
-export function auditCall(secret: string, comando: string, ok: boolean, error = ""): void {
+export function auditCall(secret: string, comando: string, ok: boolean, error = "", chars = 0): void {
   try {
     const home = campaignsHome()
     mkdirSync(home, { recursive: true })
     const path = auditPath()
-    const why = ok ? "" : ` ${error.split("\n").map((l) => l.trim()).filter(Boolean).join(" | ").slice(0, 300)}`
+    // Em sucesso, o tamanho da resposta (o que entrou no contexto do Mestre); em erro, o motivo.
+    const why = ok ? ` ${chars}c` : ` ${error.split("\n").map((l) => l.trim()).filter(Boolean).join(" | ").slice(0, 300)}`
     appendFileSync(path, `${new Date().toISOString()} ${secretHash(secret)} ${comando} ${ok ? "ok" : "erro"}${why}\n`, { mode: 0o600 })
     chmodSync(path, 0o600)
   } catch {
