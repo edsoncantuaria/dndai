@@ -25,7 +25,8 @@ import { startMasterServer } from "./master/mcp.ts"
 import { startServer } from "./server.ts"
 import { advanceTime, endCombat, getCombat, nextTurn, startCombat } from "./simulation.ts"
 import { searchSrd } from "./srd.ts"
-import { beginTurn, endTurn, narrate, pcStateLine, requireOpenTurn, undoTurn } from "./turns.ts"
+import { skillText } from "./skill.ts"
+import { beginTurn, endTurn, narrate, pcStateChange, requireOpenTurn, undoTurn } from "./turns.ts"
 import { getCharacter, parseDuration, pcId, resolveRef } from "./world.ts"
 
 const BOOL_FLAGS = new Set(["adv", "dis", "mesa", "spell", "roll", "help", "full", "json"])
@@ -88,7 +89,7 @@ function readJson(args: Args): unknown {
 
 const HELP = `dnd — motor de mundo do dndai (fonte única de verdade). Campanha: export DND_CAMPAIGN=<slug> ou -c <slug>.
 
-Campanha:   campaign new <slug> --name N --premise P [--tone T] · campaign list
+Campanha:   campaign new <slug> --name N --premise P [--tone T] [--sandbox] · campaign list
 Leitura:    context [--full|--json] · resume [--page N] [--limit N] [--chapter N] · show <id> · recall <termos> [--limit N] · fact <id> · chapter [n] · rolls · log [n] · validate · atlas [sync] · replay <arquivo>
 PC:         pc create  (JSON via stdin)
 Turno:      turn begin --action "..." · narrate (stdin) · turn end --summary "..." [--narration "..."|--narration -] · undo
@@ -167,8 +168,10 @@ function dispatch(argv: string[], input?: string): string {
         const slug = rest[0]
         const name = str(args, "name")
         const premise = str(args, "premise")
-        if (!slug || !name || !premise) throw new Error('Uso: dnd campaign new <slug> --name "Nome" --premise "Premissa" [--tone "Tom"]')
-        createCampaign(slug, { name, premise, tone: str(args, "tone") ?? "" }).close()
+        if (!slug || !name || !premise) throw new Error('Uso: dnd campaign new <slug> --name "Nome" --premise "Premissa" [--tone "Tom"] [--sandbox]')
+        const sandbox = args.flags.sandbox === true
+        createCampaign(slug, { name, premise, tone: str(args, "tone") ?? "", sandbox }).close()
+        if (sandbox) return `Campanha "${name}" criada [${slug}] em sandbox: fora do multiverso, não lê nem publica no atlas. Crie o mundo e o PC (pc create).`
         const db = openCampaign(slug)
         const s = atlasStats(db)!
         db.close()
@@ -194,9 +197,9 @@ function dispatch(argv: string[], input?: string): string {
       })
     }
     case "skill":
-      return readFileSync(join(import.meta.dirname, "..", "skill", "SKILL.md"), "utf8")
+      return skillText(sub)
     case "context":
-      return withCampaign(args, (db, slug) => buildContext(db, slug, { full: args.flags.full === true, json: args.flags.json === true }))
+      return withCampaign(args, (db, slug) => buildContext(db, slug, { full: args.flags.full === true, json: args.flags.json === true, cena: args.flags.cena === true }))
     case "resume":
       return withCampaign(args, (db, slug) => resume(db, slug, { page: num(args, "page"), limit: num(args, "limit"), chapter: num(args, "chapter") }))
     case "chapter":
@@ -265,12 +268,14 @@ function dispatch(argv: string[], input?: string): string {
       if (sub === "begin") {
         const action = str(args, "action")
         if (!action) throw new Error('Uso: dnd turn begin --action "o que o jogador fez/disse"')
-        return withCampaign(args, (db, slug) => beginTurn(db, slug, action).join("\n"))
+        // Já devolve a cena: o Mestre não precisa de um context logo depois (uma chamada a menos por turno).
+        return withCampaign(args, (db, slug) => [...beginTurn(db, slug, action), "", buildContext(db, slug)].join("\n"))
       }
       if (sub === "end") {
         const summary = str(args, "summary")
         if (!summary) throw new Error('Uso: dnd turn end --summary "resumo factual do que aconteceu" [--narration "texto"|-]')
-        let narration = str(args, "narration") ?? ""
+        // Pelo conector o texto chega em "entrada"; sem --narration ele também é a narração (antes era descartado).
+        let narration = str(args, "narration") ?? args.input ?? ""
         if (narration === "-") narration = args.input ?? readFileSync(0, "utf8")
         return withCampaign(args, (db) => endTurn(db, summary, narration).join("\n"))
       }
@@ -284,7 +289,7 @@ function dispatch(argv: string[], input?: string): string {
     case "apply":
       return mutate(args, (db) => {
         const out = applyOps(db, parseOps(readJson(args)))
-        const state = pcStateLine(db)
+        const state = pcStateChange(db)
         return state ? [...out, `${state} Confira com a narração antes do turn end.`] : out
       })
     case "time":

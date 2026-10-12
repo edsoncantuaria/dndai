@@ -41,3 +41,30 @@ export function entityOfCode(db: DB, code: string): string | undefined {
 export function isShortCode(code: string): boolean {
   return CODE_RE.test(code)
 }
+
+/**
+ * Campanhas anteriores aos ids curtos: dá código a toda entidade que ainda não tem, na ordem de criação.
+ * Sem isso a cena dessas campanhas sai com ids longos ("npc:encapuzado-de-luvas-escuras").
+ */
+export function backfillCodes(db: DB): void {
+  const missing = db.prepare(`
+    SELECT entity FROM (
+      SELECT id AS entity, 0 AS g, created_turn AS t, rowid AS r FROM characters
+      UNION ALL SELECT id, 1, created_turn, rowid FROM places
+      UNION ALL SELECT id, 2, created_turn, rowid FROM factions
+      UNION ALL SELECT id, 3, 0, rowid FROM items
+      UNION ALL SELECT id, 4, created_turn, rowid FROM quests
+      UNION ALL SELECT id, 5, created_turn, rowid FROM clocks
+      UNION ALL SELECT 'fact:' || id, 6, turn, id FROM facts
+      UNION ALL SELECT 'hook:' || id, 7, turn, id FROM hooks
+    ) WHERE entity NOT IN (SELECT entity FROM codes) ORDER BY g, t, r`).all() as { entity: string }[]
+  if (!missing.length) return
+  db.exec("BEGIN IMMEDIATE")
+  try {
+    for (const { entity } of missing) ensureCode(db, entity)
+    db.exec("COMMIT")
+  } catch (error) {
+    db.exec("ROLLBACK")
+    throw error
+  }
+}

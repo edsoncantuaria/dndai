@@ -4,6 +4,7 @@ import { z } from "zod"
 import { all, type DB, index, log, metaNum, one } from "./db.ts"
 import { ensureCode, entityOfCode } from "./codes.ts"
 import { insertFact } from "./facts.ts"
+import { expandRefs, unknownNames } from "./narration.ts"
 import { assertFlatDamage, assertHeal, assertTemp, noteMoneyGain, noteXpGain } from "./guard.ts"
 import { gainXp, heal, applyDamage, useSlot } from "./mechanics.ts"
 import { CLASSES, parseCondition } from "./rules.ts"
@@ -30,6 +31,8 @@ const persona = z
   })
   .strict()
 
+/** Id de memória como o show mostra (#12) ou número. */
+const memId = z.union([z.number().int().positive(), z.string().regex(/^#?\d+$/).transform((v) => Number(v.replace("#", "")))])
 const schedule = z.array(z.object({ from: z.string(), to: z.string(), place: ref }).strict())
 
 const attack = z.object({ name: text, bonus: z.number().int(), damage: text, type: z.string().default("") }).strict()
@@ -85,6 +88,7 @@ export const OpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("item.equip"), item: ref, equipped: z.boolean() }).strict(),
   z.object({ op: z.literal("attitude"), npc: ref, delta: z.number().int().min(-100).max(100), reason: text }).strict(),
   z.object({ op: z.literal("memory"), npcs: z.array(ref).min(1), text, importance: z.number().int().min(1).max(3).default(1) }).strict(),
+  z.object({ op: z.literal("memory.consolidate"), npc: ref, ids: z.array(memId).min(2), text: z.string().trim().min(10).max(400), importance: z.number().int().min(1).max(3).optional() }).strict(),
   z.object({
     op: z.literal("fact"), text, about: ref.optional(), secret: z.boolean().default(false), lore: z.boolean().default(false),
     source: z.enum(["motor", "jogador", "mestre", "npc"]).default("mestre"),
@@ -108,12 +112,19 @@ export const OpSchema = z.discriminatedUnion("op", [
 
 export type Op = z.infer<typeof OpSchema>
 
+/** Nome de cada op aceita, para o erro de op desconhecida ficar curto e útil. */
+const OP_NAMES = OpSchema.options.map((o) => o.shape.op.value as string)
+
 export function parseOps(input: unknown): Op[] {
   const list = Array.isArray(input) ? input : (input as { ops?: unknown })?.ops ?? [input]
   if (!Array.isArray(list) || !list.length) throw new Error("Lote vazio. Envie um array JSON de operações.")
   return list.map((raw, i) => {
     const r = OpSchema.safeParse(raw)
     if (r.success) return r.data
+    const given = (raw as { op?: unknown })?.op
+    if (typeof given !== "string" || !OP_NAMES.includes(given)) {
+      throw new Error(`Operação ${i + 1}: op ${JSON.stringify(given ?? null)} não existe. Ops: ${OP_NAMES.join(", ")}.`)
+    }
     const issues = r.error.issues.map((x) => `${x.path.join(".") || "(raiz)"}: ${x.message}`).join("; ")
     const name = (raw as { op?: string })?.op
     throw new Error(`Operação ${i + 1}${name ? ` (${name})` : ""} inválida: ${issues}`)
@@ -341,6 +352,28 @@ function applyOne(tx: Tx, op: Op): string {
       const ids = op.npcs.map((n) => r(tx, n, ["npc"]))
       for (const id of ids) addMemory(tx, id, op.text, op.importance)
       return `+ memória para ${ids.map((id) => getCharacter(db, id).name).join(", ")}`
+    }
+    case "memory.consolidate": {
+      // O Mestre resume; o motor guarda o resumo e as originais (apontando para ele), nada se apaga.
+      const npc = r(tx, op.npc, ["npc"])
+      const ids = [...new Set(op.ids)]
+      const rows = all<{ id: number; npc_id: string; importance: number; merged_into: number | null }>(
+        db, `SELECT id, npc_id, importance, merged_into FROM memories WHERE id IN (${ids.map(() => "?").join(",")})`, ...ids,
+      )
+      for (const id of ids) {
+        const m = rows.find((row) => row.id === id)
+        if (!m || m.npc_id !== npc) throw new Error(`Memória #${id} não é de ${getCharacter(db, npc).name} (veja os ids com show).`)
+        if (m.merged_into !== null) throw new Error(`Memória #${id} já foi resumida em #${m.merged_into}.`)
+      }
+      const summary = expandRefs(db, op.text)
+      const unknown = unknownNames(db, summary)
+      if (unknown.length) throw new Error(`Resumo cita o que o motor não conhece:\n${unknown.map((p) => `- ${p}`).join("\n")}`)
+      const importance = op.importance ?? Math.max(...rows.map((m) => m.importance))
+      const res = db.prepare("INSERT INTO memories(npc_id, text, importance, turn, at_min, consolidated) VALUES(?,?,?,?,?,1)").run(npc, summary, importance, tx.turn, now(db))
+      const nid = Number(res.lastInsertRowid)
+      db.prepare(`UPDATE memories SET merged_into = ? WHERE id IN (${ids.map(() => "?").join(",")})`).run(nid, ...ids)
+      index(db, `mem:${nid}`, "memória", `${getCharacter(db, npc).name}: ${summary}`)
+      return `~ memórias de ${getCharacter(db, npc).name}: ${ids.length} resumidas em #${nid}`
     }
     case "fact": {
       const about = op.about ? resolveRef(db, op.about, ["pc", "npc", "place", "faction", "item", "quest"], tx.labels) : null

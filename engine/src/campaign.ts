@@ -4,6 +4,7 @@ import { DatabaseSync } from "node:sqlite"
 import { basename, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { attachAtlas, sync } from "./atlas.ts"
+import { backfillCodes } from "./codes.ts"
 import { type DB, getMeta, openDb, setMeta, tighten, transaction } from "./db.ts"
 
 const KEEP_BACKUPS = 30
@@ -78,14 +79,19 @@ export function withCampaignLock<T>(slug: string, fn: () => T): T {
   }
 }
 
-export function createCampaign(slug: string, info: { name: string; premise: string; tone: string }): DB {
+/**
+ * `sandbox`: universo fora do multiverso (testes, avaliações). Não lê nem publica no atlas compartilhado,
+ * então nada criado ali aparece nas campanhas reais.
+ */
+export function createCampaign(slug: string, info: { name: string; premise: string; tone: string; sandbox?: boolean }): DB {
   if (campaignExists(slug)) throw new Error(`Campanha "${slug}" já existe.`)
   mkdirSync(join(campaignDir(slug), "backups"), { recursive: true })
   const secretFile = join(campaignDir(slug), "connector.secret")
   if (!existsSync(secretFile)) writeFileSync(secretFile, randomBytes(32).toString("hex"), { mode: 0o600 })
   tighten(secretFile)
   const db = openDb(dbPath(slug))
-  attachAtlas(db, campaignsHome())
+  if (info.sandbox) setMeta(db, "sandbox", 1)
+  else attachAtlas(db, campaignsHome())
   setMeta(db, "slug", slug)
   setMeta(db, "name", info.name)
   setMeta(db, "premise", info.premise)
@@ -105,8 +111,9 @@ export function openCampaign(slug: string): DB {
     throw new Error(`Campanha "${slug}" não existe. Existentes: ${known.join(", ") || "nenhuma"}. Crie com: dnd campaign new <slug> --name ...`)
   }
   const db = openDb(dbPath(slug))
-  attachAtlas(db, campaignsHome())
+  if (getMeta(db, "sandbox") !== "1") attachAtlas(db, campaignsHome())
   if (!getMeta(db, "slug")) setMeta(db, "slug", slug)
+  backfillCodes(db)
   return db
 }
 

@@ -83,6 +83,40 @@ export function advanceTime(db: DB, minutes: number): string[] {
 }
 
 /** Move o PC por uma ligação existente (o tempo de viagem passa) ou reposiciona um NPC. */
+/**
+ * Caminho mais curto em minutos entre dois locais, pelas ligações e por sublocal ↔ local de cima (0 min,
+ * como a cena anuncia). `via` são os locais intermediários. O PC atravessa quantos trechos precisar.
+ */
+function route(db: DB, from: string, to: string): { minutes: number; via: string[] } | null {
+  const edges = new Map<string, { to: string; minutes: number }[]>()
+  const add = (a: string, b: string, minutes: number) => edges.set(a, [...(edges.get(a) ?? []), { to: b, minutes }])
+  for (const l of all<{ from_id: string; to_id: string; minutes: number }>(db, "SELECT from_id, to_id, minutes FROM links")) add(l.from_id, l.to_id, l.minutes)
+  for (const p of all<{ id: string; parent_id: string }>(db, "SELECT id, parent_id FROM places WHERE parent_id IS NOT NULL")) {
+    add(p.id, p.parent_id, 0)
+    add(p.parent_id, p.id, 0)
+  }
+  const dist = new Map([[from, 0]])
+  const prev = new Map<string, string>()
+  const open = new Set([from])
+  while (open.size) {
+    const here = [...open].reduce((a, b) => (dist.get(a)! <= dist.get(b)! ? a : b))
+    open.delete(here)
+    if (here === to) break
+    for (const e of edges.get(here) ?? []) {
+      const d = dist.get(here)! + e.minutes
+      if (d < (dist.get(e.to) ?? Infinity)) {
+        dist.set(e.to, d)
+        prev.set(e.to, here)
+        open.add(e.to)
+      }
+    }
+  }
+  if (!dist.has(to)) return null
+  const via: string[] = []
+  for (let at = prev.get(to); at && at !== from; at = prev.get(at)) via.unshift(at)
+  return { minutes: dist.get(to)!, via }
+}
+
 export function move(db: DB, who: string, to: string): string[] {
   const c = getCharacter(db, who)
   getPlace(db, to)
@@ -95,10 +129,19 @@ export function move(db: DB, who: string, to: string): string[] {
   if (c.place_id === to) return [`${c.name} já está em ${getPlace(db, to).name}.`]
   const out: string[] = []
   if (c.place_id) {
-    const link = one<{ minutes: number }>(db, "SELECT minutes FROM links WHERE from_id = ? AND to_id = ?", c.place_id, to)
+    const link = route(db, c.place_id, to)
     if (!link) {
-      const exits = all<{ id: string; name: string }>(db, "SELECT p.id, p.name FROM links l JOIN places p ON p.id = l.to_id WHERE l.from_id = ?", c.place_id)
-      throw new Error(`Não há caminho registrado de ${c.place_id} para ${to}. Saídas: ${exits.map((e) => `${e.name} [${e.id}]`).join("; ") || "nenhuma"}. Crie a ligação (link) antes, se fizer sentido no mundo.`)
+      const exits = all<{ id: string; name: string }>(
+        db,
+        "SELECT p.id, p.name FROM links l JOIN places p ON p.id = l.to_id WHERE l.from_id = ? UNION SELECT id, name FROM places WHERE parent_id = ? UNION SELECT p.id, p.name FROM places c JOIN places p ON p.id = c.parent_id WHERE c.id = ?",
+        c.place_id, c.place_id, c.place_id,
+      )
+      const short = (id: string) => one<{ code: string }>(db, "SELECT code FROM codes WHERE entity = ?", id)?.code ?? id
+      throw new Error(`Não há caminho registrado de ${getPlace(db, c.place_id).name} para ${getPlace(db, to).name}. Saídas daqui: ${exits.map((e) => `${e.name} [${short(e.id)}]`).join("; ") || "nenhuma"}. Nenhum caminho liga os dois: crie a ligação (link, minutos > 0), se fizer sentido no mundo.`)
+    }
+    if (link.via.length) {
+      db.prepare(`UPDATE places SET visited = 1 WHERE id IN (${link.via.map(() => "?").join(",")})`).run(...link.via)
+      out.push(`Caminho: ${link.via.map((id) => getPlace(db, id).name).join(" → ")} → ${getPlace(db, to).name} (${link.minutes} min).`)
     }
     if (link.minutes > 0) out.push(...advanceTime(db, link.minutes))
   }

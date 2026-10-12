@@ -49,10 +49,20 @@ describe("conector MCP dndai (ChatGPT, sem shell)", () => {
     assert.match((await call("dnd_agir", { campanha: "conec", comando: "apply", entrada: JSON.stringify(world) })).text, /\+ local Praça/)
     const pc = { name: "Ana", race: "Humana", class: "bardo", ac: 12, place: "l1", abilities: { for: 8, des: 14, con: 12, int: 10, sab: 10, car: 16 } }
     assert.match((await call("dnd_agir", { campanha: "conec", comando: "pc", args: ["create"], entrada: JSON.stringify(pc) })).text, /Ana/)
-    await call("dnd_agir", { campanha: "conec", comando: "turn", args: ["begin", "--action", "Ana canta"] })
+    // Subcomando no campo comando ("turn begin") vale o mesmo que em args.
+    assert.match((await call("dnd_agir", { campanha: "conec", comando: "turn begin", args: ["--action", "Ana canta"] })).text, /Turno 1 aberto/)
     assert.match((await call("dnd_agir", { campanha: "conec", comando: "check", args: ["pc", "atuacao", "--dc", "12", "--mesa"] })).text, /Pedido de rolagem/)
     assert.match((await call("dnd_agir", { campanha: "conec", comando: "narrate", entrada: "Você sobe no banco da praça." })).text, /registrada/)
     assert.match((await call("dnd_ler", { campanha: "conec", comando: "context" })).text, /Rolagem #1 aguardando/)
+  })
+
+  it("turn end usa a entrada como narração mesmo sem --narration -", async () => {
+    await call("dnd_agir", { campanha: "conec", comando: "campaign", args: ["new", "conec2", "--name", "C2", "--premise", "p"] })
+    await call("dnd_agir", { campanha: "conec2", comando: "apply", entrada: JSON.stringify([{ op: "create.place", name: "Praça", kind: "praça", summary: "Praça." }]) })
+    await call("dnd_agir", { campanha: "conec2", comando: "turn", args: ["begin", "--action", "olha a praça"] })
+    const out = await call("dnd_agir", { campanha: "conec2", comando: "turn", args: ["end", "--summary", "Olhou a praça vazia ao meio-dia."], entrada: "Você olha a praça vazia." })
+    assert.match(out.text, /fechado/)
+    assert.match((await call("dnd_ler", { campanha: "conec2", comando: "log" })).text + (await call("dnd_ler", { campanha: "conec2", comando: "resume" })).text, /Você olha a praça vazia\./)
   })
 
   it("bloqueia o que não é do jogo", async () => {

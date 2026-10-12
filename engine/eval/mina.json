@@ -1,0 +1,218 @@
+{
+  "name": "A mina selada",
+  "premise": "Um guerreiro chega a Vila Pedrafria, onde a mina foi selada há dez anos e luzes azuis voltaram a aparecer.",
+  "tone": "fantasia sombria, conciso",
+  "world": [
+    {
+      "op": "create.place",
+      "as": "vila",
+      "name": "Vila Pedrafria",
+      "kind": "vila",
+      "summary": "Vila de mineiros no sopé da serra, casas de pedra cinza."
+    },
+    {
+      "op": "create.place",
+      "as": "forja",
+      "name": "Forja de Mara",
+      "kind": "oficina",
+      "summary": "Forja quente, bigorna gasta, cheiro de carvão.",
+      "parent": "$vila"
+    },
+    {
+      "op": "create.place",
+      "as": "mina",
+      "name": "Mina Selada",
+      "kind": "masmorra",
+      "summary": "Entrada da mina, tábuas pregadas e correntes enferrujadas.",
+      "links": [
+        {
+          "to": "$vila",
+          "minutes": "40m",
+          "via": "trilha da serra"
+        }
+      ]
+    },
+    {
+      "op": "create.place",
+      "as": "taverna",
+      "name": "Taverna do Corvo",
+      "kind": "taverna",
+      "summary": "Taverna escura e silenciosa.",
+      "parent": "$vila"
+    },
+    {
+      "op": "create.faction",
+      "as": "guilda",
+      "name": "Guilda dos Mineiros",
+      "summary": "Mineiros desempregados desde o selamento.",
+      "goal": "reabrir a mina a qualquer custo"
+    },
+    {
+      "op": "create.npc",
+      "as": "mara",
+      "name": "Mara",
+      "place": "$forja",
+      "summary": "ferreira da vila, braços fortes e olhar desconfiado",
+      "persona": {
+        "traits": [
+          "direta",
+          "desconfiada"
+        ],
+        "voice": "seca, frases curtas",
+        "wants": "descobrir o que matou o irmão na mina",
+        "fears": "que a mina reabra",
+        "secret": "guarda a chave das correntes da mina"
+      }
+    },
+    {
+      "op": "create.npc",
+      "as": "borin",
+      "name": "Borin",
+      "place": "$taverna",
+      "summary": "taverneiro gordo e falador",
+      "faction": "$guilda",
+      "persona": {
+        "voice": "alta, risonha",
+        "wants": "que a mina reabra",
+        "secret": "deve dinheiro à guilda"
+      }
+    },
+    {
+      "op": "create.quest",
+      "as": "q",
+      "title": "As luzes da mina",
+      "summary": "Descobrir o que são as luzes azuis na Mina Selada.",
+      "giver": "$mara",
+      "objectives": [
+        "Ouvir o que Mara sabe",
+        "Chegar à Mina Selada",
+        "Descobrir a origem das luzes"
+      ]
+    },
+    {
+      "op": "hook",
+      "kind": "misterio",
+      "text": "Mineiros dizem ouvir batidas vindas de dentro da mina selada.",
+      "about": "$mina"
+    },
+    {
+      "op": "create.clock",
+      "name": "A guilda arromba a mina",
+      "owner": "$guilda",
+      "segments": 4,
+      "on_complete": "A guilda arromba as correntes e entra na mina."
+    },
+    {
+      "op": "fact",
+      "text": "A mina foi selada há dez anos depois de um desabamento que matou o irmão de Mara.",
+      "about": "$mina"
+    },
+    {
+      "op": "memory",
+      "npcs": [
+        "$mara"
+      ],
+      "text": "Um forasteiro de armadura chegou à vila pela estrada do sul.",
+      "importance": 1
+    },
+    {
+      "op": "memory",
+      "npcs": [
+        "$mara"
+      ],
+      "text": "O forasteiro perguntou pelas luzes da mina na praça.",
+      "importance": 2
+    },
+    {
+      "op": "memory",
+      "npcs": [
+        "$mara"
+      ],
+      "text": "O forasteiro elogiou o trabalho da forja.",
+      "importance": 1
+    },
+    {
+      "op": "memory",
+      "npcs": [
+        "$mara"
+      ],
+      "text": "O forasteiro pagou adiantado para afiar a espada.",
+      "importance": 2
+    },
+    {
+      "op": "memory",
+      "npcs": [
+        "$mara"
+      ],
+      "text": "O forasteiro não fez perguntas sobre o irmão dela.",
+      "importance": 2
+    },
+    {
+      "op": "memory",
+      "npcs": [
+        "$mara"
+      ],
+      "text": "O forasteiro ajudou a carregar carvão sem pedir nada.",
+      "importance": 3
+    }
+  ],
+  "pc": {
+    "name": "Kael",
+    "race": "Humano",
+    "class": "guerreiro",
+    "ac": 16,
+    "place": "Forja de Mara",
+    "money": "15po",
+    "abilities": {
+      "for": 16,
+      "des": 12,
+      "con": 14,
+      "int": 10,
+      "sab": 12,
+      "car": 10
+    },
+    "items": [
+      {
+        "name": "Espada longa",
+        "kind": "arma",
+        "props": {
+          "damage": "1d8",
+          "damage_type": "cortante"
+        },
+        "equipped": true
+      }
+    ]
+  },
+  "steps": [
+    {
+      "fala": "Kael larga a espada sobre a bigorna e pergunta a Mara, sem rodeios, o que ela sabe sobre as luzes azuis na mina."
+    },
+    {
+      "rola": 17
+    },
+    {
+      "fala": "Kael pega a espada de volta, agradece com um aceno e sobe a trilha da serra até a Mina Selada para examinar as tábuas e as correntes de perto."
+    },
+    {
+      "rola": 17
+    },
+    {
+      "cli": [
+        "chapter",
+        "close"
+      ]
+    },
+    {
+      "fala": "Kael encosta o ouvido nas tábuas, espera a próxima batida e responde batendo três vezes com o punho da espada."
+    },
+    {
+      "rola": 6
+    },
+    {
+      "fala": "Kael não desiste: bate três vezes de novo, mais forte, e chama em voz alta perguntando quem está aí dentro."
+    },
+    {
+      "rola": 14
+    }
+  ]
+}

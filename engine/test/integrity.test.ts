@@ -12,7 +12,7 @@ const db = await import("../src/db.ts")
 const { ngramEmbedder, setEmbedder } = await import("../src/embed.ts")
 const { runCli } = await import("../src/cli.ts")
 const { formatRollJournal } = await import("../src/journal.ts")
-const { rollNow } = await import("../src/mechanics.ts")
+const { resolveRequest, rollNow } = await import("../src/mechanics.ts")
 const { applyOps, parseOps } = await import("../src/ops.ts")
 const { createPc } = await import("../src/pc.ts")
 const { memoriesFor } = await import("../src/scene.ts")
@@ -22,6 +22,9 @@ const { countTokens } = await import("../src/toon.ts")
 const { buildView } = await import("../src/view.ts")
 const { strictRefs } = await import("../src/world.ts")
 const { parseReplay, replaySteps } = await import("../src/replay.ts")
+const { skillText } = await import("../src/skill.ts")
+const { narrationProblems } = await import("../src/narration.ts")
+const { changesOf } = await import("../src/chapters.ts")
 
 let slug = ""
 let w: ReturnType<typeof openCampaign>
@@ -105,7 +108,13 @@ describe("mundo que não alucina", () => {
     assert.throws(() => narrate(w, "Mara saca a espada e ataca."), /morto/)
     assert.throws(() => narrate(w, "Você vê Borin na porta."), /Borin/)
     assert.throws(() => narrate(w, "O símbolo n99 brilha na parede."), /n99/)
-    narrate(w, "Parágrafo um.\n\nFaça um teste de Furtividade.")
+    // Início de frase ou de fala é maiúsculo por ortografia; nome no meio da frase, não.
+    assert.deepEqual(narrationProblems(w, "— {m} Forasteiros, hein? — resmunga Kael. — Paguem adiantado.\nChuva fina cai. Ela sussurra: “{f}Não confie nele.”"), [])
+    assert.deepEqual(narrationProblems(w, "Lá fora, Zorvak espera. Silêncio."), ['"Zorvak" não é uma entidade do motor. Nomes novos só nascem via apply; cite quem já existe pelo nome que está no contexto.'])
+    assert.match(narrationProblems(w, "Zorvak ergue a espada. Zorvak ri.").join(), /Zorvak/)
+    // Depois de um dado, a narração traz a linha 🎲.
+    assert.throws(() => narrate(w, "A lâmina encontra a fresta da armadura."), /falta a linha 🎲/)
+    narrate(w, "A lâmina encontra a fresta da armadura.\n\n🎲 Ataque 15 — acerto")
     endTurn(w, "Kael derrubou Mara e ficou atento.", "")
   })
 
@@ -166,6 +175,155 @@ describe("TOON", () => {
     assert.ok(tt < tp * 0.75, `TOON ${tt} deveria ser bem menor que a prosa ${tp}`)
     assert.match(toon, /trai a vila/)
     assert.match(toon, /n1|Borin/)
+  })
+})
+
+describe("economia de tokens na conversa", () => {
+  it("{id} na narração vira o nome do motor; voz {f} fica; id inexistente recusa", () => {
+    beginTurn(w, slug, "conversa com a ferreira")
+    narrate(w, "— {f} Volte amanhã — diz {n1}, na forja de {l1}.")
+    const text = (w.prepare("SELECT text FROM narrations ORDER BY id DESC LIMIT 1").get() as { text: string }).text
+    assert.equal(text, "— {f} Volte amanhã — diz Mara, na forja de Vila.")
+    assert.throws(() => narrate(w, "{n99} aparece."), /\{n99\}, que não existe/)
+  })
+
+  it("sublocal ↔ local de cima é caminho, como a cena anuncia", () => {
+    apply([{ op: "create.place", name: "Forja", kind: "oficina", summary: "Forja da vila.", parent: "l1" }])
+    beginTurn(w, slug, "entra na forja e sai de novo")
+    assert.match(apply([{ op: "move", who: "pc", to: "Forja" }]).join(), /chega a Forja/)
+    assert.match(apply([{ op: "move", who: "pc", to: "l1" }]).join(), /chega a Vila/)
+    // Forja → Mina passa pela Vila sozinho: soma o tempo e marca o caminho.
+    apply([{ op: "move", who: "pc", to: "Forja" }])
+    const before = w.prepare("SELECT value FROM meta WHERE key = 'now'").get() as { value: string }
+    assert.match(apply([{ op: "move", who: "pc", to: "l2" }]).join(), /Caminho: Vila → Mina \(10 min\)/)
+    assert.equal(Number((w.prepare("SELECT value FROM meta WHERE key = 'now'").get() as { value: string }).value) - Number(before.value), 10)
+    apply([{ op: "create.place", name: "Ilha", kind: "ilha", summary: "Sem ponte." }])
+    assert.throws(() => apply([{ op: "move", who: "pc", to: "Ilha" }]), /Não há caminho registrado de Mina para Ilha\. Saídas daqui: Vila \[l1\]/)
+  })
+
+  it("turn end recusa fechar sem narrar a rolagem que o jogador fez na mesa", () => {
+    runCli(["-c", slug, "turn", "begin", "--action", "examina a forja"])
+    runCli(["-c", slug, "check", "pc", "investigacao", "--dc", "12", "--mesa"])
+    runCli(["-c", slug, "narrate"], "Você se aproxima da bigorna. Faça um teste de Investigação.")
+    const req = w.prepare("SELECT id FROM roll_requests WHERE status = 'pendente'").get() as { id: number }
+    db.transaction(w, () => resolveRequest(w, req.id, [15], "mesa"))
+    assert.throws(() => endTurn(w, "Kael examinou a forja e achou marcas.", ""), /rolagem #\d+ foi resolvida depois da última narração/)
+    assert.match(endTurn(w, "Kael examinou a forja e achou marcas.", "Você encontra marcas de martelo recentes. 🎲 Investigação 15 vs CD 12").join(), /fechado/)
+  })
+
+  it("item do PC por parte do nome e na cena; memória por #id; op desconhecida com erro curto", () => {
+    apply([{ op: "create.item", owner: "pc", name: "Espada longa", kind: "arma", props: { damage: "1d8" } }])
+    assert.match(buildContext(w, slug, { cena: true }), /itens: i1 Espada longa/)
+    beginTurn(w, slug, "saca a espada")
+    assert.match(runCli(["-c", slug, "item", "empunhar", "espada"]), /Espada longa/)
+    assert.throws(() => runCli(["-c", slug, "item", "largar", "machado"]), /Itens dele: Espada longa \[i1\]/)
+    runCli(["-c", slug, "item", "embainhar", "i1"])
+    runCli(["-c", slug, "item", "largar", "i1"])
+    assert.throws(() => runCli(["-c", slug, "item", "empunhar", "i1"]), /Espada longa está em Vila: traga com item\.give/)
+    apply([{ op: "item.give", item: "i1", to: "pc" }])
+    apply([{ op: "memory", npcs: ["n1"], text: "Kael sacou a espada" }, { op: "memory", npcs: ["n1"], text: "Kael guardou a espada" }])
+    const ids = (w.prepare("SELECT id FROM memories ORDER BY id").all() as { id: number }[]).map((m) => `#${m.id}`)
+    assert.match(apply([{ op: "memory.consolidate", npc: "n1", ids, text: "Mara viu Kael sacar e guardar a espada sem ameaçar ninguém." }]).join(), /resumidas/)
+    assert.throws(() => apply([{ op: "memoria", npcs: ["n1"], text: "x" }]), /op "memoria" não existe\. Ops: create\.place/)
+  })
+
+  it("narração em 3ª pessoa do PC é recusada; nas falas o nome dele pode aparecer", () => {
+    beginTurn(w, slug, "olha em volta")
+    assert.throws(() => narrate(w, "A chuva cai. Kael golpeia a porta."), /3ª pessoa/)
+    assert.throws(() => narrate(w, "Kael prende o ouvido contra as tábuas."), /3ª pessoa/)
+    narrate(w, "Você golpeia a porta.\n— {f} Kael, pare com isso — diz Mara.")
+  })
+
+  it("agenda que avança sozinha não é marcada como parada", () => {
+    apply([{ op: "create.clock", name: "Cerco à vila", segments: 4, on_complete: "a vila cai" }, { op: "hook", kind: "misterio", text: "um uivo distante" }])
+    for (let t = 0; t < 12; t++) {
+      beginTurn(w, slug, `espera ${t}`)
+      endTurn(w, `Kael esperou na vila pela vez ${t}.`, "")
+    }
+    const ctx = buildContext(w, slug, { cena: true })
+    assert.match(ctx, /h1\*|h1,.*esfriando/)
+    assert.doesNotMatch(ctx, /k1\*|k1,.*esfriando/)
+  })
+
+  it("estado do PC só reaparece quando muda", () => {
+    runCli(["-c", slug, "turn", "begin", "--action", "anda pela vila"])
+    const first = runCli(["-c", slug, "apply"], JSON.stringify([{ op: "memory", npcs: ["n1"], text: "Kael passou pela forja" }]))
+    const same = runCli(["-c", slug, "apply"], JSON.stringify([{ op: "memory", npcs: ["n1"], text: "Kael olhou as lâminas" }]))
+    const moved = runCli(["-c", slug, "apply"], JSON.stringify([{ op: "move", who: "pc", to: "l2" }]))
+    assert.match(first, /Estado do PC no motor: Kael em Vila/)
+    assert.match(same, /sem mudança/)
+    assert.match(moved, /Kael em Mina/)
+  })
+
+  it("resume traz a cena inteira e a última narração mesmo depois do turn end", () => {
+    beginTurn(w, slug, "olha a vila")
+    endTurn(w, "Kael olhou a vila e não viu nada estranho.", "A vila dorme sob a chuva.")
+    assert.match(buildContext(w, slug), /modo: delta/)
+    const r = runCli(["-c", slug, "resume"])
+    assert.match(r, /modo: cena/)
+    assert.match(r, /ÚLTIMA NARRAÇÃO \(T1\)\nA vila dorme sob a chuva\./)
+  })
+
+  it("mudanças do capítulo: marcos do log e atitude líquida, sem memória nem fato comum", () => {
+    beginTurn(w, slug, "ajuda na forja")
+    apply([
+      { op: "attitude", npc: "n1", delta: 15, reason: "ajudou na forja o dia todo" },
+      { op: "attitude", npc: "n1", delta: 10, reason: "pagou bem pelo serviço" },
+      { op: "memory", npcs: ["n1"], text: "Kael ajudou na forja" },
+      { op: "fact", text: "a forja tem fole novo" },
+      { op: "hook", kind: "promessa", text: "Mara prometeu uma lâmina" },
+    ])
+    assert.deepEqual(changesOf(w, 1, 1), ["+ gancho h1 (promessa): Mara prometeu uma lâmina", "~ atitude de Mara: 0 → 25"])
+  })
+
+  it("consolidação: o Mestre resume, o motor guarda as originais e mostra a relação", () => {
+    beginTurn(w, slug, "passa a semana ajudando na forja")
+    apply(Array.from({ length: 6 }, (_, i) => ({ op: "memory", npcs: ["n1"], text: `Kael ajudou na forja no dia ${i + 1}` })))
+    assert.match(buildContext(w, slug, { cena: true }), /Consolide as memórias de Mara \(n1, 6 soltas\)/)
+    const ids = (w.prepare("SELECT id FROM memories WHERE npc_id = 'npc:mara' ORDER BY id").all() as { id: number }[]).map((m) => m.id)
+    assert.match(runCli(["-c", slug, "show", "n1"]), new RegExp(`#${ids[0]} \\[dia`))
+    assert.throws(() => apply([{ op: "memory.consolidate", npc: "n1", ids, text: "Kael contou a Zorvak que é bom ferreiro." }]), /Zorvak/)
+    apply([{ op: "memory.consolidate", npc: "n1", ids, text: "Mara confia em {pc}: ele trabalhou seis dias na forja sem pedir nada." }])
+    assert.throws(() => apply([{ op: "memory.consolidate", npc: "n1", ids: ids.slice(0, 2), text: "de novo, outra vez resumindo" }]), /já foi resumida/)
+    apply([{ op: "time", advance: "10d" }])
+    const ctx = buildContext(w, slug, { cena: true })
+    assert.match(ctx, /Mara confia em Kael: ele trabalhou seis dias/)
+    assert.doesNotMatch(ctx, /Consolide as memórias/)
+    const show = runCli(["-c", slug, "show", "n1"])
+    assert.match(show, /RELAÇÃO \[dia \d+\] Mara confia em Kael/)
+    assert.match(show, /Kael ajudou na forja no dia 1 \(resumida em #\d+\)/)
+  })
+
+  it("campanha sandbox não lê nem publica no multiverso", () => {
+    const out = runCli(["campaign", "new", `sand${n}`, "--name", "Areia", "--premise", "teste isolado", "--sandbox"])
+    assert.match(out, /sandbox/)
+    runCli(["-c", `sand${n}`, "apply"], JSON.stringify([{ op: "create.place", name: "Ilha Secreta", kind: "ilha", summary: "Só do teste." }]))
+    runCli(["-c", `sand${n}`, "pc", "create"], JSON.stringify({ name: "Teo", race: "Humano", class: "guerreiro", ac: 14, place: "Ilha Secreta", abilities: { for: 14, des: 12, con: 12, int: 10, sab: 10, car: 10 } }))
+    runCli(["-c", `sand${n}`, "turn", "begin", "--action", "olha o mar"])
+    const other = runCli(["campaign", "new", `real${n}`, "--name", "Real", "--premise", "multiverso"])
+    assert.doesNotMatch(other + runCli(["-c", `real${n}`, "resume"]), /Ilha Secreta/)
+    assert.doesNotMatch(runCli(["-c", `sand${n}`, "resume"]), /Vila/)
+  })
+
+  it("campanha anterior aos ids curtos ganha códigos ao abrir", () => {
+    w.exec("DELETE FROM codes")
+    w.close()
+    w = openCampaign(slug)
+    const ctx = buildContext(w, slug, { cena: true })
+    assert.doesNotMatch(ctx, /npc:mara|place:vila/)
+    assert.match(ctx, /\bn\d+,Mara,/)
+  })
+
+  it("skill: núcleo sem as seções sob demanda", () => {
+    const full = skillText("tudo")
+    const core = skillText()
+    assert.doesNotMatch(core, /## Preparação/)
+    assert.match(core, /## Modo mesa/)
+    assert.match(core, /skill preparacao/)
+    assert.match(skillText("preparacao"), /^## Preparação/)
+    assert.throws(() => skillText("xyz"), /não existe/)
+    console.log(`TOKENS skill tudo=${countTokens(full)} nucleo=${countTokens(core)}`)
+    assert.ok(countTokens(core) < countTokens(full))
   })
 })
 

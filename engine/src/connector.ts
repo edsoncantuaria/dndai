@@ -31,10 +31,13 @@ const ALLOW: Record<string, Set<string>> = {
   rest: new Set(["dice"]),
   levelup: new Set(["roll"]),
   narrate: new Set(["text"]),
-  context: new Set(["full", "json"]),
+  context: new Set(["full", "json", "cena"]),
   resume: new Set(["page", "limit", "chapter"]),
   recall: new Set(["limit"]),
 }
+
+/** Ops do apply que o modelo às vezes chama como se fossem comandos (ex.: "move"). */
+const APPLY_OPS = new Set(["move", "link", "update", "hp", "condition", "money", "attitude", "memory", "fact", "hook", "reveal", "xp"])
 
 const hits = new Map<string, number[]>()
 
@@ -65,6 +68,9 @@ function checkFlags(comando: string, args: string[]): void {
 
 function validate(kind: "ler" | "agir", comando: string, args: string[]): void {
   const allowed = kind === "ler" ? READ : WRITE
+  if (!allowed.has(comando) && APPLY_OPS.has(comando)) {
+    throw new Error(`"${comando}" é operação do apply, não comando: use dnd_agir comando "apply" com entrada [{"op":"${comando}", ...}].`)
+  }
   if (!allowed.has(comando)) {
     const hint = kind === "ler" && WRITE.has(comando) ? " (esse comando muda o jogo: use dnd_agir)" : kind === "agir" && READ.has(comando) ? " (é leitura: use dnd_ler)" : ""
     throw new Error(`Comando "${comando}" não permitido em dnd_${kind}${hint}. Permitidos: ${[...allowed].join(", ")}.`)
@@ -76,11 +82,16 @@ function validate(kind: "ler" | "agir", comando: string, args: string[]): void {
   checkFlags(comando, args)
 }
 
-function execute(secret: string, kind: "ler" | "agir", campanha: string | undefined, comando: string, args: string[], entrada: string | undefined) {
+function execute(secret: string, kind: "ler" | "agir", campanha: string | undefined, raw: string, rawArgs: string[], entrada: string | undefined) {
+  // O modelo às vezes manda "turn begin" no campo comando: vale o mesmo que comando "turn" + args ["begin", ...].
+  const [comando, ...lead] = raw.trim().split(/\s+/)
+  const args = [...lead, ...rawArgs]
   if (!rateOk(`tool:${secret.slice(0, 8)}`, 120, 60_000)) {
     return { isError: true, content: [{ type: "text" as const, text: "ERRO: limite de chamadas do conector. Espere um instante." }] }
   }
   let ok = false
+  let failure = ""
+  let chars = 0
   try {
     validate(kind, comando, args)
     const legacyFile = join(campaignsHome(), "conector-secret")
@@ -106,12 +117,14 @@ function execute(secret: string, kind: "ler" | "agir", campanha: string | undefi
     const out = strictRefs(() => runCli(argv, entrada))
     if (comando === "campaign" && args[0] === "new" && args[1]) addSlugToScope(args[1])
     ok = true
+    chars = (out || "ok").length
     return { content: [{ type: "text" as const, text: out || "ok" }] }
   } catch (error) {
     const message = (error as Error).message.replace(/Existentes:.*$/, "Fora do escopo deste conector.")
+    failure = message
     return { isError: true, content: [{ type: "text" as const, text: `ERRO: ${message}` }] }
   } finally {
-    auditCall(secret, comando, ok)
+    auditCall(secret, `${comando}${args[0] && !args[0].startsWith("-") ? ` ${args[0]}` : ""}`, ok, failure, chars)
   }
 }
 
@@ -130,7 +143,7 @@ export function buildConnector(secret: string): McpServer {
   server.registerTool(
     "dnd_ler",
     {
-      description: "Lê sem alterar nada. Saída em TOON com ids curtos (n1, l2, i3, f4, q5, h5). context (delta desde o último turno), context --full, context --json, resume, show <id>, fact <id>, chapter, recall <termos>, rolls, log, validate, atlas, srd monster|spell <busca>, skill, help.",
+      description: "Lê sem alterar nada. Saída em TOON com ids curtos (n1, l2, i3, f4, q5, h5). context (delta desde o último turno), context --cena (cena inteira), context --full, context --json, resume, show <id>, fact <id>, chapter, recall <termos>, rolls, log, validate, atlas, srd monster|spell <busca>, skill, help.",
       inputSchema: shape,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },

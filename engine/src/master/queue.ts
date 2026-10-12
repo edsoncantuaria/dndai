@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto"
 import { DatabaseSync } from "node:sqlite"
 import { join } from "node:path"
 import { campaignDir, campaignExists, openCampaign } from "../campaign.ts"
+import { buildContext } from "../context.ts"
 import { all, getMeta } from "../db.ts"
 import type { MasterTransport } from "./shellby.ts"
 
@@ -135,26 +136,40 @@ export function scopeFor(slug: string): string {
   return `dndai-${slug}`
 }
 
-function bootstrapPrompt(slug: string, name: string): string {
+/** Configuração de uma conversa nova do Mestre. Vai junto com a primeira mensagem (sem turno extra de "PRONTO"). */
+function bootstrapLines(slug: string, name: string): string[] {
   return [
     `[dndai · campanha ${slug} · configuração]`,
-    `Você será o Mestre da campanha "${name}" (slug ${slug}) do motor dndai.`,
-    "As próximas mensagens desta conversa chegam da mesa do jogador por um servidor. O jogador não vê este chat: ele vê só a sua resposta final, exibida na mesa como narração.",
-    `Agora: 1) leia as instruções com a ferramenta dnd_ler do conector dndai, comando "skill", e siga-as à risca (incluindo a seção "Modo mesa"); 2) rode dnd_ler comando "resume" com campanha "${slug}" para conhecer o estado atual.`,
-    "Jogue só pelas ferramentas dnd_ler/dnd_agir do conector dndai (sem shell).",
-    "Não narre nada ainda. Responda apenas: PRONTO.",
+    `Você é o Mestre da campanha "${name}" (slug ${slug}) do motor dndai. As mensagens desta conversa chegam da mesa do jogador por um servidor; o jogador não vê este chat, só a narração que você grava no motor.`,
+    `Antes de responder: 1) leia as instruções com dnd_ler comando "skill" e siga-as à risca (incluindo "Modo mesa"); 2) rode dnd_ler comando "resume" com campanha "${slug}"; se ainda não houver personagem, leia também dnd_ler "skill" com args ["preparacao"]. Jogue só por dnd_ler/dnd_agir (sem shell).`,
+    "",
+  ]
+}
+
+function messagePrompt(slug: string, rows: { role: string; text: string }[], opts: { setup?: string[]; scene?: string } = {}): string {
+  const body = rows.map((r) => (r.role === "jogador" ? `Jogador: «${r.text}»` : `Mesa: ${r.text}`))
+  return [
+    ...(opts.setup ?? []),
+    `[mesa dndai · campanha ${slug}]`,
+    ...body,
+    ...(opts.scene ? ["", "Cena atual (o mesmo que dnd_ler context; não precisa chamar de novo):", opts.scene] : []),
+    "",
+    `Siga a skill (Modo mesa) usando dnd_ler/dnd_agir com campanha "${slug}". A mesa exibe a narração que você gravar no motor (narrate ou turn end --narration). Não a repita no chat: sua resposta final é só ${DONE}.`,
   ].join("\n")
 }
 
-function messagePrompt(slug: string, rows: { role: string; text: string }[]): string {
-  const body = rows.map((r) => (r.role === "jogador" ? `Jogador: «${r.text}»` : `Mesa: ${r.text}`))
-  return [
-    `[mesa dndai · campanha ${slug}]`,
-    ...body,
-    "",
-    `Siga a skill (Modo mesa) usando dnd_ler/dnd_agir com campanha "${slug}". Sua resposta final vai direto para o jogador: só a narração em PT-BR, sem comandos, ids ou JSON.`,
-  ].join("\n")
+/** Com o turno aberto (ex.: rolagem resolvida), a cena vai no prompt; sem turno, o turn begin já a devolve. */
+function sceneIfOpen(slug: string): string | undefined {
+  const world = openCampaign(slug)
+  try {
+    return getMeta(world, "turn_open") === "1" ? buildContext(world, slug) : undefined
+  } finally {
+    world.close()
+  }
 }
+
+/** Resposta final do Mestre no Modo mesa: a narração já está no motor, o chat só confirma. */
+const DONE = "✓"
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
@@ -170,8 +185,9 @@ function lastNarrationId(slug: string): number {
 /**
  * Texto a exibir: a narração gravada pelo Mestre no motor durante esta resposta (`narrate`/`turn end`,
  * formatação exata); senão, a resposta lida da página do ChatGPT, sem os avisos internos do Shellby.
+ * Só o marcador sem nada gravado é `null`: o jogador não teria o que ler.
  */
-function narrationFor(slug: string, sinceId: number, response: string): string {
+function narrationFor(slug: string, sinceId: number, response: string): string | null {
   const world = openCampaign(slug)
   try {
     const recorded = all<{ text: string }>(world, "SELECT text FROM narrations WHERE id > ? ORDER BY id", sinceId)
@@ -179,7 +195,24 @@ function narrationFor(slug: string, sinceId: number, response: string): string {
   } finally {
     world.close()
   }
-  return response.replace(/\n*\*\*Notice:\*\*[^\n]*/g, "").trim()
+  const text = response.replace(/\n*\*\*Notice:\*\*[^\n]*/g, "").trim()
+  return !text || text === DONE ? null : text
+}
+
+/**
+ * Conversa nova a cada capítulo fechado: o histórico do ChatGPT (saídas de ferramenta de todos os turnos)
+ * deixa de ser relido a cada mensagem. O motor é a verdade e o bootstrap relê skill + resume.
+ * Só entre turnos, sem rolagem pendente.
+ */
+function chapterCount(slug: string): { chapters: number; idle: boolean } {
+  const world = openCampaign(slug)
+  try {
+    const chapters = all<{ n: number }>(world, "SELECT COUNT(*) AS n FROM chapters")[0]?.n ?? 0
+    const pending = all<{ n: number }>(world, "SELECT COUNT(*) AS n FROM roll_requests WHERE status = 'pendente'")[0]?.n ?? 0
+    return { chapters, idle: getMeta(world, "turn_open") !== "1" && pending === 0 }
+  } finally {
+    world.close()
+  }
 }
 
 export interface MasterOptions {
@@ -232,14 +265,24 @@ export function createMaster(transport: MasterTransport, opts: MasterOptions = {
     }
   }
 
-  const finish = (slug: string, claim: string, result: { ok: true; response: string } | { ok: false; error: string }, sinceTurn: number) => {
+  const finish = (slug: string, claim: string, outcome: { ok: true; response: string } | { ok: false; error: string }, sinceTurn: number) => {
+    let result = outcome
     withChat(slug, (db) =>
       tx(db, () => {
         setMeta(db, "activity", "")
         db.prepare("DELETE FROM meta WHERE key = ?").run(`since:${claim}`)
+        if (result.ok) log(`${slug}: resposta no chat (${result.response.length} caracteres): ${JSON.stringify(result.response.slice(0, 80))}`)
+        const text = result.ok ? narrationFor(slug, sinceTurn, result.response) : null
+        if (result.ok && text === null) result = { ok: false, error: "O Mestre respondeu sem gravar a narração no motor. Envie de novo." }
         if (result.ok) {
           db.prepare("UPDATE chat SET status = 'entregue' WHERE claim = ?").run(claim)
-          db.prepare("INSERT INTO chat(role, text, status, created_at) VALUES('mestre', ?, 'entregue', ?)").run(narrationFor(slug, sinceTurn, result.response) || "(o Mestre não respondeu)", new Date().toISOString())
+          db.prepare("INSERT INTO chat(role, text, status, created_at) VALUES('mestre', ?, 'entregue', ?)").run(text, new Date().toISOString())
+          const { chapters, idle } = chapterCount(slug)
+          if (idle && chapters > Number(meta(db, "chapters_at_boot", "0"))) {
+            log(`${slug}: capítulo ${chapters} fechado, a próxima mensagem abre conversa nova do Mestre`)
+            setMeta(db, "generation", Number(meta(db, "generation", "1")) + 1)
+            setMeta(db, "ready", 0)
+          }
         } else {
           const lost = /AGENT_TARGET_LOST|AGENT_IDLE_EXPIRED/.test(result.error)
           if (lost) {
@@ -261,17 +304,24 @@ export function createMaster(transport: MasterTransport, opts: MasterOptions = {
     )
   }
 
-  const ensureReady = async (slug: string, scope: string): Promise<void> => {
-    const { ready, agent } = withChat(slug, (db) => ({ ready: meta(db, "ready") === "1", agent: agentId(db) }))
-    if (ready) return
+  /** Conversa nova? Devolve as linhas de configuração para irem junto com a mensagem. */
+  const setupFor = (slug: string): string[] | undefined => {
+    if (withChat(slug, (db) => meta(db, "ready") === "1")) return undefined
     const world = openCampaign(slug)
     const name = getMeta(world, "name", slug)
+    // Conversa nova nunca viu a linha de estado do PC: o próximo apply a mostra inteira.
+    world.prepare("DELETE FROM meta WHERE key = 'pc_state_shown'").run()
     world.close()
-    log(`${slug}: abrindo conversa do Mestre (${agent})`)
-    const turnId = await transport.submit(scope, agent, bootstrapPrompt(slug, name))
-    const result = await pollUntilDone(slug, scope, turnId)
-    if (!result.ok) throw new Error(`Falha ao preparar o Mestre: ${result.error}`)
-    withChat(slug, (db) => tx(db, () => setMeta(db, "ready", 1)))
+    log(`${slug}: abrindo conversa do Mestre (${withChat(slug, (db) => agentId(db))})`)
+    return bootstrapLines(slug, name)
+  }
+
+  const markReady = (slug: string): void => {
+    const { chapters } = chapterCount(slug)
+    withChat(slug, (db) => tx(db, () => {
+      setMeta(db, "ready", 1)
+      setMeta(db, "chapters_at_boot", chapters)
+    }))
   }
 
   const drainOnce = async (slug: string): Promise<boolean> => {
@@ -290,11 +340,13 @@ export function createMaster(transport: MasterTransport, opts: MasterOptions = {
     const sinceTurn = lastNarrationId(slug)
     withChat(slug, (db) => tx(db, () => setMeta(db, `since:${claim}`, sinceTurn)))
     try {
-      await ensureReady(slug, scope)
+      const setup = setupFor(slug)
       const agent = withChat(slug, (db) => agentId(db))
-      const turnId = await transport.submit(scope, agent, messagePrompt(slug, rows))
+      const turnId = await transport.submit(scope, agent, messagePrompt(slug, rows, { setup, scene: setup ? undefined : sceneIfOpen(slug) }))
       withChat(slug, (db) => tx(db, () => db.prepare("UPDATE chat SET status = 'aguardando', turn_id = ? WHERE claim = ?").run(turnId, claim)))
-      finish(slug, claim, await pollUntilDone(slug, scope, turnId), sinceTurn)
+      const result = await pollUntilDone(slug, scope, turnId)
+      if (setup && result.ok) markReady(slug)
+      finish(slug, claim, result, sinceTurn)
     } catch (error) {
       finish(slug, claim, { ok: false, error: (error as Error).message }, sinceTurn)
     }
@@ -329,7 +381,10 @@ export function createMaster(transport: MasterTransport, opts: MasterOptions = {
         const claim = p.claim
         const job = (async () => {
           const sinceTurn = Number(withChat(slug, (db) => meta(db, `since:${claim}`, "0")))
-          finish(slug, claim, await pollUntilDone(slug, scopeFor(slug), p.turn_id), sinceTurn)
+          const result = await pollUntilDone(slug, scopeFor(slug), p.turn_id)
+          // A mensagem interrompida pode ter levado a configuração: a conversa já existe.
+          if (result.ok) markReady(slug)
+          finish(slug, claim, result, sinceTurn)
           await drainOnceLoop(slug)
         })()
         running.set(slug, job.finally(() => running.delete(slug)))

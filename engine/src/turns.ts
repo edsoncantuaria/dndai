@@ -4,8 +4,9 @@ import { closeIfNeeded } from "./chapters.ts"
 import { all, type DB, getMeta, index, log, metaNum, setMeta, transaction } from "./db.ts"
 import { assertWorld } from "./invariants.ts"
 import { assertCanUndo, recordTurnClosed, recordUndo } from "./journal.ts"
-import { assertNarration } from "./narration.ts"
-import { captureSceneSnap } from "./scene.ts"
+import { assertNarration, expandRefs } from "./narration.ts"
+import { captureSceneSnap, consolidationDue } from "./scene.ts"
+import { markSeen } from "./threads.ts"
 import { fmtMoney, getPlace, now, pcId, getCharacter } from "./world.ts"
 
 function prepSealed(db: DB): boolean {
@@ -57,10 +58,12 @@ export function beginTurn(db: DB, slug: string, action: string): string[] {
 }
 
 /** Narração exibida na mesa. Pode ser gravada em partes durante o turno (ex.: antes de pedir uma rolagem). */
-export function narrate(db: DB, text: string): string[] {
+export function narrate(db: DB, raw: string): string[] {
   if (getMeta(db, "turn_open") !== "1") throw new Error("Não há turno aberto.")
-  if (!text.trim()) throw new Error("Narração vazia.")
+  if (!raw.trim()) throw new Error("Narração vazia.")
+  const text = expandRefs(db, raw)
   assertNarration(db, text)
+  assertDiceLine(db, metaNum(db, "turn"), text)
   transaction(db, () => addNarration(db, metaNum(db, "turn"), text))
   return ["Narração registrada para a mesa."]
 }
@@ -73,10 +76,15 @@ function addNarration(db: DB, turn: number, text: string): void {
   db.prepare("UPDATE turns SET narration = ? WHERE n = ?").run(all.map((r) => r.text).join("\n\n"), turn)
 }
 
-export function endTurn(db: DB, summary: string, narration: string): string[] {
+export function endTurn(db: DB, summary: string, raw: string): string[] {
   if (getMeta(db, "turn_open") !== "1") throw new Error("Não há turno aberto.")
+  const narration = expandRefs(db, raw)
+  if (!narration.trim()) assertPlayerHasRead(db, metaNum(db, "turn"))
   if (summary.trim().length < 10) throw new Error("O resumo do turno precisa descrever o que aconteceu (mín. 10 caracteres). Ele é a memória de longo prazo.")
-  if (narration.trim()) assertNarration(db, narration)
+  if (narration.trim()) {
+    assertNarration(db, narration)
+    assertDiceLine(db, metaNum(db, "turn"), narration)
+  }
   const n = metaNum(db, "turn")
   const warnings: string[] = []
   const closed = transaction(db, () => {
@@ -86,6 +94,7 @@ export function endTurn(db: DB, summary: string, narration: string): string[] {
     index(db, `turn:${n}`, "turno", summary.trim())
     log(db, "turno", `Turno ${n} fechado: ${summary.trim()}`)
     publish(db)
+    markSeen(db)
     const chapter = closeIfNeeded(db)
     const soft = assertWorld(db)
     captureSceneSnap(db)
@@ -100,8 +109,40 @@ export function endTurn(db: DB, summary: string, narration: string): string[] {
   if (due.length) warnings.push(`Atenção: eventos vencidos não resolvidos: ${due.map((e) => `#${e.id}`).join(", ")}.`)
   const fired = all<{ id: string }>(db, "SELECT id FROM clocks WHERE status = 'disparado'")
   if (fired.length) warnings.push(`Atenção: agendas disparadas não resolvidas: ${fired.map((c) => c.id).join(", ")}.`)
-  const state = pcStateLine(db)
+  for (const due of consolidationDue(db, true)) warnings.push(`Pendente: consolide as memórias de ${due.name} (${due.code}, ${due.n} soltas) no próximo apply (memory.consolidate).`)
+  const state = transaction(db, () => pcStateChange(db))
   return [`Turno ${n} fechado e registrado na crônica.`, ...(state ? [state] : []), ...warnings]
+}
+
+/**
+ * O jogador só vê o que foi narrado. Fechar o turno depois de uma rolagem da mesa que ainda não foi
+ * narrada deixaria o resultado só no resumo, que ele nunca lê. (Sem rolagem de mesa, a narração no
+ * motor é opcional: no jogo direto no chat ela vai na própria conversa.)
+ */
+function assertPlayerHasRead(db: DB, turn: number): void {
+  const unread = unreadRolls(db, turn, true)
+  if (unread.length) {
+    throw new Error(`A rolagem #${unread.join(", #")} foi resolvida depois da última narração: o jogador ainda não viu o resultado. Feche com turn end --narration - narrando a consequência (com a linha 🎲).`)
+  }
+}
+
+/** Rolagens do turno resolvidas depois da última narração (o jogador ainda não leu o resultado). */
+function unreadRolls(db: DB, turn: number, mesaOnly: boolean): number[] {
+  const last = all<{ at: string }>(db, "SELECT at FROM narrations WHERE turn = ? ORDER BY id DESC LIMIT 1", turn)[0]
+  return all<{ id: number; result: string }>(db, "SELECT id, result FROM roll_requests WHERE created_turn = ? AND status = 'resolvida'", turn)
+    .filter((r) => {
+      const out = JSON.parse(r.result) as { at: string; source?: string }
+      return (!mesaOnly || out.source === "mesa") && (!last || out.at >= last.at)
+    })
+    .map((r) => r.id)
+}
+
+/** A narração que conta o resultado de um dado traz a linha 🎲 com os números. */
+function assertDiceLine(db: DB, turn: number, text: string): void {
+  const rolls = unreadRolls(db, turn, false)
+  if (rolls.length && !text.includes("🎲")) {
+    throw new Error(`Narração não publicada: ela conta o resultado da rolagem #${rolls.join(", #")} e falta a linha 🎲 com os números (ex.: "🎲 Percepção 18 vs CD 13 — sucesso"). Nada foi gravado.`)
+  }
 }
 
 /** Desfaz o turno atual (aberto) ou o último fechado, restaurando o backup feito no turn begin. */
@@ -140,4 +181,16 @@ export function pcStateLine(db: DB): string | undefined {
   const place = pc.place_id ? getPlace(db, pc.place_id).name : "nenhum local"
   const present = all<{ name: string }>(db, "SELECT name FROM characters WHERE kind = 'npc' AND status <> 'morto' AND place_id = ?", pc.place_id ?? "").map((c) => c.name)
   return `Estado do PC no motor: ${pc.name} em ${place} · PV ${pc.hp}/${pc.max_hp} · ${fmtMoney(pc.cp)} · com ${present.join(", ") || "ninguém"}.`
+}
+
+/**
+ * A linha de conferência só quando mudou desde a última que o Mestre viu: repetir a mesma linha a cada
+ * apply só engorda a conversa. Chame dentro de transação.
+ */
+export function pcStateChange(db: DB): string | undefined {
+  const line = pcStateLine(db)
+  if (!line) return undefined
+  if (getMeta(db, "pc_state_shown") === line) return "Estado do PC no motor: sem mudança."
+  setMeta(db, "pc_state_shown", line)
+  return line
 }

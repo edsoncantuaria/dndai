@@ -2,6 +2,7 @@
 import { entityOfCode } from "./codes.ts"
 import { all, type DB, getMeta, metaNum, one } from "./db.ts"
 import { activeEmbedder, cosine, tokenize } from "./embed.ts"
+import { ARC, chapterSpan, showChapter } from "./chapters.ts"
 import { factLabel } from "./facts.ts"
 import { drawnWeapon, reactionOf } from "./items.ts"
 import { pendingRequests } from "./mechanics.ts"
@@ -49,7 +50,11 @@ export function pcBlock(db: DB, c: Character): string[] {
 }
 
 function memoriesOf(db: DB, npc: string, detailed: boolean): string[] {
-  return memoriesFor(db, npc, detailed).map((m) => `[dia ${clockParts(m.at_min).day}]${m.importance === 3 ? "!" : ""} ${m.text}`)
+  return memoriesFor(db, npc, detailed).map((m) => {
+    const tag = m.consolidated ? "RELAÇÃO " : ""
+    const merged = m.merged_into !== null ? ` (resumida em #${m.merged_into})` : ""
+    return `${detailed ? `#${m.id} ` : ""}${tag}[dia ${clockParts(m.at_min).day}]${m.importance === 3 ? "!" : ""} ${m.text}${merged}`
+  })
 }
 
 function npcBlock(db: DB, row: CharacterRow, detailed: boolean): string[] {
@@ -76,9 +81,9 @@ function npcBlock(db: DB, row: CharacterRow, detailed: boolean): string[] {
 }
 
 /** Briefing do Mestre. Padrão: TOON compacto (ou delta). `--full` devolve a prosa antiga; `--json` devolve o objeto. */
-export function buildContext(db: DB, slug: string, mode: { full?: boolean; json?: boolean } = {}): string {
+export function buildContext(db: DB, slug: string, mode: { full?: boolean; json?: boolean; cena?: boolean } = {}): string {
   if (mode.full) return buildContextProse(db, slug)
-  return renderScene(db, slug, { json: mode.json })
+  return renderScene(db, slug, { json: mode.json, cena: mode.cena })
 }
 
 /** Prosa completa — linha de base de tokens e depuração. */
@@ -276,37 +281,105 @@ export function recall(db: DB, query: string, limit = 15): string {
   return rows.map((r) => `- [${r.kind}${r.kind === "segredo" ? " 🔒" : ""}] ${r.ref}: ${r.text}`).join("\n")
 }
 
-/** Recapitulação paginada. O padrão são os últimos turnos mais os capítulos, não a crônica inteira. */
+function short(db: DB, entity: string): string {
+  return one<{ code: string }>(db, "SELECT code FROM codes WHERE entity = ?", entity)?.code ?? entity
+}
+
+/** Locais a até `hops` ligações do local (mais o de cima e os de dentro de cada um). */
+function nearbyPlaces(db: DB, from: string, hops: number): Set<string> {
+  const seen = new Set([from])
+  let frontier = [from]
+  for (let i = 0; i < hops; i++) {
+    const next: string[] = []
+    for (const id of frontier) {
+      const around = all<{ id: string }>(
+        db,
+        "SELECT to_id AS id FROM links WHERE from_id = ? UNION SELECT from_id FROM links WHERE to_id = ? UNION SELECT parent_id FROM places WHERE id = ? AND parent_id IS NOT NULL UNION SELECT id FROM places WHERE parent_id = ?",
+        id, id, id, id,
+      )
+      for (const { id: n } of around) if (!seen.has(n)) (seen.add(n), next.push(n))
+    }
+    frontier = next
+  }
+  return seen
+}
+
+/** Uma linha por arco fechado: só os marcos, com ponteiro para os capítulos. */
+function arcLine(arc: number, chapters: { n: number; from_turn: number; to_turn: number; changes: string }[]): string {
+  const lines = chapters.flatMap((c) => (c.changes ? c.changes.split("\n") : []))
+  const count = (re: RegExp) => lines.filter((l) => re.test(l)).length
+  const marks = lines.filter((l) => /^(✝|~ missão .*: (concluida|falhou|abandonada)|~ agenda .* resolvida|⚠ AGENDA|\+ facção)/.test(l))
+  const tally: [RegExp, string][] = [
+    [/^\+ local /, "locais"], [/^\+ NPC /, "NPCs"], [/^\+ missão /, "missões"], [/^\+ gancho /, "ganchos"],
+    [/^\+ agenda /, "agendas"], [/^~ gancho \S+: /, "ganchos fechados"], [/agora é conhecido/, "revelações"],
+  ]
+  const parts = [
+    ...tally.map(([re, label]) => count(re) && `${re.source.startsWith("^\\+") ? "+" : ""}${count(re)} ${label}`),
+    ...marks,
+  ].filter(Boolean)
+  const first = chapters[0]
+  const last = chapters.at(-1)!
+  return `- Arco ${arc} (cap. ${first.n}–${last.n}, T${first.from_turn}–T${last.to_turn}): ${parts.join("; ") || "sem marcos"} → resume --chapter <n>`
+}
+
+/**
+ * Recapitulação para uma conversa nova do Mestre. Cresce devagar com a campanha: arcos fechados em uma
+ * linha, capítulos do arco atual com as mudanças, turnos desde o último capítulo. Tudo o que é encurtado
+ * deixa ponteiro (`--chapter`, `--page`, `show <id>`).
+ */
 export function resume(db: DB, slug: string, opts: { page?: number; limit?: number; chapter?: number } = {}): string {
+  const out = ["## CAMPANHA", `Premissa: ${getMeta(db, "premise")}`]
+  if (getMeta(db, "tone")) out.push(`Tom: ${getMeta(db, "tone")}`)
+  out.push("", buildContext(db, slug, { cena: true }), "")
+  const chapters = all<{ n: number; from_turn: number; to_turn: number; summary: string; changes: string }>(db, "SELECT n, from_turn, to_turn, summary, changes FROM chapters ORDER BY n")
+  if (opts.chapter) {
+    if (!chapters.some((ch) => ch.n === opts.chapter)) throw new Error(`Capítulo ${opts.chapter} não existe.`)
+    return [...out, `## ${showChapter(db, opts.chapter)}`].join("\n")
+  }
+  const currentStart = chapters.length ? Math.floor((chapters.length - 1) / ARC) * ARC : 0
+  if (currentStart) {
+    out.push("## ARCOS")
+    for (let i = 0; i < currentStart; i += ARC) out.push(arcLine(i / ARC + 1, chapters.slice(i, i + ARC)))
+    out.push("")
+  }
+  const current = chapters.slice(currentStart)
+  if (current.length) {
+    out.push(`## CAPÍTULOS (arco ${currentStart / ARC + 1})`)
+    for (const c of current) {
+      out.push(`- #${c.n} T${c.from_turn}–T${c.to_turn} (${chapterSpan(db, c.from_turn, c.to_turn)}): ${c.summary}`)
+      if (c.changes) out.push(`  Mudanças: ${c.changes.split("\n").join("; ")}`)
+    }
+    out.push("")
+  }
+
+  const total = one<{ n: number }>(db, "SELECT COUNT(*) AS n FROM turns WHERE ended = 1")?.n ?? 0
+  const paged = opts.page !== undefined || opts.limit !== undefined
   const limit = Math.min(40, Math.max(1, opts.limit ?? 12))
   const page = Math.max(1, opts.page ?? 1)
-  const out = [buildContext(db, slug), ""]
-  const chapters = all<{ n: number; from_turn: number; to_turn: number; summary: string }>(db, "SELECT n, from_turn, to_turn, summary FROM chapters ORDER BY n")
-  if (opts.chapter) {
-    const c = chapters.find((ch) => ch.n === opts.chapter)
-    if (!c) throw new Error(`Capítulo ${opts.chapter} não existe.`)
-    out.push(`## CAPÍTULO ${c.n} (T${c.from_turn}–T${c.to_turn})`, c.summary)
-  } else if (chapters.length) {
-    out.push("## CAPÍTULOS", ...chapters.map((c) => `- #${c.n} T${c.from_turn}–T${c.to_turn}: ${c.summary}`))
-  }
-  const total = one<{ n: number }>(db, "SELECT COUNT(*) AS n FROM turns WHERE ended = 1")?.n ?? 0
-  const offset = (page - 1) * limit
-  out.push("", `## TURNOS (página ${page}, ${limit} por página, ${total} fechados)`)
-  const turns = all<{ n: number; summary: string; action: string; started_min: number }>(
-    db,
-    "SELECT n, summary, action, started_min FROM turns WHERE ended = 1 ORDER BY n DESC LIMIT ? OFFSET ?",
-    limit,
-    offset,
-  )
-  if (!turns.length) out.push("(nenhum turno fechado nesta página)")
-  for (const t of turns.reverse()) out.push(`T${t.n} ${fmtClock(t.started_min)} — Jogador: ${t.action} → ${t.summary}`)
-  if (offset + limit < total) out.push(`Há mais. Peça resume --page ${page + 1}.`)
+  const since = chapters.at(-1)?.to_turn ?? 0
+  const turns = paged
+    ? all<{ n: number; summary: string; action: string; started_min: number }>(db, "SELECT n, summary, action, started_min FROM turns WHERE ended = 1 ORDER BY n DESC LIMIT ? OFFSET ?", limit, (page - 1) * limit).reverse()
+    : all<{ n: number; summary: string; action: string; started_min: number }>(db, "SELECT n, summary, action, started_min FROM turns WHERE ended = 1 AND n > ? ORDER BY n", since)
+  out.push(paged ? `## TURNOS (página ${page}, ${limit} por página, ${total} fechados)` : `## TURNOS desde o último capítulo (${total} fechados; antigos: resume --page N ou --chapter N)`)
+  if (!turns.length) out.push(paged ? "(nenhum turno fechado)" : "(nenhum: o último capítulo cobre tudo)")
+  for (const t of turns) out.push(`T${t.n} ${fmtClock(t.started_min)} — Jogador: ${t.action} → ${t.summary}`)
+  if (paged && page * limit < total) out.push(`Há mais. Peça resume --page ${page + 1}.`)
+  // Continuidade de voz para uma conversa nova do Mestre: a última narração exibida, como foi.
+  const last = page === 1 ? one<{ turn: number; text: string }>(db, "SELECT turn, text FROM narrations ORDER BY id DESC LIMIT 1") : undefined
+  if (last) out.push("", `## ÚLTIMA NARRAÇÃO (T${last.turn})`, last.text)
+
+  const pid = pcId(db)
+  const here = pid ? getCharacter(db, pid).place_id : null
+  const near = here ? nearbyPlaces(db, here, 2) : new Set<string>()
   const places = all<{ id: string; name: string; summary: string; visited: number }>(db, "SELECT id, name, summary, visited FROM places ORDER BY created_turn")
-  out.push("", "## LOCAIS DO MUNDO", ...places.map((p) => `- ${p.name} [${p.id}]${p.visited ? "" : " (inexplorado)"}: ${p.summary}`))
-  const factions = all<{ id: string; name: string; summary: string }>(db, "SELECT id, name, summary FROM factions")
-  if (factions.length) out.push("", "## FACÇÕES", ...factions.map((f) => `- ${f.name} [${f.id}]: ${f.summary}`))
-  const done = all<{ title: string; status: string }>(db, "SELECT title, status FROM quests WHERE status <> 'ativa'")
-  if (done.length) out.push("", `## MISSÕES ENCERRADAS: ${done.map((q) => `${q.title} (${q.status})`).join("; ")}`)
+  const close = places.filter((p) => near.has(p.id) || !here)
+  const far = places.filter((p) => !close.includes(p))
+  out.push("", "## LOCAIS (até 2 ligações daqui; * = inexplorado)", ...close.map((p) => `- ${p.name} [${short(db, p.id)}]${p.visited ? "" : "*"}: ${p.summary}`))
+  if (far.length) out.push(`- Mais longe (${far.length}): ${far.map((p) => `${p.name} [${short(db, p.id)}]${p.visited ? "" : "*"}`).join(", ")} → show <id>`)
+  const factions = all<{ id: string; name: string; summary: string; goal: string }>(db, "SELECT id, name, summary, goal FROM factions")
+  if (factions.length) out.push("", "## FACÇÕES", ...factions.map((f) => `- ${f.name} [${short(db, f.id)}]: ${f.summary}${f.goal ? ` · objetivo: ${f.goal}` : ""}`))
+  const done = all<{ id: string; title: string; status: string }>(db, "SELECT id, title, status FROM quests WHERE status <> 'ativa'")
+  if (done.length) out.push("", `## MISSÕES ENCERRADAS: ${done.map((q) => `${q.title} [${short(db, q.id)}] (${q.status})`).join("; ")}`)
   return out.join("\n")
 }
 

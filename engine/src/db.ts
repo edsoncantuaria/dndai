@@ -3,7 +3,7 @@ import { DatabaseSync } from "node:sqlite"
 
 export type DB = DatabaseSync
 
-const SCHEMA_VERSION = 5
+const SCHEMA_VERSION = 6
 
 /** Arquivo de campanha legível só pelo usuário do servidor (o túnel público não deve herdar 644). */
 export function tighten(path: string): void {
@@ -229,6 +229,15 @@ const MIGRATIONS = [
     code TEXT PRIMARY KEY,
     entity TEXT NOT NULL UNIQUE
   );`,
+  // v6: último turno em que cada entidade esteve em cena (fios esfriando), mudanças de cada capítulo e
+  // memórias consolidadas (as originais ficam, apontando para o resumo).
+  `CREATE TABLE seen (
+    entity TEXT PRIMARY KEY,
+    turn INTEGER NOT NULL
+  );
+  ALTER TABLE chapters ADD COLUMN changes TEXT NOT NULL DEFAULT '';
+  ALTER TABLE memories ADD COLUMN consolidated INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE memories ADD COLUMN merged_into INTEGER;`,
 ]
 
 export function openDb(path: string): DB {
