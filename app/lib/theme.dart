@@ -1,38 +1,51 @@
 import 'package:flutter/material.dart';
 
-/// Couro, pergaminho e latão. Texto longo fica no pergaminho (tinta escura); o resto da mesa é couro.
+/// Identidade visual Baldur's Gate 3 e D&D Oficial:
+/// Obsidian profundo (#050506), painéis em relevo (#121216/#13131A),
+/// ouro nobre polido (#D4AF37 / #F0D878), brasas ember (#E40712)
+/// e tipografia marfim cristalina (#F7F0E3) de altíssima legibilidade.
 class Palette {
-  static const leather = Color(0xFF1A120C);
-  static const leatherRaised = Color(0xFF2C1E16);
-  static const brass = Color(0xFFC6A15B);
-  static const brassDark = Color(0xFF7A5A2E);
-  static const parchment = Color(0xFFF4E6C8);
-  static const parchmentDeep = Color(0xFFE6D0A4);
-  static const ink = Color(0xFF24180F);
-  static const inkSoft = Color(0xFF5C4632);
-  static const inkEmph = Color(0xFF6B3E12);
+  // Obsidian base e painéis
+  static const obsidian = Color(0xFF050506);
+  static const obsidianRaised = Color(0xFF101015);
+  static const obsidianTint = Color(0xFF181822);
 
-  static const bg = leather;
-  static const surface = leatherRaised;
-  static const surfaceHigh = Color(0xFF3A291E);
-  static const line = Color(0xFF5A4332);
-  static const gold = Color(0xFFF0D48A);
-  static const goldDim = Color(0xFFE4C98A);
-  static const ember = Color(0xFFC2412D);
-  static const text = Color(0xFFF6EFE2);
-  static const textDim = Color(0xFFD7C7B2);
-  static const hp = Color(0xFFB42318);
-  static const hpLow = Color(0xFF7A120C);
-  static const mana = Color(0xFF3D6BB5);
-  static const success = Color(0xFF1F7A45);
-  static const failure = Color(0xFFB42318);
+  // Aliases compatíveis com o código do app
+  static const leather = obsidian;
+  static const leatherRaised = obsidianRaised;
+  static const brass = Color(0xFFD4AF37);
+  static const brassDark = Color(0xFF7A6520);
+  static const parchment = Color(0xFF13131A);
+  static const parchmentDeep = Color(0xFF1A1A24);
+  static const ink = Color(0xFFF7F0E3);
+  static const inkSoft = Color(0xFFA8A29E);
+  static const inkEmph = Color(0xFFF0D878);
 
-  static const uncommon = Color(0xFF1F8A4C);
-  static const rare = Color(0xFF2F6FDB);
-  static const veryRare = Color(0xFF7B3FB2);
-  static const legendary = Color(0xFFC9841A);
-  static const artifact = Color(0xFFB7412A);
-  static const common = Color(0xFF8A8175);
+  static const bg = obsidian;
+  static const surface = obsidianRaised;
+  static const surfaceHigh = obsidianTint;
+  static const line = Color(0xFF2E2A24);
+  static const gold = Color(0xFFD4AF37);
+  static const goldBright = Color(0xFFF0D878);
+  static const goldDim = Color(0xFF7A6520);
+  static const ember = Color(0xFFE40712);
+  static const emberHover = Color(0xFFFF2430);
+  static const emberDeep = Color(0xFF9B0610);
+  static const text = Color(0xFFF7F0E3);
+  static const textDim = Color(0xFFA8A29E);
+  static const hp = Color(0xFFE40712);
+  static const hpLow = Color(0xFF8A0B10);
+  static const mana = Color(0xFF4C75DB);
+  static const success = Color(0xFF3FAE66);
+  static const failure = Color(0xFFFF4A52);
+
+  // Raridades D&D 5e autênticas
+  static const uncommon = Color(0xFF3FAE66);
+  static const rare = Color(0xFF3B82F6);
+  static const veryRare = Color(0xFFA855F7);
+  static const legendary = Color(0xFFF59E0B);
+  static const artifact = Color(0xFFEF4444);
+  static const common = Color(0xFF9CA3AF);
 }
 
 Color? rarityColor(String? rarity) => switch (rarity) {
@@ -48,73 +61,83 @@ Color? rarityColor(String? rarity) => switch (rarity) {
 ThemeData buildTheme() {
   final base = ThemeData(useMaterial3: true, brightness: Brightness.dark);
   final ink = base.textTheme.apply(fontFamily: 'EBGaramond', bodyColor: Palette.text, displayColor: Palette.gold);
-  const display = TextStyle(fontFamily: 'Cinzel', fontWeight: FontWeight.w600, color: Palette.gold);
+  const display = TextStyle(fontFamily: 'Cinzel', fontWeight: FontWeight.w600, color: Palette.goldBright);
   return base.copyWith(
-    scaffoldBackgroundColor: Palette.leather,
+    scaffoldBackgroundColor: Palette.obsidian,
     colorScheme: const ColorScheme.dark(
-      primary: Palette.brass,
-      onPrimary: Color(0xFF1A130C),
+      primary: Palette.gold,
+      onPrimary: Color(0xFF0D0A06),
       secondary: Palette.ember,
-      surface: Palette.leatherRaised,
+      surface: Palette.obsidianRaised,
       onSurface: Palette.text,
       error: Palette.failure,
-      outline: Palette.line,
+      outline: Palette.brassDark,
     ),
     textTheme: ink.copyWith(
-      headlineMedium: display.copyWith(fontSize: 26),
-      titleLarge: display.copyWith(fontSize: 22, color: Palette.ink),
+      headlineMedium: display.copyWith(fontSize: 26, letterSpacing: 1.2),
+      titleLarge: display.copyWith(fontSize: 22, color: Palette.goldBright),
       titleMedium: display.copyWith(fontSize: 16, color: Palette.text),
-      bodyLarge: const TextStyle(fontFamily: 'EBGaramond', fontSize: 18, height: 1.45, color: Palette.text),
-      bodyMedium: const TextStyle(fontFamily: 'EBGaramond', fontSize: 16, height: 1.45, color: Palette.text),
+      bodyLarge: const TextStyle(fontFamily: 'EBGaramond', fontSize: 18, height: 1.5, color: Palette.text),
+      bodyMedium: const TextStyle(fontFamily: 'EBGaramond', fontSize: 16, height: 1.5, color: Palette.text),
     ),
     cardTheme: CardThemeData(
-      color: Palette.parchment,
-      elevation: 0,
+      color: Palette.obsidianTint,
+      elevation: 4,
+      shadowColor: Colors.black.withValues(alpha: 0.6),
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Palette.brassDark, width: 1.5)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: Color(0x38D4AF37), width: 1),
+      ),
     ),
-    iconTheme: const IconThemeData(color: Palette.ink),
+    iconTheme: const IconThemeData(color: Palette.gold),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Palette.parchment,
-      hintStyle: const TextStyle(color: Palette.inkSoft, fontFamily: 'EBGaramond'),
-      labelStyle: const TextStyle(color: Palette.inkSoft, fontFamily: 'EBGaramond'),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Palette.brassDark)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Palette.brassDark)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Palette.brass, width: 2)),
+      fillColor: Palette.obsidianTint,
+      hintStyle: const TextStyle(color: Palette.textDim, fontFamily: 'EBGaramond'),
+      labelStyle: const TextStyle(color: Palette.gold, fontFamily: 'Cinzel', fontSize: 13),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0x38D4AF37))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0x38D4AF37))),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Palette.goldBright, width: 1.5)),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         minimumSize: const Size(48, 48),
         backgroundColor: Palette.ember,
         foregroundColor: Colors.white,
-        textStyle: const TextStyle(fontFamily: 'Cinzel', fontWeight: FontWeight.w600, fontSize: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        textStyle: const TextStyle(fontFamily: 'Cinzel', fontWeight: FontWeight.w600, fontSize: 15, letterSpacing: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Color(0x40D4AF37))),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(48, 48),
-        foregroundColor: Palette.ink,
-        side: const BorderSide(color: Palette.brassDark),
-        textStyle: const TextStyle(fontFamily: 'EBGaramond', fontSize: 16),
+        foregroundColor: Palette.goldBright,
+        side: const BorderSide(color: Color(0x50D4AF37)),
+        textStyle: const TextStyle(fontFamily: 'Cinzel', fontWeight: FontWeight.w600, fontSize: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     ),
     snackBarTheme: const SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: Palette.leatherRaised,
+      backgroundColor: Palette.obsidianRaised,
       contentTextStyle: TextStyle(color: Palette.text, fontFamily: 'EBGaramond', fontSize: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(8)),
+        side: BorderSide(color: Color(0x40D4AF37)),
+      ),
     ),
     switchTheme: SwitchThemeData(
-      thumbColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? Palette.brass : Palette.textDim),
+      thumbColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? Palette.goldBright : Palette.textDim),
       trackColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? Palette.brassDark : Palette.line),
     ),
   );
 }
 
-/// Fonte da narração no pergaminho.
+/// Fonte da narração de alta legibilidade no padrão Baldur's Gate 3.
 TextStyle narrationStyle(BuildContext context, {double size = 18}) =>
-    TextStyle(fontFamily: 'EBGaramond', fontSize: size, height: 1.55, color: Palette.ink);
+    TextStyle(fontFamily: 'EBGaramond', fontSize: size, height: 1.6, color: Palette.text, letterSpacing: 0.2);
 
-TextStyle displayStyle({double size = 18, Color color = Palette.gold}) =>
-    TextStyle(fontFamily: 'Cinzel', fontSize: size, fontWeight: FontWeight.w600, color: color);
+TextStyle displayStyle({double size = 18, Color color = Palette.goldBright}) =>
+    TextStyle(fontFamily: 'Cinzel', fontSize: size, fontWeight: FontWeight.w600, color: color, letterSpacing: 0.8);
+

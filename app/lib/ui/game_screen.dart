@@ -89,7 +89,7 @@ class _GameScreenState extends State<GameScreen> {
           portraitBase: widget.api.baseUrl,
           onLeave: widget.onLeave,
           onSend: game.send,
-          onListen: (key) => TableVoice.instance.toggle(widget.api.ttsUri(widget.campaign, key).toString()),
+          onListen: (key) => TableVoice.instance.toggle(widget.api.ttsUri(widget.campaign, key).toString(), key: key),
           onItem: (action, id) async {
             final err = await game.itemAction(action, id);
             return err ?? game.lastActionText;

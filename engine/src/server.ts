@@ -1,7 +1,7 @@
-// `dnd serve`: API da mesa (engine/API.md) + arquivos estáticos opcionais (build da mesa).
 import { createReadStream, existsSync, statSync } from "node:fs"
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http"
 import { extname, join, normalize, resolve } from "node:path"
+import { spawn } from "node:child_process"
 import { Readable } from "node:stream"
 import { timingSafeEqual } from "node:crypto"
 import { createCampaign, listCampaigns, openCampaign, resolveCampaign, snapshotCampaign, withCampaignLock } from "./campaign.ts"
@@ -128,6 +128,31 @@ export function startServer(opts: ServeOptions) {
     })
   }
 
+  const checkOrStartTts = async (ttsBase: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`${ttsBase}/health`, { signal: AbortSignal.timeout(1000) })
+      if (res.ok) return true
+    } catch {}
+    try {
+      const ttsDir = resolve(import.meta.dirname ?? process.cwd(), "../tts")
+      const pythonVenv = join(ttsDir, ".venv/bin/python")
+      const serverPy = join(ttsDir, "server.py")
+      if (existsSync(pythonVenv) && existsSync(serverPy)) {
+        const cp = spawn(pythonVenv, [serverPy], {
+          cwd: ttsDir,
+          detached: true,
+          stdio: "ignore",
+          env: { ...process.env, DNDAI_TTS_PORT: "8795" },
+        })
+        cp.unref()
+        await new Promise((r) => setTimeout(r, 1600))
+        const res = await fetch(`${ttsBase}/health`, { signal: AbortSignal.timeout(2000) }).catch(() => null)
+        return res?.ok ?? false
+      }
+    } catch {}
+    return false
+  }
+
   /** Voz da narração: `key` é a mesma chave do palco da mesa (`chat-<id>` ou `turn-<n>`). */
   const tts = async (req: IncomingMessage, res: ServerResponse, url: URL) => {
     const slug = slugOf(url)
@@ -151,7 +176,16 @@ export function startServer(opts: ServeOptions) {
     try {
       upstream = await fetch(`${ttsBase}/speak`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }), signal: abort.signal })
     } catch {
-      throw new HttpError(503, `Voz indisponível: o serviço de TTS (${ttsBase}) não respondeu.`)
+      const recovered = await checkOrStartTts(ttsBase)
+      if (recovered) {
+        try {
+          upstream = await fetch(`${ttsBase}/speak`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }), signal: abort.signal })
+        } catch {
+          throw new HttpError(503, `Voz indisponível: o serviço de TTS (${ttsBase}) não respondeu.`)
+        }
+      } else {
+        throw new HttpError(503, `Voz indisponível: o serviço de TTS (${ttsBase}) não respondeu.`)
+      }
     }
     if (!upstream.ok || !upstream.body) {
       const error = ((await upstream.json().catch(() => null)) as { error?: string } | null)?.error

@@ -7,6 +7,7 @@ import '../play_settings.dart';
 import 'chrome.dart';
 import 'drawers.dart';
 import 'sigils.dart';
+import 'voice.dart';
 
 /// Mesa do jogador. No celular, gavetas arrastáveis; no tablet/web, painéis que trocam de lugar.
 class GameTable extends StatefulWidget {
@@ -622,14 +623,14 @@ class _JournalState extends State<_Journal> {
               child: Parchment(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(children: [
-                    Text('O MESTRE', style: displayStyle(size: 13, color: Palette.inkEmph)),
+                    Text('O MESTRE', style: displayStyle(size: 13, color: Palette.goldBright)),
                     const Spacer(),
                     IconButton(
                       key: const Key('font-menor'),
                       tooltip: 'Texto menor na narração',
                       onPressed: widget.step > 0 ? () => widget.onStep(widget.step - 1) : null,
                       icon: const Icon(Icons.text_decrease),
-                      color: Palette.ink,
+                      color: Palette.gold,
                       iconSize: 22,
                       constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                     ),
@@ -638,19 +639,49 @@ class _JournalState extends State<_Journal> {
                       tooltip: 'Texto maior na narração',
                       onPressed: widget.step < PlaySettings.narrationSizes.length - 1 ? () => widget.onStep(widget.step + 1) : null,
                       icon: const Icon(Icons.text_increase),
-                      color: Palette.ink,
+                      color: Palette.gold,
                       iconSize: 22,
                       constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                     ),
                     if (widget.onListen != null && voiceKey != null)
-                      IconButton(
-                        key: const Key('btn-ouvir'),
-                        tooltip: 'Ouvir a narração',
-                        onPressed: () => widget.onListen!(voiceKey),
-                        icon: const Icon(Icons.volume_up_outlined),
-                        color: Palette.ink,
-                        iconSize: 22,
-                        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                      ValueListenableBuilder<VoiceStatus>(
+                        valueListenable: TableVoice.instance.statusNotifier,
+                        builder: (context, status, _) {
+                          final isCurrent = TableVoice.instance.currentKey == voiceKey;
+                          final loading = isCurrent && status == VoiceStatus.loading;
+                          final playing = isCurrent && status == VoiceStatus.playing;
+                          final error = isCurrent && status == VoiceStatus.error;
+
+                          Widget iconWidget;
+                          String tip;
+                          if (loading) {
+                            iconWidget = const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Palette.goldBright),
+                            );
+                            tip = 'Carregando voz do Mestre...';
+                          } else if (playing) {
+                            iconWidget = const Icon(Icons.stop_circle_outlined, color: Palette.goldBright);
+                            tip = 'Parar voz do Mestre';
+                          } else if (error) {
+                            iconWidget = const Icon(Icons.volume_off_outlined, color: Palette.failure);
+                            tip = 'Voz do Mestre indisponível';
+                          } else {
+                            iconWidget = const Icon(Icons.volume_up_outlined, color: Palette.gold);
+                            tip = 'Ouvir a narração';
+                          }
+
+                          return IconButton(
+                            key: const Key('btn-ouvir'),
+                            tooltip: tip,
+                            onPressed: () => widget.onListen!(voiceKey),
+                            icon: iconWidget,
+                            color: Palette.gold,
+                            iconSize: 22,
+                            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                          );
+                        },
                       ),
                   ]),
                   if (text.isNotEmpty)

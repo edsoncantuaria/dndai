@@ -12,10 +12,14 @@ class LeatherBackdrop extends StatelessWidget {
         color: Colors.transparent,
         child: DecoratedBox(
           decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF2A1C14), Palette.leather, Color(0xFF120C09)],
+            gradient: RadialGradient(
+              center: Alignment(0, -0.6),
+              radius: 1.3,
+              colors: [
+                Color(0xFF160B0E), // Toque ember sutil
+                Color(0xFF09090C),
+                Palette.obsidian,
+              ],
             ),
           ),
           child: child,
@@ -31,17 +35,20 @@ class Parchment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final edge = color ?? Palette.brassDark;
+    final edge = color ?? const Color(0x40D4AF37);
     return Material(
       color: Palette.parchment,
-      elevation: 2,
-      shadowColor: const Color(0x66000000),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: edge, width: 2)),
+      elevation: 6,
+      shadowColor: Colors.black.withValues(alpha: 0.7),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: edge, width: 1.2),
+      ),
       child: Padding(
         padding: padding,
         child: DefaultTextStyle.merge(
-          style: const TextStyle(fontFamily: 'EBGaramond', color: Palette.ink, fontSize: 16, height: 1.4),
-          child: IconTheme.merge(data: const IconThemeData(color: Palette.ink), child: child),
+          style: const TextStyle(fontFamily: 'EBGaramond', color: Palette.ink, fontSize: 16.5, height: 1.5),
+          child: IconTheme.merge(data: const IconThemeData(color: Palette.gold), child: child),
         ),
       ),
     );
@@ -61,9 +68,9 @@ class SectionHeading extends StatelessWidget {
           style: TextStyle(
             fontFamily: 'Cinzel',
             fontSize: 13,
-            letterSpacing: 1.4,
+            letterSpacing: 1.6,
             fontWeight: FontWeight.w600,
-            color: onParchment ? Palette.inkEmph : Palette.gold,
+            color: Palette.goldBright,
           ),
         ),
       );
@@ -104,13 +111,20 @@ class PortraitFace extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: ring, width: 2), color: Palette.parchmentDeep),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: ring, width: 2),
+        color: Palette.parchmentDeep,
+        boxShadow: const [
+          BoxShadow(color: Color(0x40000000), blurRadius: 4, offset: Offset(0, 2)),
+        ],
+      ),
       clipBehavior: Clip.antiAlias,
       child: Stack(fit: StackFit.expand, children: [
         Center(
           child: classKey.isNotEmpty || classLabel.isNotEmpty
-              ? ClassSigil(classKey: classKey, label: classLabel, size: size * 0.62, color: Palette.ink)
-              : Text(initial, style: TextStyle(fontFamily: 'Cinzel', fontSize: size * 0.38, color: Palette.ink, fontWeight: FontWeight.w600)),
+              ? ClassSigil(classKey: classKey, label: classLabel, size: size * 0.62, color: Palette.goldBright)
+              : Text(initial, style: TextStyle(fontFamily: 'Cinzel', fontSize: size * 0.38, color: Palette.goldBright, fontWeight: FontWeight.w600)),
         ),
         if (url != null)
           Image.network(
@@ -137,19 +151,20 @@ Future<void> openDrawer(BuildContext context, {required String title, required W
       maxChildSize: 0.96,
       snap: true,
       builder: (ctx, scroll) => Material(
-        color: Palette.leather,
+        color: Palette.obsidianRaised,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-          side: BorderSide(color: Palette.brass, width: 1.5),
+          side: BorderSide(color: Color(0x60D4AF37), width: 1.2),
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(children: [
-          const SizedBox(height: 8),
-          Container(width: 48, height: 5, decoration: BoxDecoration(color: Palette.brass, borderRadius: BorderRadius.circular(3))),
+          const SizedBox(height: 10),
+          Container(width: 44, height: 4, decoration: BoxDecoration(color: Palette.goldDim, borderRadius: BorderRadius.circular(2))),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
             child: Text(title, style: displayStyle(size: 20)),
           ),
+          const Divider(height: 1, color: Color(0x30D4AF37)),
           Expanded(child: body(scroll)),
         ]),
       ),

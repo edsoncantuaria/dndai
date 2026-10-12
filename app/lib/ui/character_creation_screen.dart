@@ -237,8 +237,11 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
           children: [
             // Barra de passos
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              color: Palette.brassDark,
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+              decoration: const BoxDecoration(
+                color: Palette.obsidianRaised,
+                border: Border(bottom: BorderSide(color: Color(0x40D4AF37))),
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
@@ -273,16 +276,17 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: const BoxDecoration(
-                color: Palette.leather,
-                border: Border(top: BorderSide(color: Palette.brassDark)),
+                color: Palette.obsidianRaised,
+                border: Border(top: BorderSide(color: Color(0x38D4AF37))),
               ),
               child: Row(
                 children: [
                   if (_step > 0)
                     TextButton.icon(
+                      style: TextButton.styleFrom(foregroundColor: Palette.gold),
                       onPressed: () => setState(() => _step--),
                       icon: const Icon(Icons.arrow_back),
-                      label: const Text('Anterior'),
+                      label: const Text('Anterior', style: TextStyle(fontFamily: 'Cinzel')),
                     ),
                   const Spacer(),
                   if (_step < 2)
@@ -463,18 +467,22 @@ class _StepTab extends StatelessWidget {
     final active = index == current;
     return GestureDetector(
       onTap: onSelect,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: active ? Palette.gold : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
+          color: active ? Palette.gold : const Color(0xFF161622),
+          border: Border.all(color: active ? Palette.goldBright : const Color(0x38D4AF37)),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: active ? Palette.parchment : Palette.parchmentDeep,
-            fontWeight: active ? FontWeight.w700 : FontWeight.normal,
-            fontSize: 13,
+            color: active ? const Color(0xFF09090C) : Palette.textDim,
+            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+            fontFamily: 'Cinzel',
+            fontSize: 12,
+            letterSpacing: 0.6,
           ),
         ),
       ),
@@ -491,15 +499,18 @@ class _CombatSummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Palette.parchmentDeep,
-        border: Border.all(color: Palette.brassDark, width: 2),
+        color: Palette.obsidianTint,
+        border: Border.all(color: const Color(0x50D4AF37), width: 1.5),
         borderRadius: BorderRadius.circular(8),
+        boxShadow: const [
+          BoxShadow(color: Color(0x30000000), blurRadius: 4, offset: Offset(0, 2)),
+        ],
       ),
       child: Column(
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: Palette.inkSoft)),
+          Text(label, style: const TextStyle(fontSize: 11, color: Palette.textDim, fontFamily: 'Cinzel')),
           const SizedBox(height: 4),
-          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Palette.ink, fontFamily: 'Cinzel')),
+          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Palette.goldBright, fontFamily: 'Cinzel')),
         ],
       ),
     );
@@ -515,29 +526,41 @@ class _AttributeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: Palette.ink))),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: Palette.parchmentDeep,
-              borderRadius: BorderRadius.circular(4),
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Palette.obsidianTint,
+          border: Border.all(color: const Color(0x28D4AF37)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: Palette.text, fontSize: 15))),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1B1B26),
+                border: Border.all(color: const Color(0x40D4AF37)),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(mod >= 0 ? '+$mod' : '$mod', style: const TextStyle(fontWeight: FontWeight.w700, color: Palette.goldBright, fontFamily: 'Cinzel')),
             ),
-            child: Text(mod >= 0 ? '+$mod' : '$mod', style: const TextStyle(fontWeight: FontWeight.w700, color: Palette.gold)),
-          ),
-          const SizedBox(width: 12),
-          IconButton(
-            icon: const Icon(Icons.remove_circle_outline, size: 20),
-            onPressed: value > 6 ? () => onChange(value - 1) : null,
-          ),
-          Text('$value', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, fontFamily: 'Cinzel')),
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline, size: 20),
-            onPressed: value < 20 ? () => onChange(value + 1) : null,
-          ),
-        ],
+            const SizedBox(width: 12),
+            IconButton(
+              icon: const Icon(Icons.remove_circle_outline, size: 22, color: Palette.gold),
+              onPressed: value > 6 ? () => onChange(value - 1) : null,
+            ),
+            SizedBox(
+              width: 32,
+              child: Text('$value', textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, fontFamily: 'Cinzel', color: Palette.text)),
+            ),
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline, size: 22, color: Palette.gold),
+              onPressed: value < 20 ? () => onChange(value + 1) : null,
+            ),
+          ],
+        ),
       ),
     );
   }
