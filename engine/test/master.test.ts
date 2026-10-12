@@ -111,7 +111,7 @@ describe("ponte mesa → Mestre (Shellby falso)", () => {
     // Configuração e primeira mensagem vão juntas: um turno no ChatGPT, sem "PRONTO".
     assert.equal(fake.prompts.length, 1)
     assert.match(fake.prompts[0].prompt, /dnd_ler comando "skill"[\s\S]*Jogador: «Abro a porta da taverna»/)
-    assert.equal(fake.prompts[0].scope, "dndai-ponte")
+    assert.equal(fake.prompts[0].scope, "dndai-ponte-1")
     assert.match(fake.prompts[0].prompt, /campanha "ponte"/)
   })
 
@@ -170,10 +170,10 @@ describe("ponte mesa → Mestre (Shellby falso)", () => {
 
   it("capítulo fechado abre conversa nova do Mestre na próxima mensagem", async () => {
     createCampaign("cap", { name: "C", premise: "p", tone: "" }).close()
-    const sent: { agent: string; prompt: string }[] = []
+    const sent: { agent: string; scope: string; prompt: string }[] = []
     const m = createMaster({
-      submit: async (_s: string, agent: string, prompt: string) => {
-        sent.push({ agent, prompt })
+      submit: async (scope: string, agent: string, prompt: string) => {
+        sent.push({ agent, scope, prompt })
         return `t${sent.length}`
       },
       poll: async () => {
@@ -192,7 +192,9 @@ describe("ponte mesa → Mestre (Shellby falso)", () => {
       enqueue("cap", "jogador", text)
       await m.drain("cap")
     }
-    assert.deepEqual(sent.map((x) => (x.prompt.includes("configuração") ? `boot:${x.agent}` : x.agent)), ["boot:mestre-1", "mestre-1", "boot:mestre-2"])
+    // Conversa nova = sessão nova do Shellby com o mesmo agente (o limite de agentes é por sessão).
+    assert.deepEqual(sent.map((x) => (x.prompt.includes("configuração") ? `boot:${x.scope}` : x.scope)), ["boot:dndai-cap-1", "dndai-cap-1", "boot:dndai-cap-2"])
+    assert.ok(sent.every((x) => x.agent === "mestre"))
     assert.equal(chatView("cap").messages.filter((x) => x.role === "mestre").at(-1)!.text, "A estrada segue.")
   })
 
@@ -232,6 +234,51 @@ describe("ponte mesa → Mestre (Shellby falso)", () => {
     const after = openCampaign("estado")
     assert.equal(after.prepare("SELECT value FROM meta WHERE key = 'pc_state_shown'").get(), undefined)
     after.close()
+  })
+
+  it("muitas trocas de conversa nunca repetem a sessão nem criam outro agente", async () => {
+    createCampaign("giro", { name: "G", premise: "p", tone: "" }).close()
+    const sent: { agent: string; scope: string }[] = []
+    let chapter = 0
+    const m = createMaster({
+      submit: async (scope: string, agent: string) => {
+        sent.push({ agent, scope })
+        return `t${sent.length}`
+      },
+      poll: async () => {
+        const db = openCampaign("giro")
+        beginTurn(db, "giro", "segue")
+        endTurn(db, "Kael seguiu pela estrada sem incidentes.", "A estrada segue.")
+        db.prepare("INSERT INTO chapters(n, from_turn, to_turn, summary) VALUES(?, 1, 1, 'c')").run(++chapter)
+        db.close()
+        return { status: "completed" as const, response: "✓" }
+      },
+    }, { log: () => undefined })
+    for (let i = 0; i < 7; i++) {
+      enqueue("giro", "jogador", `passo ${i}`)
+      await m.drain("giro")
+    }
+    assert.equal(new Set(sent.map((x) => x.scope)).size, 7)
+    assert.deepEqual([...new Set(sent.map((x) => x.agent))], ["mestre"])
+  })
+
+  it("pedido de rolagem sem narração mostra o teste na mesa, não erro", async () => {
+    createCampaign("pede", { name: "P", premise: "p", tone: "" }).close()
+    const m = createMaster({
+      submit: async () => "t",
+      poll: async () => {
+        const db = openCampaign("pede")
+        db.prepare("INSERT INTO characters(id, kind, name, hp, max_hp, ac, sheet, created_turn) VALUES('pc:ana','pc','Ana',10,10,12,'{}',0)").run()
+        db.prepare("INSERT INTO roll_requests(who, kind, label, dice, mode, modifier, dc, created_turn) VALUES('pc:ana','pericia','Percepção (Sab)','1d20','normal',1,13,0)").run()
+        db.close()
+        return { status: "completed" as const, response: "✓" }
+      },
+    }, { log: () => undefined })
+    enqueue("pede", "jogador", "olho em volta")
+    await m.drain("pede")
+    const v = chatView("pede")
+    assert.notEqual(v.master.status, "erro")
+    assert.equal(v.messages.at(-1)!.text, "🎲 Role na mesa: Percepção (Sab) (CD 13).")
   })
 
   it("erro do Mestre fica visível e não trava a fila", async () => {

@@ -128,12 +128,24 @@ export function messageOutcome(slug: string, id: number): { status: ChatMessage[
   })
 }
 
-function agentId(db: DatabaseSync): string {
-  return `mestre-${meta(db, "generation", "1")}`
+/** Um agente por sessão do Shellby: o limite de agentes delegados é por sessão. */
+const AGENT = "mestre"
+
+function agentId(_db: DatabaseSync): string {
+  return AGENT
 }
 
-export function scopeFor(slug: string): string {
-  return `dndai-${slug}`
+/**
+ * Sessão do Shellby (x-openai-session) da conversa atual. Cada conversa nova do Mestre (troca de capítulo,
+ * conversa perdida, reinício) usa uma sessão nova com o mesmo agente. Girar o nome do agente na mesma
+ * sessão esgotava o limite de agentes delegados do Shellby (AGENT_LIMIT_REACHED) depois de 4 conversas.
+ */
+export function scopeFor(slug: string, generation = 1): string {
+  return `dndai-${slug}-${generation}`
+}
+
+function currentScope(slug: string): string {
+  return scopeFor(slug, Number(withChat(slug, (db) => meta(db, "generation", "1"))))
 }
 
 /** Configuração de uma conversa nova do Mestre. Vai junto com a primeira mensagem (sem turno extra de "PRONTO"). */
@@ -192,11 +204,14 @@ function narrationFor(slug: string, sinceId: number, response: string): string |
   try {
     const recorded = all<{ text: string }>(world, "SELECT text FROM narrations WHERE id > ? ORDER BY id", sinceId)
     if (recorded.length) return recorded.map((t) => t.text).join("\n\n")
+    const text = response.replace(/\n*\*\*Notice:\*\*[^\n]*/g, "").trim()
+    if (text && text !== DONE) return text
+    // Pediu o teste sem narrar: a mesa já abre o dado; o jogador ao menos lê o que rolar.
+    const pending = all<{ label: string; dc: number | null }>(world, "SELECT label, dc FROM roll_requests WHERE status = 'pendente' ORDER BY id")
+    return pending.length ? pending.map((r) => `🎲 Role na mesa: ${r.label}${r.dc ? ` (CD ${r.dc})` : ""}.`).join("\n") : null
   } finally {
     world.close()
   }
-  const text = response.replace(/\n*\*\*Notice:\*\*[^\n]*/g, "").trim()
-  return !text || text === DONE ? null : text
 }
 
 /**
@@ -312,12 +327,12 @@ export function createMaster(transport: MasterTransport, opts: MasterOptions = {
     // Conversa nova nunca viu a linha de estado do PC: o próximo apply a mostra inteira.
     world.prepare("DELETE FROM meta WHERE key = 'pc_state_shown'").run()
     world.close()
-    log(`${slug}: abrindo conversa do Mestre (${withChat(slug, (db) => agentId(db))})`)
+    log(`${slug}: abrindo conversa do Mestre (sessão ${currentScope(slug)})`)
     return bootstrapLines(slug, name)
   }
 
-  const markReady = (slug: string): void => {
-    const { chapters } = chapterCount(slug)
+  /** `chapters`: quantos capítulos existiam quando a conversa abriu (um capítulo fechado na 1ª resposta já conta). */
+  const markReady = (slug: string, chapters = chapterCount(slug).chapters): void => {
     withChat(slug, (db) => tx(db, () => {
       setMeta(db, "ready", 1)
       setMeta(db, "chapters_at_boot", chapters)
@@ -325,7 +340,7 @@ export function createMaster(transport: MasterTransport, opts: MasterOptions = {
   }
 
   const drainOnce = async (slug: string): Promise<boolean> => {
-    const scope = scopeFor(slug)
+    const scope = currentScope(slug)
     const claim = `${owner}-${randomUUID()}`
     const rows = withChat(slug, (db) =>
       tx(db, () => {
@@ -341,11 +356,12 @@ export function createMaster(transport: MasterTransport, opts: MasterOptions = {
     withChat(slug, (db) => tx(db, () => setMeta(db, `since:${claim}`, sinceTurn)))
     try {
       const setup = setupFor(slug)
+      const chaptersAtSetup = chapterCount(slug).chapters
       const agent = withChat(slug, (db) => agentId(db))
       const turnId = await transport.submit(scope, agent, messagePrompt(slug, rows, { setup, scene: setup ? undefined : sceneIfOpen(slug) }))
       withChat(slug, (db) => tx(db, () => db.prepare("UPDATE chat SET status = 'aguardando', turn_id = ? WHERE claim = ?").run(turnId, claim)))
       const result = await pollUntilDone(slug, scope, turnId)
-      if (setup && result.ok) markReady(slug)
+      if (setup && result.ok) markReady(slug, chaptersAtSetup)
       finish(slug, claim, result, sinceTurn)
     } catch (error) {
       finish(slug, claim, { ok: false, error: (error as Error).message }, sinceTurn)
@@ -381,7 +397,7 @@ export function createMaster(transport: MasterTransport, opts: MasterOptions = {
         const claim = p.claim
         const job = (async () => {
           const sinceTurn = Number(withChat(slug, (db) => meta(db, `since:${claim}`, "0")))
-          const result = await pollUntilDone(slug, scopeFor(slug), p.turn_id)
+          const result = await pollUntilDone(slug, currentScope(slug), p.turn_id)
           // A mensagem interrompida pode ter levado a configuração: a conversa já existe.
           if (result.ok) markReady(slug)
           finish(slug, claim, result, sinceTurn)
