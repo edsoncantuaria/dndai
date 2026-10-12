@@ -44,9 +44,61 @@ class ApiClient {
     return body;
   }
 
+  Future<Map<String, dynamic>> login(String login, String password) async {
+    final r = await _http
+        .post(_uri('/api/auth/login'),
+            headers: {'content-type': 'application/json'},
+            body: jsonEncode({'login': login, 'password': password}))
+        .timeout(const Duration(seconds: 15));
+    return ((await _decode(r)) as Map).cast<String, dynamic>();
+  }
+
   Future<List<Campaign>> campaigns() async {
     final r = await _http.get(_uri('/api/campaigns'), headers: _headers).timeout(const Duration(seconds: 15));
     return ((await _decode(r)) as List).cast<Map>().map((e) => Campaign.fromJson(e.cast())).toList();
+  }
+
+  Future<Campaign> createCampaign(String name, {String? slug, String? premise, String? tone}) async {
+    final cleanSlug = (slug != null && slug.trim().isNotEmpty)
+        ? slug.trim()
+        : name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-').replaceAll(RegExp(r'^-+|-+$'), '');
+    final r = await _http
+        .post(_uri('/api/campaigns/new'),
+            headers: _headers,
+            body: jsonEncode({
+              'slug': cleanSlug.isEmpty ? 'campanha-${DateTime.now().millisecondsSinceEpoch}' : cleanSlug,
+              'name': name.trim(),
+              'premise': premise ?? '',
+              'tone': tone ?? '',
+            }))
+        .timeout(const Duration(seconds: 15));
+    final data = ((await _decode(r)) as Map).cast<String, dynamic>();
+    return Campaign(data['slug'] as String, data['name'] as String);
+  }
+
+  Future<void> createPc(String campaign, Map<String, dynamic> pcData) async {
+    final r = await _http
+        .post(_uri('/api/pc/create', {'campaign': campaign}),
+            headers: _headers,
+            body: jsonEncode(pcData))
+        .timeout(const Duration(seconds: 20));
+    await _decode(r);
+  }
+
+  Future<String> levelUp(String campaign, {String hpMode = 'media', String? subclass, String? asi, String? feat, Map<String, List<String>>? choices}) async {
+    final r = await _http
+        .post(_uri('/api/pc/levelup', {'campaign': campaign}),
+            headers: _headers,
+            body: jsonEncode({
+              'hpMode': hpMode,
+              if (subclass != null && subclass.isNotEmpty) 'subclass': subclass,
+              if (asi != null && asi.isNotEmpty) 'asi': asi,
+              if (feat != null && feat.isNotEmpty) 'feat': feat,
+              'choices': ?choices,
+            }))
+        .timeout(const Duration(seconds: 20));
+    final data = ((await _decode(r)) as Map).cast<String, dynamic>();
+    return data['text'] as String? ?? 'Subida de nível concluída!';
   }
 
   Future<GameView> state(String campaign) async {

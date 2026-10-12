@@ -7,12 +7,12 @@ import 'api/client.dart';
 import 'api/token_store.dart';
 import 'api/models.dart';
 import 'theme.dart';
+import 'ui/character_creation_screen.dart';
 import 'ui/game_screen.dart';
 import 'ui/play_settings.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  // Na web o Flutter desenha num canvas: liga a árvore de acessibilidade para leitores de tela.
   if (kIsWeb) SemanticsBinding.instance.ensureSemantics();
   runApp(const DndaiApp());
 }
@@ -53,7 +53,7 @@ class _DndaiAppState extends State<DndaiApp> {
       );
 }
 
-/// Fluxo: servidor → campanha → jogo. Tudo lembrado no aparelho.
+/// Fluxo: Login com conta -> Escolha/Criação de Campanha & Personagem -> Mesa de Jogo.
 class Root extends StatefulWidget {
   const Root({super.key});
   @override
@@ -64,6 +64,7 @@ class _RootState extends State<Root> {
   SharedPreferences? _prefs;
   ApiClient? _api;
   String? _campaign;
+  String _serverUrl = 'http://192.168.0.5:8790';
 
   @override
   void initState() {
@@ -73,22 +74,42 @@ class _RootState extends State<Root> {
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    // Na web servida pelo motor, a própria origem é o servidor; ?campaign=&token= na URL têm prioridade.
     final q = kIsWeb ? Uri.base.queryParameters : const <String, String>{};
-    final defaultUrl = kIsWeb ? Uri.base.origin : '';
+    final defaultUrl = kIsWeb ? Uri.base.origin : 'http://192.168.0.5:8790';
     final url = prefs.getString('server') ?? defaultUrl;
     final token = q['token'] ?? await readToken(prefs);
+
     setState(() {
       _prefs = prefs;
-      if (url.isNotEmpty) _api = ApiClient(baseUrl: url, token: token);
+      _serverUrl = url;
+      if (token != null && token.isNotEmpty) {
+        _api = ApiClient(baseUrl: url, token: token);
+      }
       _campaign = q['campaign'] ?? prefs.getString('campaign');
     });
   }
 
-  Future<void> _connect(String url, String token) async {
+  Future<void> _handleLogin(String url, String email, String password) async {
+    final client = ApiClient(baseUrl: url);
+    final res = await client.login(email, password);
+    final token = res['token'] as String? ?? 'auth-ok';
+
     await _prefs!.setString('server', url);
     await writeToken(_prefs!, token);
-    setState(() => _api = ApiClient(baseUrl: url, token: token.isEmpty ? null : token));
+
+    setState(() {
+      _serverUrl = url;
+      _api = ApiClient(baseUrl: url, token: token);
+    });
+  }
+
+  Future<void> _logout() async {
+    await writeToken(_prefs!, '');
+    await _prefs!.remove('campaign');
+    setState(() {
+      _api = null;
+      _campaign = null;
+    });
   }
 
   Future<void> _choose(String slug) async {
@@ -99,14 +120,22 @@ class _RootState extends State<Root> {
   @override
   Widget build(BuildContext context) {
     if (_prefs == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    if (_api == null) return ConnectScreen(onConnect: _connect, initialUrl: _prefs!.getString('server') ?? '');
+
+    if (_api == null) {
+      return LoginScreen(
+        initialServer: _serverUrl,
+        onLogin: _handleLogin,
+      );
+    }
+
     if (_campaign == null) {
       return CampaignScreen(
         api: _api!,
         onChoose: _choose,
-        onChangeServer: () => setState(() => _api = null),
+        onLogout: _logout,
       );
     }
+
     return GameScreen(
       key: ValueKey('${_api!.baseUrl}/$_campaign'),
       api: _api!,
@@ -119,39 +148,126 @@ class _RootState extends State<Root> {
   }
 }
 
-class ConnectScreen extends StatefulWidget {
-  const ConnectScreen({super.key, required this.onConnect, required this.initialUrl});
-  final Future<void> Function(String url, String token) onConnect;
-  final String initialUrl;
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key, required this.initialServer, required this.onLogin});
+  final String initialServer;
+  final Future<void> Function(String server, String email, String password) onLogin;
+
   @override
-  State<ConnectScreen> createState() => _ConnectScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _ConnectScreenState extends State<ConnectScreen> {
-  late final _url = TextEditingController(text: widget.initialUrl.isEmpty ? 'https://' : widget.initialUrl);
-  final _token = TextEditingController();
+class _LoginScreenState extends State<LoginScreen> {
+  late final _server = TextEditingController(text: widget.initialServer);
+  final _email = TextEditingController(text: 'edsoncantuaria@outlook.com');
+  final _password = TextEditingController(text: 'teste123');
+  bool _loading = false;
+  String? _error;
+  bool _showServerConfig = false;
+
+  Future<void> _submit() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await widget.onLogin(_server.text.trim(), _email.text.trim(), _password.text);
+    } catch (e) {
+      setState(() => _error = 'Falha ao autenticar: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
         body: DecoratedBox(
-          decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF2A1C14), Palette.leather])),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF2A1C14), Palette.leather],
+            ),
+          ),
           child: SafeArea(
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
+                constraints: const BoxConstraints(maxWidth: 420),
                 child: ListView(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
                   shrinkWrap: true,
                   children: [
-                    Text('Crônicas', textAlign: TextAlign.center, style: displayStyle(size: 40)),
-                    const SizedBox(height: 6),
-                    const Text('A mesa do seu Mestre.', textAlign: TextAlign.center, style: TextStyle(color: Palette.textDim, fontFamily: 'EBGaramond', fontSize: 18)),
-                    const SizedBox(height: 28),
-                    TextField(controller: _url, keyboardType: TextInputType.url, autocorrect: false, style: const TextStyle(color: Palette.ink, fontFamily: 'EBGaramond'), decoration: const InputDecoration(labelText: 'Endereço do servidor')),
+                    const Icon(Icons.shield_outlined, size: 56, color: Palette.gold),
                     const SizedBox(height: 12),
-                    TextField(controller: _token, obscureText: true, autocorrect: false, style: const TextStyle(color: Palette.ink, fontFamily: 'EBGaramond'), decoration: const InputDecoration(labelText: 'Token (se o servidor exigir)')),
-                    const SizedBox(height: 20),
-                    FilledButton(onPressed: () => widget.onConnect(_url.text.trim(), _token.text.trim()), child: const Text('Entrar na mesa')),
+                    Text('Crônicas D&D', textAlign: TextAlign.center, style: displayStyle(size: 38)),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Sua mesa inteligente com narrador e mestre.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Palette.textDim, fontFamily: 'EBGaramond', fontSize: 18),
+                    ),
+                    const SizedBox(height: 32),
+                    if (_error != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Palette.failure.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Palette.failure),
+                        ),
+                        child: Text(_error!, style: const TextStyle(color: Palette.failure, fontSize: 14)),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    TextField(
+                      controller: _email,
+                      keyboardType: TextInputType.emailAddress,
+                      autocorrect: false,
+                      style: const TextStyle(color: Palette.ink, fontFamily: 'EBGaramond'),
+                      decoration: const InputDecoration(
+                        labelText: 'Email da conta',
+                        prefixIcon: Icon(Icons.email_outlined, color: Palette.gold),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _password,
+                      obscureText: true,
+                      autocorrect: false,
+                      style: const TextStyle(color: Palette.ink, fontFamily: 'EBGaramond'),
+                      decoration: const InputDecoration(
+                        labelText: 'Senha',
+                        prefixIcon: Icon(Icons.lock_outline, color: Palette.gold),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton(
+                      onPressed: _loading ? null : _submit,
+                      child: _loading
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Text('Entrar no Reino'),
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () => setState(() => _showServerConfig = !_showServerConfig),
+                      child: Text(
+                        _showServerConfig ? 'Ocultar servidor' : 'Configurações de servidor',
+                        style: const TextStyle(color: Palette.textDim, fontSize: 13),
+                      ),
+                    ),
+                    if (_showServerConfig) ...[
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _server,
+                        keyboardType: TextInputType.url,
+                        autocorrect: false,
+                        style: const TextStyle(color: Palette.ink, fontFamily: 'EBGaramond'),
+                        decoration: const InputDecoration(
+                          labelText: 'Endereço da mesa / API',
+                          prefixIcon: Icon(Icons.dns_outlined),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -162,10 +278,11 @@ class _ConnectScreenState extends State<ConnectScreen> {
 }
 
 class CampaignScreen extends StatefulWidget {
-  const CampaignScreen({super.key, required this.api, required this.onChoose, required this.onChangeServer});
+  const CampaignScreen({super.key, required this.api, required this.onChoose, required this.onLogout});
   final ApiClient api;
   final ValueChanged<String> onChoose;
-  final VoidCallback onChangeServer;
+  final VoidCallback onLogout;
+
   @override
   State<CampaignScreen> createState() => _CampaignScreenState();
 }
@@ -173,40 +290,179 @@ class CampaignScreen extends StatefulWidget {
 class _CampaignScreenState extends State<CampaignScreen> {
   late Future<List<Campaign>> _future = widget.api.campaigns();
 
+  void _refresh() {
+    setState(() => _future = widget.api.campaigns());
+  }
+
+  Future<void> _openCreateCampaignDialog() async {
+    final nameCtrl = TextEditingController();
+    final premiseCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final created = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Criar Nova Aventura', style: TextStyle(fontFamily: 'Cinzel', color: Palette.gold)),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: nameCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'Nome da Crônica (ex: A Mina Perdida)'),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Informe um nome' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: premiseCtrl,
+                decoration: const InputDecoration(labelText: 'Premissa / Enredo (opcional)'),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              try {
+                await widget.api.createCampaign(nameCtrl.text.trim(), premise: premiseCtrl.text.trim());
+                if (ctx.mounted) Navigator.pop(ctx, true);
+              } catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Erro ao criar: $e')));
+                }
+              }
+            },
+            child: const Text('Criar'),
+          ),
+        ],
+      ),
+    );
+
+    if (created == true) _refresh();
+  }
+
+  Future<void> _selectCampaign(Campaign camp) async {
+    try {
+      final state = await widget.api.state(camp.slug);
+      final hasCharacter = state.pc != null && state.pc!.name.trim().isNotEmpty && state.pc!.name != '—';
+
+      if (!hasCharacter && mounted) {
+        final created = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            builder: (_) => CharacterCreationScreen(
+              api: widget.api,
+              campaignSlug: camp.slug,
+              onCreated: () => Navigator.of(context).pop(true),
+            ),
+          ),
+        );
+        if (created != true) return;
+      }
+      widget.onChoose(camp.slug);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao carregar crônica: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: const Text('Escolha a crônica'),
-          actions: [IconButton(tooltip: 'Trocar servidor', onPressed: widget.onChangeServer, icon: const Icon(Icons.dns_outlined))],
+          title: const Text('Suas Aventuras'),
+          actions: [
+            IconButton(
+              tooltip: 'Criar Nova Aventura',
+              icon: const Icon(Icons.add, color: Palette.gold),
+              onPressed: _openCreateCampaignDialog,
+            ),
+            IconButton(
+              tooltip: 'Sair da conta',
+              icon: const Icon(Icons.logout),
+              onPressed: widget.onLogout,
+            ),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: _openCreateCampaignDialog,
+          icon: const Icon(Icons.add),
+          label: const Text('Nova Aventura'),
+          backgroundColor: Palette.gold,
+          foregroundColor: Palette.parchment,
         ),
         body: FutureBuilder<List<Campaign>>(
           future: _future,
           builder: (context, snap) {
             if (snap.hasError) {
               return Center(
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Padding(padding: const EdgeInsets.all(24), child: Text('${snap.error}', textAlign: TextAlign.center, style: const TextStyle(color: Palette.failure))),
-                  FilledButton(onPressed: () => setState(() => _future = widget.api.campaigns()), child: const Text('Tentar de novo')),
-                ]),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text('${snap.error}', textAlign: TextAlign.center, style: const TextStyle(color: Palette.failure)),
+                    ),
+                    FilledButton(onPressed: _refresh, child: const Text('Tentar de novo')),
+                  ],
+                ),
               );
             }
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
             final list = snap.data!;
             if (list.isEmpty) {
-              return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Nenhuma crônica ainda. Peça ao Mestre para criar uma.', textAlign: TextAlign.center)));
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.auto_stories, size: 64, color: Palette.gold),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Nenhuma crônica encontrada',
+                        style: TextStyle(fontFamily: 'Cinzel', fontSize: 20, color: Palette.ink),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Crie sua primeira aventura para começar a jogar com o narrador!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Palette.textDim),
+                      ),
+                      const SizedBox(height: 24),
+                      FilledButton.icon(
+                        onPressed: _openCreateCampaignDialog,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Criar Primeira Aventura'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
             }
             return ListView.separated(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
               itemCount: list.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
               itemBuilder: (_, i) => Card(
+                elevation: 2,
                 child: ListTile(
-                  minVerticalPadding: 16,
-                  leading: const Icon(Icons.auto_stories, color: Palette.gold),
-                  title: Text(list[i].name, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: Text(list[i].slug, style: const TextStyle(color: Palette.textDim)),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => widget.onChoose(list[i].slug),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  leading: const CircleAvatar(
+                    backgroundColor: Palette.leather,
+                    child: Icon(Icons.auto_stories, color: Palette.gold),
+                  ),
+                  title: Text(list[i].name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
+                  subtitle: Text(
+                    list[i].slug,
+                    style: const TextStyle(color: Palette.textDim, fontSize: 13),
+                  ),
+                  trailing: const Icon(Icons.chevron_right, color: Palette.gold),
+                  onTap: () => _selectCampaign(list[i]),
                 ),
               ),
             );

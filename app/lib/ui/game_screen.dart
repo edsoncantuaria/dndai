@@ -89,6 +89,7 @@ class _GameScreenState extends State<GameScreen> {
             final err = await game.useResource(id, amount);
             return err ?? game.lastActionText;
           },
+          onLevelUp: game.levelUp,
         );
       },
     );

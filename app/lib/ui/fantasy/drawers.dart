@@ -9,12 +9,20 @@ import 'chrome.dart';
 import 'sigils.dart';
 
 typedef ResourceAct = Future<String?> Function(String resource, int amount);
+typedef LevelUpAct = Future<String?> Function({
+  String hpMode,
+  String? subclass,
+  String? asi,
+  String? feat,
+  Map<String, List<String>>? choices,
+});
 
 class SheetDrawer extends StatelessWidget {
-  const SheetDrawer({super.key, required this.view, this.scroll, this.onResource, this.busy = false});
+  const SheetDrawer({super.key, required this.view, this.scroll, this.onResource, this.onLevelUp, this.busy = false});
   final GameView view;
   final ScrollController? scroll;
   final ResourceAct? onResource;
+  final LevelUpAct? onLevelUp;
   final bool busy;
 
   @override
@@ -44,7 +52,14 @@ class SheetDrawer extends StatelessWidget {
               ),
             ]),
             if (pc.levelUpReady)
-              const Padding(padding: EdgeInsets.only(top: 8), child: Text('Subida de nível disponível — peça ao Mestre.', style: TextStyle(color: Palette.inkEmph, fontWeight: FontWeight.w700))),
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: FilledButton.icon(
+                  icon: const Icon(Icons.arrow_upward, color: Palette.gold),
+                  label: const Text('Subir de Nível'),
+                  onPressed: onLevelUp != null ? () => _showLevelUpDialog(context, pc) : null,
+                ),
+              ),
             if (pc.nextLevelXp != null) ...[
               const SizedBox(height: 8),
               Text('XP ${pc.xp} / ${pc.nextLevelXp}', style: const TextStyle(color: Palette.inkSoft, fontSize: 14)),
@@ -150,6 +165,77 @@ class SheetDrawer extends StatelessWidget {
           ]),
         ),
       ],
+    );
+  }
+
+  Future<void> _showLevelUpDialog(BuildContext context, Pc pc) async {
+    String hpMode = 'media';
+    final targetLevel = pc.level + 1;
+    final needSubclass = pc.subclass.isEmpty && targetLevel >= 3;
+    final isAsiLevel = targetLevel % 4 == 0;
+    String? selectedSubclass;
+    String asiChoice = 'for+2';
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text('Subir para Nível $targetLevel', style: const TextStyle(fontFamily: 'Cinzel', color: Palette.gold)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Parabéns pela evolução de ${pc.name}!'),
+                const SizedBox(height: 12),
+                const Text('Pontos de Vida (PV):', style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'media', label: Text('Média da classe')),
+                    ButtonSegment(value: 'rolar', label: Text('Rolar dado')),
+                  ],
+                  selected: {hpMode},
+                  onSelectionChanged: (set) => setDialogState(() => hpMode = set.first),
+                ),
+                if (needSubclass) ...[
+                  const SizedBox(height: 12),
+                  const Text('Arquétipo / Subclasse:', style: TextStyle(fontWeight: FontWeight.w600)),
+                  TextField(
+                    decoration: const InputDecoration(hintText: 'Ex: campeao, ladrao, evocacao'),
+                    onChanged: (v) => selectedSubclass = v.trim(),
+                  ),
+                ],
+                if (isAsiLevel) ...[
+                  const SizedBox(height: 12),
+                  const Text('Aumento de Atributo (ASI):', style: TextStyle(fontWeight: FontWeight.w600)),
+                  TextField(
+                    decoration: const InputDecoration(hintText: 'Ex: for+2 ou des+1,con+1'),
+                    onChanged: (v) => asiChoice = v.trim(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+            FilledButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final res = await onLevelUp!(
+                  hpMode: hpMode,
+                  subclass: selectedSubclass,
+                  asi: isAsiLevel ? asiChoice : null,
+                );
+                if (context.mounted && res != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res)));
+                }
+              },
+              child: const Text('Confirmar Evolução'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

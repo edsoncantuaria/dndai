@@ -4,10 +4,11 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { extname, join, normalize, resolve } from "node:path"
 import { Readable } from "node:stream"
 import { timingSafeEqual } from "node:crypto"
-import { listCampaigns, openCampaign, resolveCampaign, snapshotCampaign, withCampaignLock } from "./campaign.ts"
+import { createCampaign, listCampaigns, openCampaign, resolveCampaign, snapshotCampaign, withCampaignLock } from "./campaign.ts"
 import { type DB, metaNum, transaction } from "./db.ts"
 import { applyItemAction } from "./items.ts"
-import { pendingRequests, resolveRequest, useResource } from "./mechanics.ts"
+import { levelUp, pendingRequests, resolveRequest, useResource } from "./mechanics.ts"
+import { createPc } from "./pc.ts"
 import { requirePc } from "./world.ts"
 import { sendToMaster } from "./master/client.ts"
 import { chatVersion, chatView } from "./master/queue.ts"
@@ -188,7 +189,75 @@ export function startServer(opts: ServeOptions) {
         if (req.method === "GET" && serveStatic(res, url.pathname)) return
         throw new HttpError(404, "Não encontrado.")
       }
+      if (req.method === "POST" && url.pathname === "/api/auth/login") {
+        const body = (await readBody(req)) as { login?: unknown; password?: unknown }
+        const login = typeof body.login === "string" ? body.login.trim().toLowerCase() : ""
+        const password = typeof body.password === "string" ? body.password : ""
+        const validUser = (login === "edsoncantuaria@outlook.com" || login === "edson") && password === "teste123"
+        const validToken = opts.token && (password === opts.token || login === opts.token)
+        if (!validUser && !validToken) throw new HttpError(401, "Credenciais inválidas.")
+        return send(res, 200, {
+          token: opts.token ?? "auth-ok",
+          user: { email: login || "edsoncantuaria@outlook.com", name: "Edson Cantuária" },
+        })
+      }
       if (!authorized(req, url)) throw new HttpError(401, "Token inválido.")
+      if (req.method === "POST" && url.pathname === "/api/campaigns/new") {
+        const body = (await readBody(req)) as { slug?: unknown; name?: unknown; premise?: unknown; tone?: unknown }
+        const slug = typeof body.slug === "string" ? body.slug.trim() : ""
+        const name = typeof body.name === "string" ? body.name.trim() : ""
+        if (!slug || !name) throw new HttpError(400, "Envie slug e name da campanha.")
+        const db = createCampaign(slug, {
+          name,
+          premise: typeof body.premise === "string" ? body.premise : "",
+          tone: typeof body.tone === "string" ? body.tone : "",
+        })
+        db.close()
+        return send(res, 201, { slug, name })
+      }
+      if (req.method === "POST" && url.pathname === "/api/pc/create") {
+        const slug = slugOf(url)
+        const raw = ((await readBody(req)) ?? {}) as Record<string, any>
+        const cls = typeof raw.class === "string" && raw.class.trim() ? raw.class.trim() : "Guerreiro"
+        const race = typeof raw.race === "string" && raw.race.trim() ? raw.race.trim() : "Humano"
+        const name = typeof raw.name === "string" && raw.name.trim() ? raw.name.trim() : "Herói"
+        const defaultAbilities = {
+          for: 15, des: 13, con: 14, int: 10, sab: 12, car: 8,
+        }
+        const abilities = (raw.abilities && typeof raw.abilities === "object") ? raw.abilities : defaultAbilities
+        const desMod = Math.floor(((abilities.des ?? 10) - 10) / 2)
+        const ac = typeof raw.ac === "number" ? raw.ac : Math.max(10, 10 + desMod)
+        const payload = {
+          name,
+          race,
+          class: cls,
+          subclass: raw.subclass ?? "",
+          background: raw.background ?? "Herói do Povo",
+          level: typeof raw.level === "number" ? raw.level : 1,
+          abilities,
+          ac,
+          ...raw,
+        }
+        const lines = withDb(slug, (db) => transaction(db, () => createPc(db, payload)))
+        return send(res, 201, { ok: true, lines })
+      }
+      if (req.method === "POST" && url.pathname === "/api/pc/levelup") {
+        const slug = slugOf(url)
+        const raw = ((await readBody(req)) ?? {}) as Record<string, any>
+        const hpMode = raw.hpMode === "rolar" ? "rolar" : "media"
+        const text = withDb(slug, (db) => {
+          const pc = requirePc(db)
+          return transaction(db, () =>
+            levelUp(db, pc.id, hpMode, undefined, {
+              subclass: typeof raw.subclass === "string" && raw.subclass.trim() ? raw.subclass.trim() : undefined,
+              asi: typeof raw.asi === "string" && raw.asi.trim() ? raw.asi.trim() : undefined,
+              feat: typeof raw.feat === "string" && raw.feat.trim() ? raw.feat.trim() : undefined,
+              choices: raw.choices && typeof raw.choices === "object" ? raw.choices : undefined,
+            })
+          )
+        })
+        return send(res, 200, { ok: true, text })
+      }
       if (req.method === "GET" && url.pathname === "/api/campaigns") {
         const current = process.env.DND_CAMPAIGN
         return send(res, 200, listCampaigns().map((c) => ({ ...c, current: c.slug === current })))

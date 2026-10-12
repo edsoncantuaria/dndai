@@ -100,6 +100,11 @@ class GameController extends ChangeNotifier {
         lastActionText = await api.useResource(campaign, resource, amount);
       });
 
+  Future<String?> levelUp({String hpMode = 'media', String? subclass, String? asi, String? feat, Map<String, List<String>>? choices}) =>
+      _act(() async {
+        lastActionText = await api.levelUp(campaign, hpMode: hpMode, subclass: subclass, asi: asi, feat: feat, choices: choices);
+      });
+
   /// Executa e devolve a mensagem de erro (para a UI mostrar), ou null em caso de sucesso.
   Future<String?> _act(Future<void> Function() fn) async {
     sending = true;
