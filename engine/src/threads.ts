@@ -119,7 +119,9 @@ export function threadsFor(db: DB, sceneIds: string[]): { fios: Thread[]; dormen
     const touched = Math.max(t.touched, factTurn, ...links.map((l) => seen.get(l) ?? 0))
     const here = links.some((l) => scene.has(l) || factions.has(l))
     const idade = Math.max(0, turn - touched)
-    return { ...t, links, here, idade, stale: !here && !t.urgent && idade >= STALE }
+    // Agenda e evento andam sozinhos com o tempo: não "esfriam" por falta de atenção do jogador.
+    const moves = t.tipo.startsWith("agenda") || t.tipo === "evento"
+    return { ...t, links, here, idade, stale: !moves && !here && !t.urgent && idade >= STALE }
   })
   ranked.sort((a, b) => Number(!!b.urgent) - Number(!!a.urgent) || Number(b.here) - Number(a.here) || a.idade - b.idade || a.code.localeCompare(b.code))
   const full = ranked.slice(0, FULL)

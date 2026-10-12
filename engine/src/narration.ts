@@ -59,6 +59,16 @@ export function narrationProblems(db: DB, text: string): string[] {
   }
 
   problems.push(...citedProblems(db, clean))
+  // 2ª pessoa: o PC é "você". Fora das falas (que podem chamá-lo pelo nome), o nome dele abrindo frase como
+  // sujeito ("Kael golpeia") é narração em 3ª pessoa.
+  const first = pc.name.trim().split(/\s+/)[0]
+  if (first.length >= 3) {
+    const prose = clean.split("\n").filter((l) => !/^\s*[—–“"«]/.test(l)).join("\n").replace(/“[^”]*”|«[^»]*»|"[^"]*"/g, "")
+    const esc = first.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    if (new RegExp(`(^|[.!?…]\\s+|\\n)${esc}\\s+\\p{Ll}`, "u").test(prose)) {
+      problems.push(`A narração trata o PC na 3ª pessoa ("${first} …"). Narre em 2ª pessoa: "você".`)
+    }
+  }
   return problems
 }
 

@@ -221,6 +221,19 @@ describe("ponte mesa → Mestre (Shellby falso)", () => {
     assert.doesNotMatch(sent[1], /configuração/)
   })
 
+  it("conversa nova esquece a linha de estado do PC já mostrada", async () => {
+    createCampaign("estado", { name: "E", premise: "p", tone: "" }).close()
+    const db = openCampaign("estado")
+    db.prepare("INSERT INTO meta(key, value) VALUES('pc_state_shown', 'linha velha')").run()
+    db.close()
+    const m = createMaster({ submit: async () => "t", poll: async () => ({ status: "completed" as const, response: "Texto." }) }, { log: () => undefined })
+    enqueue("estado", "jogador", "oi")
+    await m.drain("estado")
+    const after = openCampaign("estado")
+    assert.equal(after.prepare("SELECT value FROM meta WHERE key = 'pc_state_shown'").get(), undefined)
+    after.close()
+  })
+
   it("erro do Mestre fica visível e não trava a fila", async () => {
     const failing = createMaster({ submit: async () => { throw new Error("SUBAGENT_RATE_LIMITED: limite") }, poll: async () => ({ status: "running" as const }) }, { log: () => undefined })
     createCampaign("falha", { name: "F", premise: "p", tone: "" }).close()

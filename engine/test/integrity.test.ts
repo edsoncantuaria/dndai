@@ -112,7 +112,9 @@ describe("mundo que não alucina", () => {
     assert.deepEqual(narrationProblems(w, "— {m} Forasteiros, hein? — resmunga Kael. — Paguem adiantado.\nChuva fina cai. Ela sussurra: “{f}Não confie nele.”"), [])
     assert.deepEqual(narrationProblems(w, "Lá fora, Zorvak espera. Silêncio."), ['"Zorvak" não é uma entidade do motor. Nomes novos só nascem via apply; cite quem já existe pelo nome que está no contexto.'])
     assert.match(narrationProblems(w, "Zorvak ergue a espada. Zorvak ri.").join(), /Zorvak/)
-    narrate(w, "Parágrafo um.\n\nFaça um teste de Furtividade.")
+    // Depois de um dado, a narração traz a linha 🎲.
+    assert.throws(() => narrate(w, "A lâmina encontra a fresta da armadura."), /falta a linha 🎲/)
+    narrate(w, "A lâmina encontra a fresta da armadura.\n\n🎲 Ataque 15 — acerto")
     endTurn(w, "Kael derrubou Mara e ficou atento.", "")
   })
 
@@ -207,6 +209,24 @@ describe("economia de tokens na conversa", () => {
     db.transaction(w, () => resolveRequest(w, req.id, [15], "mesa"))
     assert.throws(() => endTurn(w, "Kael examinou a forja e achou marcas.", ""), /rolagem #\d+ foi resolvida depois da última narração/)
     assert.match(endTurn(w, "Kael examinou a forja e achou marcas.", "Você encontra marcas de martelo recentes. 🎲 Investigação 15 vs CD 12").join(), /fechado/)
+  })
+
+  it("narração em 3ª pessoa do PC é recusada; nas falas o nome dele pode aparecer", () => {
+    beginTurn(w, slug, "olha em volta")
+    assert.throws(() => narrate(w, "A chuva cai. Kael golpeia a porta."), /3ª pessoa/)
+    assert.throws(() => narrate(w, "Kael prende o ouvido contra as tábuas."), /3ª pessoa/)
+    narrate(w, "Você golpeia a porta.\n— {f} Kael, pare com isso — diz Mara.")
+  })
+
+  it("agenda que avança sozinha não é marcada como parada", () => {
+    apply([{ op: "create.clock", name: "Cerco à vila", segments: 4, on_complete: "a vila cai" }, { op: "hook", kind: "misterio", text: "um uivo distante" }])
+    for (let t = 0; t < 12; t++) {
+      beginTurn(w, slug, `espera ${t}`)
+      endTurn(w, `Kael esperou na vila pela vez ${t}.`, "")
+    }
+    const ctx = buildContext(w, slug, { cena: true })
+    assert.match(ctx, /h1\*|h1,.*esfriando/)
+    assert.doesNotMatch(ctx, /k1\*|k1,.*esfriando/)
   })
 
   it("estado do PC só reaparece quando muda", () => {

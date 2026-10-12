@@ -63,6 +63,7 @@ export function narrate(db: DB, raw: string): string[] {
   if (!raw.trim()) throw new Error("Narração vazia.")
   const text = expandRefs(db, raw)
   assertNarration(db, text)
+  assertDiceLine(db, metaNum(db, "turn"), text)
   transaction(db, () => addNarration(db, metaNum(db, "turn"), text))
   return ["Narração registrada para a mesa."]
 }
@@ -80,7 +81,10 @@ export function endTurn(db: DB, summary: string, raw: string): string[] {
   const narration = expandRefs(db, raw)
   if (!narration.trim()) assertPlayerHasRead(db, metaNum(db, "turn"))
   if (summary.trim().length < 10) throw new Error("O resumo do turno precisa descrever o que aconteceu (mín. 10 caracteres). Ele é a memória de longo prazo.")
-  if (narration.trim()) assertNarration(db, narration)
+  if (narration.trim()) {
+    assertNarration(db, narration)
+    assertDiceLine(db, metaNum(db, "turn"), narration)
+  }
   const n = metaNum(db, "turn")
   const warnings: string[] = []
   const closed = transaction(db, () => {
@@ -116,14 +120,28 @@ export function endTurn(db: DB, summary: string, raw: string): string[] {
  * motor é opcional: no jogo direto no chat ela vai na própria conversa.)
  */
 function assertPlayerHasRead(db: DB, turn: number): void {
-  const last = all<{ at: string }>(db, "SELECT at FROM narrations WHERE turn = ? ORDER BY id DESC LIMIT 1", turn)[0]
-  const rolls = all<{ id: number; result: string }>(db, "SELECT id, result FROM roll_requests WHERE created_turn = ? AND status = 'resolvida'", turn)
-  const unread = rolls.filter((r) => {
-    const out = JSON.parse(r.result) as { at: string; source?: string }
-    return out.source === "mesa" && (!last || out.at >= last.at)
-  })
+  const unread = unreadRolls(db, turn, true)
   if (unread.length) {
-    throw new Error(`A rolagem #${unread.map((r) => r.id).join(", #")} foi resolvida depois da última narração: o jogador ainda não viu o resultado. Feche com turn end --narration - narrando a consequência (com a linha 🎲).`)
+    throw new Error(`A rolagem #${unread.join(", #")} foi resolvida depois da última narração: o jogador ainda não viu o resultado. Feche com turn end --narration - narrando a consequência (com a linha 🎲).`)
+  }
+}
+
+/** Rolagens do turno resolvidas depois da última narração (o jogador ainda não leu o resultado). */
+function unreadRolls(db: DB, turn: number, mesaOnly: boolean): number[] {
+  const last = all<{ at: string }>(db, "SELECT at FROM narrations WHERE turn = ? ORDER BY id DESC LIMIT 1", turn)[0]
+  return all<{ id: number; result: string }>(db, "SELECT id, result FROM roll_requests WHERE created_turn = ? AND status = 'resolvida'", turn)
+    .filter((r) => {
+      const out = JSON.parse(r.result) as { at: string; source?: string }
+      return (!mesaOnly || out.source === "mesa") && (!last || out.at >= last.at)
+    })
+    .map((r) => r.id)
+}
+
+/** A narração que conta o resultado de um dado traz a linha 🎲 com os números. */
+function assertDiceLine(db: DB, turn: number, text: string): void {
+  const rolls = unreadRolls(db, turn, false)
+  if (rolls.length && !text.includes("🎲")) {
+    throw new Error(`Narração não publicada: ela conta o resultado da rolagem #${rolls.join(", #")} e falta a linha 🎲 com os números (ex.: "🎲 Percepção 18 vs CD 13 — sucesso"). Nada foi gravado.`)
   }
 }
 

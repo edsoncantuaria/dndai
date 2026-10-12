@@ -309,6 +309,8 @@ export function createMaster(transport: MasterTransport, opts: MasterOptions = {
     if (withChat(slug, (db) => meta(db, "ready") === "1")) return undefined
     const world = openCampaign(slug)
     const name = getMeta(world, "name", slug)
+    // Conversa nova nunca viu a linha de estado do PC: o próximo apply a mostra inteira.
+    world.prepare("DELETE FROM meta WHERE key = 'pc_state_shown'").run()
     world.close()
     log(`${slug}: abrindo conversa do Mestre (${withChat(slug, (db) => agentId(db))})`)
     return bootstrapLines(slug, name)
