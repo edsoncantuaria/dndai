@@ -130,12 +130,35 @@ export function reactToDrawnWeapon(db: DB, pcName: string, weapon: string, place
   return out
 }
 
+function entityCode(db: DB, id: string): string {
+  return one<{ code: string }>(db, "SELECT code FROM codes WHERE entity = ?", id)?.code ?? id
+}
+
+const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim()
+
+/**
+ * Item do PC por id curto (i3), id longo, nome exato ou parte única do nome ("espada" → "Espada longa").
+ * Só entre os itens do próprio PC, então a parte do nome não acha nada fora do inventário.
+ */
+function pcItem(db: DB, pcId: string, ref: string): ItemRow | undefined {
+  const id = one<{ entity: string }>(db, "SELECT entity FROM codes WHERE code = ?", ref)?.entity ?? ref
+  const exact = one<ItemRow>(db, "SELECT * FROM items WHERE owner_char = ? AND (id = ? OR lower(name) = lower(?))", pcId, id, ref)
+  if (exact) return exact
+  const want = fold(ref)
+  const partial = all<ItemRow>(db, "SELECT * FROM items WHERE owner_char = ? AND qty > 0", pcId).filter((i) => fold(i.name).includes(want))
+  return partial.length === 1 ? partial[0] : undefined
+}
+
 /** Aplica uma ação de item do PC. Deve rodar dentro de uma transação. */
 export function applyItemAction(db: DB, action: string, itemRef: string): string {
   if (!(ITEM_ACTIONS as readonly string[]).includes(action)) throw new Error(`Ação inválida "${action}". Use: ${ITEM_ACTIONS.join(", ")}.`)
   const pc = requirePc(db)
-  const item = one<ItemRow>(db, "SELECT * FROM items WHERE owner_char = ? AND (id = ? OR lower(name) = lower(?))", pc.id, itemRef, itemRef)
-  if (!item) throw new Error(`${pc.name} não tem "${itemRef}".`)
+  const item = pcItem(db, pc.id, itemRef)
+  if (!item) {
+    const owned = all<{ id: string; name: string }>(db, "SELECT id, name FROM items WHERE owner_char = ? AND qty > 0", pc.id)
+    const list = owned.map((i) => `${i.name} [${entityCode(db, i.id)}]`).join(", ")
+    throw new Error(`${pc.name} não tem "${itemRef}". Itens dele: ${list || "nenhum"}.`)
+  }
   const valid = itemActions(db, item)
   if (!valid.includes(action as ItemAction)) {
     throw new Error(valid.length ? `Não dá para ${action} ${item.name} agora (possível: ${valid.join(", ")}).` : `${pc.name} não pode agir agora (${[...new Set([pc.status, ...pc.sheet.conditions])].join(", ")}).`)

@@ -60,6 +60,14 @@ export function consolidationDue(db: DB, presentOnly = false): { id: string; cod
   ).map((r) => ({ ...r, code: codeOf(db, r.id) }))
 }
 
+/** Inventário do PC numa linha, com ids (o modelo usa o id no comando item e no apply). */
+function inventoryLine(db: DB, pcId: string): string {
+  const items = all<{ id: string; name: string; qty: number; equipped: number; drawn: number }>(
+    db, "SELECT id, name, qty, equipped, drawn FROM items WHERE owner_char = ? AND qty > 0 ORDER BY drawn DESC, equipped DESC, name", pcId,
+  )
+  return items.map((i) => `${codeOf(db, i.id)} ${i.qty > 1 ? `${i.qty}× ` : ""}${i.name}${i.drawn ? " (em punho)" : i.equipped ? " (equipado)" : ""}`).join("; ") || "nada"
+}
+
 function signature(db: DB): string {
   const pid = pcId(db)
   const pc = pid ? getCharacter(db, pid) : null
@@ -74,7 +82,9 @@ function signature(db: DB): string {
   const clocks = all<{ id: string; filled: number; status: string }>(db, "SELECT id, filled, status FROM clocks ORDER BY id")
   const events = all<{ id: number; status: string }>(db, "SELECT id, status FROM events ORDER BY id")
   const places = one<{ n: number }>(db, "SELECT COUNT(*) AS n FROM places")?.n ?? 0
+  const items = pc ? all<{ id: string; qty: number; equipped: number; drawn: number }>(db, "SELECT id, qty, equipped, drawn FROM items WHERE owner_char = ? ORDER BY id", pc.id) : []
   return JSON.stringify({
+    items,
     quests,
     clocks,
     events,
@@ -164,6 +174,7 @@ export function sceneDoc(db: DB, slug: string, opts: { cena?: boolean } = {}): R
       status: pc.status,
       local: place ? codeOf(db, place.id) : "",
       ...(weapon ? { punho: `EM PUNHO: ${weapon}` } : {}),
+      itens: inventoryLine(db, pc.id),
     },
     local: place ? { id: codeOf(db, place.id), nome: place.name, tipo: place.kind, resumo: place.summary } : null,
     ...(map ? { saidas: map.saidas, mapa: map.mapa } : {}),

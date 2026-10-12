@@ -211,6 +211,18 @@ describe("economia de tokens na conversa", () => {
     assert.match(endTurn(w, "Kael examinou a forja e achou marcas.", "Você encontra marcas de martelo recentes. 🎲 Investigação 15 vs CD 12").join(), /fechado/)
   })
 
+  it("item do PC por parte do nome e na cena; memória por #id; op desconhecida com erro curto", () => {
+    apply([{ op: "create.item", owner: "pc", name: "Espada longa", kind: "arma", props: { damage: "1d8" } }])
+    assert.match(buildContext(w, slug, { cena: true }), /itens: i1 Espada longa/)
+    beginTurn(w, slug, "saca a espada")
+    assert.match(runCli(["-c", slug, "item", "empunhar", "espada"]), /Espada longa/)
+    assert.throws(() => runCli(["-c", slug, "item", "largar", "machado"]), /Itens dele: Espada longa \[i1\]/)
+    apply([{ op: "memory", npcs: ["n1"], text: "Kael sacou a espada" }, { op: "memory", npcs: ["n1"], text: "Kael guardou a espada" }])
+    const ids = (w.prepare("SELECT id FROM memories ORDER BY id").all() as { id: number }[]).map((m) => `#${m.id}`)
+    assert.match(apply([{ op: "memory.consolidate", npc: "n1", ids, text: "Mara viu Kael sacar e guardar a espada sem ameaçar ninguém." }]).join(), /resumidas/)
+    assert.throws(() => apply([{ op: "memoria", npcs: ["n1"], text: "x" }]), /op "memoria" não existe\. Ops: create\.place/)
+  })
+
   it("narração em 3ª pessoa do PC é recusada; nas falas o nome dele pode aparecer", () => {
     beginTurn(w, slug, "olha em volta")
     assert.throws(() => narrate(w, "A chuva cai. Kael golpeia a porta."), /3ª pessoa/)

@@ -123,7 +123,19 @@ async function main(): Promise<void> {
   start("conector", ["conector", "--port", String(CONECTOR_PORT)])
   start("mestre", ["mestre", "--port", String(MESTRE_PORT)])
   start("serve", ["serve", "--port", String(SERVE_PORT)], { DNDAI_MESTRE_URL: `http://127.0.0.1:${MESTRE_PORT}/mcp` })
-  for (let i = 0; i < 30 && !(await up(`http://127.0.0.1:${SERVE_PORT}/api/state?campaign=${SLUG}`)); i++) await sleep(500)
+  const health: [string, string][] = [
+    ["conector", `http://127.0.0.1:${CONECTOR_PORT}/healthz`],
+    ["mestre", `http://127.0.0.1:${MESTRE_PORT}/healthz`],
+    ["serve", `http://127.0.0.1:${SERVE_PORT}/api/state?campaign=${SLUG}`],
+  ]
+  for (const [name, url] of health) {
+    let ok = false
+    for (let i = 0; i < 60 && !(ok = await up(url)); i++) await sleep(500)
+    if (!ok) {
+      const log = join(runDir, `${name}.log`)
+      throw new Error(`${name} não subiu em 30 s.${existsSync(log) ? `\n${readFileSync(log, "utf8").slice(-1500)}` : ""}`)
+    }
+  }
 
   const rows: string[] = []
   const problems: string[] = []
