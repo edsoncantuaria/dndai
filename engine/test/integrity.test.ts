@@ -258,6 +258,17 @@ describe("economia de tokens na conversa", () => {
     assert.match(show, /Kael ajudou na forja no dia 1 \(resumida em #\d+\)/)
   })
 
+  it("campanha sandbox não lê nem publica no multiverso", () => {
+    const out = runCli(["campaign", "new", `sand${n}`, "--name", "Areia", "--premise", "teste isolado", "--sandbox"])
+    assert.match(out, /sandbox/)
+    runCli(["-c", `sand${n}`, "apply"], JSON.stringify([{ op: "create.place", name: "Ilha Secreta", kind: "ilha", summary: "Só do teste." }]))
+    runCli(["-c", `sand${n}`, "pc", "create"], JSON.stringify({ name: "Teo", race: "Humano", class: "guerreiro", ac: 14, place: "Ilha Secreta", abilities: { for: 14, des: 12, con: 12, int: 10, sab: 10, car: 10 } }))
+    runCli(["-c", `sand${n}`, "turn", "begin", "--action", "olha o mar"])
+    const other = runCli(["campaign", "new", `real${n}`, "--name", "Real", "--premise", "multiverso"])
+    assert.doesNotMatch(other + runCli(["-c", `real${n}`, "resume"]), /Ilha Secreta/)
+    assert.doesNotMatch(runCli(["-c", `sand${n}`, "resume"]), /Vila/)
+  })
+
   it("campanha anterior aos ids curtos ganha códigos ao abrir", () => {
     w.exec("DELETE FROM codes")
     w.close()

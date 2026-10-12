@@ -89,7 +89,7 @@ function readJson(args: Args): unknown {
 
 const HELP = `dnd — motor de mundo do dndai (fonte única de verdade). Campanha: export DND_CAMPAIGN=<slug> ou -c <slug>.
 
-Campanha:   campaign new <slug> --name N --premise P [--tone T] · campaign list
+Campanha:   campaign new <slug> --name N --premise P [--tone T] [--sandbox] · campaign list
 Leitura:    context [--full|--json] · resume [--page N] [--limit N] [--chapter N] · show <id> · recall <termos> [--limit N] · fact <id> · chapter [n] · rolls · log [n] · validate · atlas [sync] · replay <arquivo>
 PC:         pc create  (JSON via stdin)
 Turno:      turn begin --action "..." · narrate (stdin) · turn end --summary "..." [--narration "..."|--narration -] · undo
@@ -168,8 +168,10 @@ function dispatch(argv: string[], input?: string): string {
         const slug = rest[0]
         const name = str(args, "name")
         const premise = str(args, "premise")
-        if (!slug || !name || !premise) throw new Error('Uso: dnd campaign new <slug> --name "Nome" --premise "Premissa" [--tone "Tom"]')
-        createCampaign(slug, { name, premise, tone: str(args, "tone") ?? "" }).close()
+        if (!slug || !name || !premise) throw new Error('Uso: dnd campaign new <slug> --name "Nome" --premise "Premissa" [--tone "Tom"] [--sandbox]')
+        const sandbox = args.flags.sandbox === true
+        createCampaign(slug, { name, premise, tone: str(args, "tone") ?? "", sandbox }).close()
+        if (sandbox) return `Campanha "${name}" criada [${slug}] em sandbox: fora do multiverso, não lê nem publica no atlas. Crie o mundo e o PC (pc create).`
         const db = openCampaign(slug)
         const s = atlasStats(db)!
         db.close()
