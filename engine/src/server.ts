@@ -7,7 +7,7 @@ import { timingSafeEqual } from "node:crypto"
 import { createCampaign, listCampaigns, openCampaign, resolveCampaign, snapshotCampaign, withCampaignLock } from "./campaign.ts"
 import { type DB, metaNum, transaction } from "./db.ts"
 import { applyItemAction } from "./items.ts"
-import { levelUp, pendingRequests, resolveRequest, useResource } from "./mechanics.ts"
+import { levelUp, longRest, pendingRequests, resolveRequest, shortRest, useResource } from "./mechanics.ts"
 import { createPc } from "./pc.ts"
 import { requirePc } from "./world.ts"
 import { sendToMaster } from "./master/client.ts"
@@ -254,6 +254,19 @@ export function startServer(opts: ServeOptions) {
               feat: typeof raw.feat === "string" && raw.feat.trim() ? raw.feat.trim() : undefined,
               choices: raw.choices && typeof raw.choices === "object" ? raw.choices : undefined,
             })
+          )
+        })
+        return send(res, 200, { ok: true, text })
+      }
+      if (req.method === "POST" && url.pathname === "/api/pc/rest") {
+        const slug = slugOf(url)
+        const raw = ((await readBody(req)) ?? {}) as Record<string, any>
+        const kind = raw.kind === "long" ? "long" : "short"
+        const dice = typeof raw.dice === "number" ? raw.dice : 1
+        const text = withDb(slug, (db) => {
+          const pc = requirePc(db)
+          return transaction(db, () =>
+            kind === "long" ? longRest(db, pc.id) : shortRest(db, pc.id, dice)
           )
         })
         return send(res, 200, { ok: true, text })

@@ -14,9 +14,9 @@ import 'play_settings.dart';
 
 final _rng = Random.secure();
 
-/// Abre o pedido de rolagem do Mestre. Não pode ser fechado sem rolar: a rolagem não fica para depois.
-Future<void> showRollSheet(BuildContext context, GameController game, RollRequest req) {
-  return showModalBottomSheet<void>(
+/// Abre o pedido de rolagem do Mestre. Não pode ser fechado sem rolar: a rolagem não fica para depois, mas pode ser minimizada para leitura.
+Future<bool> showRollSheet(BuildContext context, GameController game, RollRequest req) async {
+  final res = await showModalBottomSheet<bool>(
     context: context,
     isDismissible: false,
     enableDrag: false,
@@ -24,8 +24,9 @@ Future<void> showRollSheet(BuildContext context, GameController game, RollReques
     useSafeArea: true,
     backgroundColor: Palette.surface,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-    builder: (_) => PopScope(canPop: false, child: _RollSheet(game: game, req: req)),
+    builder: (_) => PopScope(canPop: true, child: _RollSheet(game: game, req: req)),
   );
+  return res ?? false;
 }
 
 class _RollSheet extends StatefulWidget {
@@ -137,8 +138,20 @@ class _RollSheetState extends State<_RollSheet> with SingleTickerProviderStateMi
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Palette.line, borderRadius: BorderRadius.circular(2)))),
-          const SizedBox(height: 16),
-          Text('O MESTRE PEDE UMA ROLAGEM', textAlign: TextAlign.center, style: t.labelMedium?.copyWith(color: Palette.goldDim, letterSpacing: 2)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const SizedBox(width: 44),
+              Expanded(
+                child: Text('O MESTRE PEDE UMA ROLAGEM', textAlign: TextAlign.center, style: t.labelMedium?.copyWith(color: Palette.goldDim, letterSpacing: 2)),
+              ),
+              IconButton(
+                icon: const Icon(Icons.expand_more, color: Palette.gold),
+                tooltip: 'Minimizar para ler',
+                onPressed: () => Navigator.of(context).pop(true),
+              ),
+            ],
+          ),
           const SizedBox(height: 6),
           Text(req.label, textAlign: TextAlign.center, style: t.headlineMedium?.copyWith(fontSize: 26)),
           Text(req.whoName + (req.reason.isEmpty ? '' : ' · ${req.reason}'), textAlign: TextAlign.center, style: t.bodyMedium?.copyWith(color: Palette.textDim)),
@@ -186,7 +199,7 @@ class _RollSheetState extends State<_RollSheet> with SingleTickerProviderStateMi
             )
           else
             FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(context).pop(false),
               style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
               child: const Text('Continuar', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
             ),

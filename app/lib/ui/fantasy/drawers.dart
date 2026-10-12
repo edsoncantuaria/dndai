@@ -16,13 +16,15 @@ typedef LevelUpAct = Future<String?> Function({
   String? feat,
   Map<String, List<String>>? choices,
 });
+typedef RestAct = Future<String?> Function({String kind, int dice});
 
 class SheetDrawer extends StatelessWidget {
-  const SheetDrawer({super.key, required this.view, this.scroll, this.onResource, this.onLevelUp, this.busy = false});
+  const SheetDrawer({super.key, required this.view, this.scroll, this.onResource, this.onLevelUp, this.onRest, this.busy = false});
   final GameView view;
   final ScrollController? scroll;
   final ResourceAct? onResource;
   final LevelUpAct? onLevelUp;
+  final RestAct? onRest;
   final bool busy;
 
   @override
@@ -119,8 +121,26 @@ class SheetDrawer extends StatelessWidget {
               Wrap(children: [for (final c in pc.conditions) ConditionChip(c, onParchment: true)]),
             ],
             if (pc.hitDie > 0) ...[
-              const SectionHeading('Dados de vida'),
-              Text('d${pc.hitDie} · ${pc.hitDiceMax - pc.hitDiceUsed}/${pc.hitDiceMax} disponíveis'),
+              const SectionHeading('Dados de vida & Descanso'),
+              Text('d${pc.hitDie} · ${pc.hitDiceMax - pc.hitDiceUsed}/${pc.hitDiceMax} dados disponíveis'),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.bedtime_outlined, size: 16),
+                    label: const Text('Descanso Curto', style: TextStyle(fontSize: 12)),
+                    onPressed: onRest != null && pc.hitDiceMax - pc.hitDiceUsed > 0 ? () => _rest(context, 'short') : null,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton.icon(
+                    icon: const Icon(Icons.nightlight_round, size: 16),
+                    label: const Text('Descanso Longo', style: TextStyle(fontSize: 12)),
+                    onPressed: onRest != null ? () => _rest(context, 'long') : null,
+                  ),
+                ),
+              ]),
             ],
             const SectionHeading('Salvaguardas'),
             Wrap(spacing: 8, runSpacing: 8, children: [
@@ -237,6 +257,13 @@ class SheetDrawer extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _rest(BuildContext context, String kind) async {
+    final res = await onRest!(kind: kind, dice: 1);
+    if (context.mounted && res != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res)));
+    }
   }
 }
 

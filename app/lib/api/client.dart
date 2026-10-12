@@ -101,6 +101,16 @@ class ApiClient {
     return data['text'] as String? ?? 'Subida de nível concluída!';
   }
 
+  Future<String> rest(String campaign, {String kind = 'short', int dice = 1}) async {
+    final r = await _http
+        .post(_uri('/api/pc/rest', {'campaign': campaign}),
+            headers: _headers,
+            body: jsonEncode({'kind': kind, 'dice': dice}))
+        .timeout(const Duration(seconds: 15));
+    final data = ((await _decode(r)) as Map).cast<String, dynamic>();
+    return data['text'] as String? ?? 'Descanso concluído.';
+  }
+
   Future<GameView> state(String campaign) async {
     final r = await _http.get(_uri('/api/state', {'campaign': campaign}), headers: _headers).timeout(const Duration(seconds: 20));
     return GameView.fromJson(((await _decode(r)) as Map).cast());

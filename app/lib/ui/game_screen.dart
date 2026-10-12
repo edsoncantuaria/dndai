@@ -22,6 +22,7 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   late final GameController game = GameController(widget.api, widget.campaign)..start();
   bool _rollOpen = false;
+  bool _rollMinimized = false;
 
   @override
   void initState() {
@@ -37,16 +38,24 @@ class _GameScreenState extends State<GameScreen> {
     super.dispose();
   }
 
-  /// O Mestre pediu rolagem: o modal abre sozinho e não fecha sem rolar.
+  /// O Mestre pediu rolagem: o modal abre sozinho e não fecha sem rolar (mas pode ser minimizado para ler a narração).
   void _maybeOpenRoll() {
     final pending = game.view?.pendingRolls ?? const [];
-    if (_rollOpen || pending.isEmpty || !mounted) return;
+    if (pending.isEmpty) {
+      if (_rollMinimized) setState(() => _rollMinimized = false);
+      return;
+    }
+    if (_rollOpen || _rollMinimized || !mounted) return;
     _rollOpen = true;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      await showRollSheet(context, game, pending.first);
+      final minimized = await showRollSheet(context, game, pending.first);
       _rollOpen = false;
-      _maybeOpenRoll();
+      if (minimized) {
+        setState(() => _rollMinimized = true);
+      } else {
+        _maybeOpenRoll();
+      }
     });
   }
 
@@ -73,7 +82,7 @@ class _GameScreenState extends State<GameScreen> {
             ),
           );
         }
-        return GameTable(
+        final table = GameTable(
           view: view,
           live: game.live,
           sending: game.sending,
@@ -90,7 +99,60 @@ class _GameScreenState extends State<GameScreen> {
             return err ?? game.lastActionText;
           },
           onLevelUp: game.levelUp,
+          onRest: game.rest,
         );
+
+        if (_rollMinimized && view.pendingRolls.isNotEmpty) {
+          final pending = view.pendingRolls.first;
+          return Stack(
+            children: [
+              table,
+              Positioned(
+                top: MediaQuery.paddingOf(context).top + 60,
+                left: 16,
+                right: 16,
+                child: Material(
+                  elevation: 8,
+                  borderRadius: BorderRadius.circular(12),
+                  color: Palette.surface,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Palette.gold, width: 2),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.casino, color: Palette.gold),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('ROLAGEM OBRIGATÓRIA', style: TextStyle(color: Palette.gold, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1)),
+                              Text(pending.label, style: const TextStyle(color: Palette.text, fontWeight: FontWeight.w600, fontSize: 15)),
+                            ],
+                          ),
+                        ),
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(backgroundColor: Palette.ember),
+                          icon: const Icon(Icons.expand_less, size: 18),
+                          label: const Text('Rolar Agora'),
+                          onPressed: () {
+                            setState(() => _rollMinimized = false);
+                            _maybeOpenRoll();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+        return table;
       },
     );
   }

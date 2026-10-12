@@ -23,6 +23,7 @@ class GameTable extends StatefulWidget {
     this.onListen,
     this.onResource,
     this.onLevelUp,
+    this.onRest,
   });
 
   final GameView view;
@@ -30,6 +31,7 @@ class GameTable extends StatefulWidget {
   final ItemAct onItem;
   final ResourceAct? onResource;
   final LevelUpAct? onLevelUp;
+  final RestAct? onRest;
   final VoidCallback onLeave;
   final bool live;
   final bool sending;
@@ -68,7 +70,7 @@ class _GameTableState extends State<GameTable> {
   Widget _panel(String id, ScrollController? scroll) {
     final view = widget.view;
     return switch (id) {
-      'ficha' => SheetDrawer(view: view, scroll: scroll, onResource: widget.onResource, onLevelUp: widget.onLevelUp, busy: widget.sending),
+      'ficha' => SheetDrawer(view: view, scroll: scroll, onResource: widget.onResource, onLevelUp: widget.onLevelUp, onRest: widget.onRest, busy: widget.sending),
       'bolsa' => BagDrawer(view: view, scroll: scroll, locked: view.pendingRolls.isNotEmpty, busy: widget.sending, onItem: widget.onItem),
       'grimorio' => SpellbookDrawer(view: view, scroll: scroll),
       'missoes' => QuestDrawer(view: view, scroll: scroll),
