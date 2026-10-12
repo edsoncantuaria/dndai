@@ -271,7 +271,8 @@ function dispatch(argv: string[], input?: string): string {
       if (sub === "end") {
         const summary = str(args, "summary")
         if (!summary) throw new Error('Uso: dnd turn end --summary "resumo factual do que aconteceu" [--narration "texto"|-]')
-        let narration = str(args, "narration") ?? ""
+        // Pelo conector o texto chega em "entrada"; sem --narration ele também é a narração (antes era descartado).
+        let narration = str(args, "narration") ?? args.input ?? ""
         if (narration === "-") narration = args.input ?? readFileSync(0, "utf8")
         return withCampaign(args, (db) => endTurn(db, summary, narration).join("\n"))
       }

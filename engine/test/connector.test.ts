@@ -56,6 +56,15 @@ describe("conector MCP dndai (ChatGPT, sem shell)", () => {
     assert.match((await call("dnd_ler", { campanha: "conec", comando: "context" })).text, /Rolagem #1 aguardando/)
   })
 
+  it("turn end usa a entrada como narração mesmo sem --narration -", async () => {
+    await call("dnd_agir", { campanha: "conec", comando: "campaign", args: ["new", "conec2", "--name", "C2", "--premise", "p"] })
+    await call("dnd_agir", { campanha: "conec2", comando: "apply", entrada: JSON.stringify([{ op: "create.place", name: "Praça", kind: "praça", summary: "Praça." }]) })
+    await call("dnd_agir", { campanha: "conec2", comando: "turn", args: ["begin", "--action", "olha a praça"] })
+    const out = await call("dnd_agir", { campanha: "conec2", comando: "turn", args: ["end", "--summary", "Olhou a praça vazia ao meio-dia."], entrada: "Você olha a praça vazia." })
+    assert.match(out.text, /fechado/)
+    assert.match((await call("dnd_ler", { campanha: "conec2", comando: "log" })).text + (await call("dnd_ler", { campanha: "conec2", comando: "resume" })).text, /Você olha a praça vazia\./)
+  })
+
   it("bloqueia o que não é do jogo", async () => {
     const tries: [string, Record<string, unknown>, RegExp][] = [
       ["dnd_ler", { campanha: "conec", comando: "apply", entrada: "[]" }, /use dnd_agir/],
