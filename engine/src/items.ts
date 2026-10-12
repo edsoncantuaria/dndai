@@ -157,7 +157,11 @@ export function applyItemAction(db: DB, action: string, itemRef: string): string
   if (!item) {
     const owned = all<{ id: string; name: string }>(db, "SELECT id, name FROM items WHERE owner_char = ? AND qty > 0", pc.id)
     const list = owned.map((i) => `${i.name} [${entityCode(db, i.id)}]`).join(", ")
-    throw new Error(`${pc.name} não tem "${itemRef}". Itens dele: ${list || "nenhum"}.`)
+    // O id existe, mas o item está em outro lugar (largado, com um NPC): diga onde, para o Mestre pegar com item.give.
+    const id = one<{ entity: string }>(db, "SELECT entity FROM codes WHERE code = ?", itemRef)?.entity ?? itemRef
+    const away = one<{ name: string; owner_char: string | null; owner_place: string | null }>(db, "SELECT name, owner_char, owner_place FROM items WHERE id = ?", id)
+    const where = away ? ` ${away.name} está ${away.owner_place ? `em ${getPlace(db, away.owner_place).name}` : `com ${getCharacter(db, away.owner_char!).name}`}: traga com item.give {item, to: "pc"} se fizer sentido.` : ""
+    throw new Error(`${pc.name} não tem "${itemRef}". Itens dele: ${list || "nenhum"}.${where}`)
   }
   const valid = itemActions(db, item)
   if (!valid.includes(action as ItemAction)) {
