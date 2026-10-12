@@ -7,7 +7,9 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process"
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { DatabaseSync } from "node:sqlite"
+import { randomInt } from "node:crypto"
 import { encode } from "gpt-tokenizer/encoding/o200k_base"
+import { shellbyTransport } from "../src/master/shellby.ts"
 
 interface Scenario {
   name: string
@@ -15,7 +17,9 @@ interface Scenario {
   tone: string
   world: unknown[]
   pc: Record<string, unknown>
-  steps: ({ fala: string } | { rola: number } | { cli: string[] })[]
+  /** Instruções extras para o jogador automático. */
+  player?: string
+  steps: ({ fala: string } | { rola: number } | { cli: string[] } | { jogador: number })[]
 }
 
 const ENGINE = resolve(import.meta.dirname, "..")
@@ -24,6 +28,12 @@ const SERVE_PORT = 8890
 const MESTRE_PORT = 8891
 const SHELLBY = process.env.DNDAI_SHELLBY_URL ?? "http://127.0.0.1:3333/mcp"
 const STEP_TIMEOUT_MS = 10 * 60_000
+/** Espera quando o ChatGPT acusa limite de uso. */
+const RATE_WAIT_MS = 10 * 60_000
+/** Limite de uso do ChatGPT (não o AGENT_LIMIT_REACHED do Shellby, que não passa esperando). */
+const RATE = /SUBAGENT_RATE_LIMITED|RATE_LIMIT(?!_)|rate limit|limite de uso/i
+/** Falhas seguidas do Mestre (sem nenhuma chamada ao motor) antes de abortar a rodada. */
+const MAX_DEAD = 3
 const SLUG = "avaliacao"
 
 const realHome = join(ENGINE, "campaigns")
@@ -102,6 +112,43 @@ function world(): DatabaseSync {
   return new DatabaseSync(join(home, SLUG, "world.db"), { readOnly: true })
 }
 
+function narrationIds(): number[] {
+  const w = world()
+  try {
+    return (w.prepare("SELECT id FROM narrations ORDER BY id").all() as { id: number }[]).map((r) => r.id)
+  } finally {
+    w.close()
+  }
+}
+
+/** Texto como o jogador o lê na mesa (sem as marcas de voz). */
+function narrationsById(ids: number[]): string {
+  const w = world()
+  try {
+    return ids.map((id) => (w.prepare("SELECT text FROM narrations WHERE id = ?").get(id) as { text: string }).text.replace(/\{[mf]\}\s?/g, "")).join("\n\n")
+  } finally {
+    w.close()
+  }
+}
+
+function lastNarrations(k: number): string {
+  const ids = narrationIds().slice(-k)
+  return ids.length ? narrationsById(ids) : "(a história ainda não começou: você está no local inicial)"
+}
+
+/** Médias por bloco de 10 passos, a partir do turnos.jsonl. */
+function blocks(path: string): string[] {
+  if (!existsSync(path)) return []
+  const all = readFileSync(path, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l) as { calls: number; errors: string[]; chars: number; reply: string })
+  const out: string[] = []
+  for (let i = 0; i < all.length; i += 10) {
+    const b = all.slice(i, i + 10)
+    const avg = (f: (e: (typeof b)[0]) => number) => Math.round(b.reduce((s, e) => s + f(e), 0) / b.length)
+    out.push(`| ${i + 1}–${i + b.length} | ${avg((e) => e.calls)} | ${b.reduce((s, e) => s + e.errors.length, 0)} | ${avg((e) => e.chars)} | ${b.filter((e) => e.reply !== "✓").length} |`)
+  }
+  return out
+}
+
 async function main(): Promise<void> {
   const scenarioPath = resolve(process.argv[2] ?? join(ENGINE, "eval", "mina.json"))
   const sc = JSON.parse(readFileSync(scenarioPath, "utf8")) as Scenario
@@ -139,51 +186,144 @@ async function main(): Promise<void> {
 
   const rows: string[] = []
   const problems: string[] = []
+  const growth: string[] = []
+  const journal = join(runDir, "turnos.jsonl")
   let audit = 0
   let narrations = 0
   let chats = 0
-  for (const [i, step] of sc.steps.entries()) {
-    let label = ""
-    let status = "-"
-    if ("fala" in step) {
-      label = `fala: ${step.fala.slice(0, 50)}…`
-      await api("messages", { text: step.fala })
-      status = await waitMaster()
-    } else if ("rola" in step) {
-      const pending = ((await api("state")).pendingRolls ?? []) as { id: number; label: string }[]
-      if (!pending.length) {
-        rows.push(`| ${i + 1} | rola ${step.rola} | (nada pendente) | | | | |`)
-        continue
-      }
-      label = `rola ${step.rola} (#${pending[0].id} ${pending[0].label})`
-      await api(`rolls/${pending[0].id}`, { dice: [step.rola] })
-      status = await waitMaster()
-    } else {
-      label = `dnd ${step.cli.join(" ")}`
-      dnd(["-c", SLUG, ...step.cli])
-      rows.push(`| ${i + 1} | ${label} | | | | | |`)
-      continue
-    }
+  let n = 0
+
+  /** Mede o que aconteceu desde a última medição e registra uma linha. */
+  const measure = (label: string, status: string): void => {
+    n++
     const { calls, total } = auditSince(audit)
     audit = total
-    const chars = calls.reduce((n, c) => n + (Number(/^(\d+)c$/.exec(c.info)?.[1]) || 0), 0)
+    const chars = calls.reduce((sum, c) => sum + (Number(/^(\d+)c$/.exec(c.info)?.[1]) || 0), 0)
     const errs = calls.filter((c) => !c.ok)
-    for (const e of errs) problems.push(`passo ${i + 1}: ${e.comando} → ${e.info}`)
+    for (const e of errs) problems.push(`passo ${n}: ${e.comando} → ${e.info}`)
     const w = world()
     const narr = (w.prepare("SELECT COUNT(*) AS n FROM narrations").get() as { n: number }).n
     const open = (w.prepare("SELECT value FROM meta WHERE key = 'turn_open'").get() as { value: string } | undefined)?.value === "1"
     const pend = (w.prepare("SELECT COUNT(*) AS n FROM roll_requests WHERE status = 'pendente'").get() as { n: number }).n
+    const turn = Number((w.prepare("SELECT value FROM meta WHERE key = 'turn'").get() as { value: string }).value)
     w.close()
-    if (open && !pend) problems.push(`passo ${i + 1}: turno ficou aberto sem rolagem pendente`)
-    if (narr === narrations) problems.push(`passo ${i + 1}: nenhuma narração nova para o jogador`)
+    if (open && !pend) problems.push(`passo ${n}: turno ficou aberto sem rolagem pendente`)
+    if (narr === narrations) problems.push(`passo ${n}: nenhuma narração nova para o jogador`)
     narrations = narr
     const log = existsSync(join(runDir, "mestre.log")) ? readFileSync(join(runDir, "mestre.log"), "utf8") : ""
     const replies = [...log.matchAll(/resposta no chat \(\d+ caracteres\): "(.*)"/g)].map((m) => m[1])
     const reply = replies.length > chats ? replies.at(-1)! : ""
     chats = replies.length
     const checkmark = reply.startsWith("✓") ? "✓" : reply ? `texto (${reply.slice(0, 20)}…)` : "?"
-    rows.push(`| ${i + 1} | ${label} | ${status} | ${calls.length} | ${errs.length} | ${chars} | ${checkmark} |`)
+    rows.push(`| ${n} | ${label.replaceAll("|", "/")} | ${status} | ${calls.length} | ${errs.length} | ${chars} | ${checkmark} |`)
+    const entry = { n, turn, label, status, calls: calls.length, errors: errs.map((e) => `${e.comando} → ${e.info}`), chars, reply: checkmark, open, pend, at: new Date().toISOString() }
+    writeFileSync(journal, `${JSON.stringify(entry)}\n`, { flag: "a" })
+    console.log(`[${entry.at.slice(11, 19)}] #${n} T${turn} ${status} ${calls.length} chamadas ${errs.length} erros ${chars}c · ${label.slice(0, 70)}`)
   }
+
+  /** Manda uma fala; se o ChatGPT acusar limite de uso, espera e reenvia. */
+  const say = async (text: string): Promise<string> => {
+    for (let attempt = 1; ; attempt++) {
+      await api("messages", { text })
+      const status = await waitMaster()
+      const error = String(((await api("state")).master as { error: string | null }).error ?? "")
+      if (status !== "erro" || !RATE.test(error) || attempt >= 4) return status
+      console.log(`  limite do ChatGPT; esperando ${RATE_WAIT_MS / 60_000} min (tentativa ${attempt})`)
+      await sleep(RATE_WAIT_MS)
+    }
+  }
+
+  /** Resolve as rolagens pendentes na mesa: com `fixed`, o primeiro dado; senão, aleatório. */
+  const rollPending = async (fixed?: number): Promise<void> => {
+    for (let guard = 0; guard < 6; guard++) {
+      const pending = ((await api("state")).pendingRolls ?? []) as { id: number; label: string; dice: { sides: number }[] }[]
+      if (!pending.length) return
+      const r = pending[0]
+      const dice = r.dice.map((d, i) => (fixed !== undefined && i === 0 ? fixed : randomInt(1, d.sides + 1)))
+      await api(`rolls/${r.id}`, { dice })
+      measure(`rola #${r.id} ${r.label} = ${dice.join("+")}`, await waitMaster())
+      fixed = undefined
+    }
+  }
+
+  const snapshotGrowth = (): void => {
+    const w = world()
+    const turn = Number((w.prepare("SELECT value FROM meta WHERE key = 'turn'").get() as { value: string }).value)
+    const chapters = (w.prepare("SELECT COUNT(*) AS n FROM chapters").get() as { n: number }).n
+    w.close()
+    growth.push(`| T${turn} | ${chapters} | ${tokens(dnd(["-c", SLUG, "context", "--cena"]))} | ${tokens(dnd(["-c", SLUG, "resume"]))} |`)
+  }
+
+  let aborted = ""
+  try {
+  for (const step of sc.steps) {
+    if ("fala" in step) {
+      measure(`fala: ${step.fala.slice(0, 60)}…`, await say(step.fala))
+    } else if ("rola" in step) {
+      await rollPending(step.rola)
+    } else if ("cli" in step) {
+      dnd(["-c", SLUG, ...step.cli])
+      rows.push(`| | dnd ${step.cli.join(" ")} | | | | | |`)
+    } else {
+      // Jogador automático: outra conversa do ChatGPT lê a narração e decide a próxima ação do PC.
+      const player = shellbyTransport(SHELLBY)
+      let playerScope = 0
+      const ask = async (prompt: string): Promise<string> => {
+        for (let attempt = 1; ; attempt++) {
+          try {
+            const id = await player.submit(`dndai-eval-jogador-${stamp}-${playerScope}`, "jogador", prompt)
+            for (const end = Date.now() + STEP_TIMEOUT_MS; Date.now() < end;) {
+              const r = await player.poll(`dndai-eval-jogador-${stamp}-${playerScope}`, id, 60_000)
+              if (r.status === "completed") return (r.response ?? "").replace(/\n*\*\*Notice:\*\*[^\n]*/g, "").trim()
+              if (r.status === "failed") throw new Error(r.error ?? "jogador falhou")
+            }
+            throw new Error("jogador demorou demais")
+          } catch (error) {
+            if (attempt >= 4) throw error
+            const msg = (error as Error).message
+            // Conversa do jogador travada no Shellby: segue numa sessão nova (perde só o histórico do jogador).
+            if (/AGENT_BUSY|uncertain|AGENT_IDLE_EXPIRED|AGENT_TARGET_LOST/.test(msg)) playerScope++
+            const wait = RATE.test(msg) ? RATE_WAIT_MS : 30_000
+            console.log(`  jogador: ${(error as Error).message.slice(0, 120)}; nova tentativa em ${wait / 1000}s`)
+            await sleep(wait)
+          }
+        }
+      }
+      let seen = narrationIds()
+      let prompt = [
+        `Você é o JOGADOR (não o Mestre) de um RPG de mesa em PT-BR. Seu personagem: ${String(sc.pc.name)}, ${String(sc.pc.race)} ${String(sc.pc.class)}.`,
+        `Premissa: ${sc.premise}`,
+        sc.player ?? "",
+        "A cada mensagem eu te mostro a narração do Mestre. Responda SÓ com a próxima ação ou fala do seu personagem, em 1 a 3 frases, em 3ª pessoa como um jogador escreve (ex.: \"Kael pergunta ao guarda...\"). Nada de dados, regras ou comandos. Varie: converse, explore, viaje, investigue, negocie, lute quando fizer sentido, descanse, use itens. Persiga a missão, mas siga também os ganchos que aparecerem.",
+        "",
+        `Narração até agora:\n${lastNarrations(3)}`,
+        "",
+        `O que ${String(sc.pc.name)} faz?`,
+      ].join("\n")
+      let dead = 0
+      for (let k = 0; k < step.jogador; k++) {
+        const action = (await ask(prompt)).split("\n").filter(Boolean).join(" ").slice(0, 900)
+        const before = audit
+        const status = await say(action)
+        measure(`jogador: ${action}`, status)
+        dead = status === "erro" && audit === before ? dead + 1 : 0
+        if (dead >= MAX_DEAD) {
+          const error = String(((await api("state")).master as { error: string | null }).error ?? "")
+          throw new Error(`Mestre falhou ${dead} vezes seguidas sem chegar ao motor: ${error.slice(0, 300)}`)
+        }
+        await rollPending()
+        if ((k + 1) % 10 === 0) snapshotGrowth()
+        const fresh = narrationIds().filter((id) => !seen.includes(id))
+        seen = narrationIds()
+        prompt = `Narração do Mestre:\n${fresh.length ? narrationsById(fresh) : "(o Mestre não respondeu desta vez; siga em frente ou tente outra coisa)"}\n\nO que ${String(sc.pc.name)} faz?`
+      }
+    }
+  }
+  } catch (error) {
+    aborted = (error as Error).message
+    problems.unshift(`RODADA ABORTADA: ${aborted}`)
+  }
+  if (!growth.length) snapshotGrowth()
 
   const w = world()
   const narrText = (w.prepare("SELECT turn, text FROM narrations ORDER BY id").all() as { turn: number; text: string }[])
@@ -211,15 +351,29 @@ async function main(): Promise<void> {
     `- Conversas abertas: ${(mestreLog.match(/abrindo conversa/g) ?? []).length} · memórias consolidadas: ${mem.cons ?? 0} (arquivadas ${mem.arq ?? 0})`,
     `- Tokens reais (o200k) no fim: skill ${sizes.skill} · resume ${sizes.resume} · cena ${sizes.context}`,
     "",
+    "## Crescimento do contexto",
+    "",
+    "| turno | capítulos | cena (tokens) | resume (tokens) |",
+    "|---|---|---|---|",
+    ...growth,
+    "",
     "## Problemas",
     ...(problems.length ? problems.map((p) => `- ${p}`) : ["- nenhum"]),
     "",
-    "## Narrações",
-    ...narrText.map((n) => `- **T${n.turn}:** ${n.text.replace(/\n+/g, " ")}`),
+    "## Por bloco de 10 passos",
+    "",
+    "| passos | chamadas/passo | erros | chars p/ LLM/passo | sem ✓ |",
+    "|---|---|---|---|---|",
+    ...blocks(join(runDir, "turnos.jsonl")),
+    "",
+    `## Últimas narrações (todas em narracoes.md: ${narrText.length})`,
+    ...narrText.slice(-5).map((n) => `- **T${n.turn}:** ${n.text.replace(/\n+/g, " ")}`),
   ].join("\n")
+  writeFileSync(join(runDir, "narracoes.md"), narrText.map((n) => `## T${n.turn}\n\n${n.text}\n`).join("\n"))
   writeFileSync(join(runDir, "relatorio.md"), report)
   console.log(report)
   console.log(`\nRelatório e logs em ${runDir}`)
+  if (aborted) throw new Error(aborted)
 }
 
 process.on("SIGINT", () => {
