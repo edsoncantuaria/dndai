@@ -103,6 +103,21 @@ export const mockApi: MesaApi = {
     void masterReply(msgId, result.narration)
     return { text: result.text }
   },
+  async useResource(resource, amount) {
+    await delay(300)
+    if (state.pendingRolls.length) throw new ApiError(409, "Role os dados primeiro.")
+    const r = state.pc?.resources.find((r) => r.id === resource)
+    if (!r || !r.available || amount !== 1 || r.used >= r.max) throw new ApiError(409, "Recurso indisponível.")
+    commit((s) => {
+      const current = s.pc!.resources.find((r) => r.id === resource)!
+      current.used += amount
+      current.available = current.used < current.max
+    })
+    const text = `${r.name} usado. ${r.effect}`
+    const msgId = pushChat("sistema", text, "entregue")
+    void masterReply(msgId)
+    return { text }
+  },
   async postMessage(text) {
     await delay()
     if (masterOffline) throw new ApiError(503, "O Mestre está offline. Abra o ChatGPT com o conector dndai-mestre.")

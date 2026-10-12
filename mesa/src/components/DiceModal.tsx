@@ -267,7 +267,7 @@ export function DiceModal({
                     </button>
                     {boxReady === "failed" && <p className="text-center text-xs text-dnd-parchment-muted">Os dados 3D não carregaram neste navegador; a rolagem usa o sorteio seguro do navegador.</p>}
                     <button type="button" onClick={onMinimize} className="rounded-md px-4 py-2 text-sm text-dnd-parchment-muted transition hover:bg-white/5 hover:text-dnd-parchment">
-                      Rolar depois
+                      Minimizar
                     </button>
                   </>
                 )}

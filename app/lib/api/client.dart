@@ -68,6 +68,8 @@ class ApiClient {
       ((await _post('/api/actions', campaign, {'action': action, 'item': item})) as Map)['text'] as String;
 
   Future<void> message(String campaign, String text) => _post('/api/messages', campaign, {'text': text});
+  Future<String> useResource(String campaign, String resource, int amount) async =>
+      ((await _post('/api/resources', campaign, {'resource': resource, 'amount': amount})) as Map)['text'] as String;
 
   /// MP3 da narração (`key` = `chat-<id>` ou `turn-<n>`). O player não manda o header Bearer, então o token vai na query, como o contrato pede para `<audio>`.
   Uri ttsUri(String campaign, String key) {

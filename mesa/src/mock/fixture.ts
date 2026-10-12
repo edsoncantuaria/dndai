@@ -108,6 +108,9 @@ export const fixture: GameView = {
       { id: "it-racao", name: "Ração de viagem", qty: 4, kind: "equipamento", equipped: false, notes: "", props: {}, actions: [], drawn: false, effect: null },
     ],
     features: ["Canalizar Divindade (1/descanso)", "Labareda Protetora (3/dia)", "Visão no Escuro 18 m", "Ancestralidade Feérica"],
+    featureDetails: [],
+    pendingChoices: [],
+    resources: [{ id: "canalizar-divindade", name: "Canalizar Divindade", max: 1, used: 0, resets_on: "short", effect: "Escolha um efeito do domínio com o Mestre.", available: true }],
     portrait: null,
   },
   location: {

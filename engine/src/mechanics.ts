@@ -3,6 +3,7 @@
 import { all, type DB, getMeta, log, metaNum, one } from "./db.ts"
 import { assertBonus } from "./guard.ts"
 import { recordRoll } from "./journal.ts"
+import { applyLevelChoices, chooseFeature, type LevelChoices } from "./progression.ts"
 import { cryptoRng, parseDice, type Rng } from "./dice.ts"
 import {
   ABILITY_NAMES, type Ability, CLASSES, fmtMod, levelForXp, mod, parseAbility, parseSkill, SKILLS, XP_THRESHOLDS,
@@ -347,6 +348,7 @@ export function longRest(db: DB, id: string): string {
   const c = getCharacter(db, id)
   if (c.status === "morto") throw new Error(`${c.name} está morto.`)
   for (const s of Object.values(c.sheet.slots)) s.used = 0
+  for (const r of Object.values(c.sheet.resources)) r.used = 0
   const regain = Math.max(1, Math.floor(c.sheet.hitDice.max / 2))
   c.sheet.hitDice.used = Math.max(0, c.sheet.hitDice.used - regain)
   c.sheet.death = { success: 0, fail: 0 }
@@ -359,6 +361,8 @@ export function longRest(db: DB, id: string): string {
 export function shortRest(db: DB, id: string, diceToSpend: number, rng: Rng = cryptoRng): string {
   const c = getCharacter(db, id)
   if (c.status !== "vivo") throw new Error(`${c.name} precisa estar consciente.`)
+  if (!Number.isInteger(diceToSpend) || diceToSpend < 0) throw new Error("Quantidade de dados de vida deve ser inteiro não negativo.")
+  for (const r of Object.values(c.sheet.resources)) if (r.resets_on === "short") r.used = 0
   const available = c.sheet.hitDice.max - c.sheet.hitDice.used
   const n = Math.min(diceToSpend, available)
   const con = abilityMod(c, "con")
@@ -379,22 +383,68 @@ export function gainXp(db: DB, id: string, amount: number): string {
   return `${c.name} ganha ${amount} XP (total ${xp}).${ready ? ` SUBIDA DE NÍVEL disponível (${c.level} → ${c.level + 1}): dnd levelup ${id}` : ""}`
 }
 
-export function levelUp(db: DB, id: string, hpMode: "media" | "rolar", rng: Rng = cryptoRng): string {
+export function levelUp(db: DB, id: string, hpMode: "media" | "rolar", rng: Rng = cryptoRng, options: LevelChoices = {}): string {
+  if (pendingRequests(db).length) throw new Error("Role os dados primeiro.")
   const c = getCharacter(db, id)
   if (c.level >= 20) throw new Error("Nível máximo.")
   if (c.kind === "pc" && c.xp < XP_THRESHOLDS[c.level]) throw new Error(`${c.name} tem ${c.xp} XP; precisa de ${XP_THRESHOLDS[c.level]} para o nível ${c.level + 1}.`)
+  if (c.status === "morto") throw new Error(`${c.name} está morto.`)
+  const oldCon = abilityMod(c, "con")
+  const oldDex = abilityMod(c, "des")
+  const level = c.level + 1
+  if (c.sheet.class) applyLevelChoices(c.sheet, level, options)
   const die = c.sheet.hitDice.die
   const base = hpMode === "rolar" ? rng(die) : Math.floor(die / 2) + 1
-  const gain = Math.max(1, base + abilityMod(c, "con"))
-  const level = c.level + 1
+  const gain = Math.max(1, base + abilityMod(c, "con")) + (abilityMod(c, "con") - oldCon) * c.level
   c.sheet.hitDice.max = level
   const slots = maxSlotsFor({ ...c, level })
   const next: Character["sheet"]["slots"] = {}
   for (const [lvl, max] of Object.entries(slots)) next[lvl] = { max, used: Math.min(c.sheet.slots[lvl]?.used ?? 0, max) }
   c.sheet.slots = next
   saveSheet(db, id, c.sheet)
-  db.prepare("UPDATE characters SET level = ?, max_hp = max_hp + ?, hp = hp + ? WHERE id = ?").run(level, gain, gain, id)
-  return `${c.name} sobe para o nível ${level}: +${gain} PV (${hpMode === "rolar" ? `d${die}=${base}` : "média"} ${fmtMod(abilityMod(c, "con"))}), proficiência +${charProf({ ...c, level })}. Registre novas habilidades de classe com update.features.`
+  const armor = all<ItemRow>(db, "SELECT * FROM items WHERE owner_char = ? AND equipped = 1 AND kind = 'armadura'", id).find((i) => typeof JSON.parse(i.props).ac === "number")
+  const cap = armor ? (JSON.parse(armor.props).max_dex ?? 99) as number : 99
+  const acDelta = Math.min(abilityMod(c, "des"), cap) - Math.min(oldDex, cap)
+  db.prepare("UPDATE characters SET level = ?, max_hp = max_hp + ?, hp = CASE WHEN hp > 0 THEN hp + ? ELSE hp END, ac = ac + ? WHERE id = ?").run(level, gain, gain, acDelta, id)
+  return `${c.name} sobe para o nível ${level}: +${gain} PV (${hpMode === "rolar" ? `d${die}=${base}` : "média"} ${fmtMod(abilityMod(c, "con"))}), proficiência +${charProf({ ...c, level })}. Habilidades e recursos SRD atualizados.`
+}
+
+export function selectFeature(db: DB, id: string, feature: string, selected: string[]): string {
+  if (pendingRequests(db).length) throw new Error("Role os dados primeiro.")
+  const c = getCharacter(db, id)
+  chooseFeature(c.sheet, c.level, feature, selected)
+  saveSheet(db, id, c.sheet)
+  return `${c.name}: ${feature} → ${selected.join(", ")}.`
+}
+
+export function resourceAvailable(c: Character, resource: string): boolean {
+  const r = c.sheet.resources[resource]
+  return !!r && c.status === "vivo" && c.hp > 0 && !c.sheet.conditions.some((x) => ["inconsciente", "paralisado", "petrificado", "atordoado", "incapacitado"].includes(x)) && (r.unlimited === true || r.used < r.max)
+}
+
+/** Deve executar numa transação, tanto para CLI/apply quanto para ações da mesa. */
+export function useResource(db: DB, id: string, resource: string, amount = 1, target?: string, rng: Rng = cryptoRng): string {
+  if (pendingRequests(db).length) throw new Error("Role os dados primeiro.")
+  const c = getCharacter(db, id)
+  const r = c.sheet.resources[resource]
+  if (!r) throw new Error(`Recurso "${resource}" não existe para ${c.name}.`)
+  if (!resourceAvailable(c, resource)) throw new Error(`${c.name} não pode usar ${r.name} agora (esgotado ou incapaz de agir).`)
+  if (!Number.isInteger(amount) || amount < 1 || (!r.unlimited && r.used + amount > r.max)) throw new Error("Quantidade inválida ou recurso insuficiente.")
+  if (!["cura-pelas-maos", "ki", "pontos-de-feiticaria"].includes(resource) && amount !== 1) throw new Error("Este recurso gasta uma carga por uso.")
+  if (target && resource !== "cura-pelas-maos") throw new Error("Este recurso não aceita alvo de cura.")
+  const recipient = target ? getCharacter(db, target) : c
+  if (resource === "cura-pelas-maos" && (recipient.status === "morto" || recipient.place_id !== c.place_id)) throw new Error("Alvo deve estar vivo e no mesmo local.")
+  r.used += r.unlimited ? 0 : amount
+  saveSheet(db, id, c.sheet)
+  let effect = r.effect
+  if (resource === "segundo-folego") {
+    const outcome = rollNow(db, { kind: "livre", who: id, expr: `1d10+${c.level}`, reason: "Segundo Fôlego" }, undefined, rng)
+    effect = `${outcome.text} ${heal(db, id, outcome.total)}`
+  } else if (resource === "cura-pelas-maos") effect = heal(db, recipient.id, amount)
+  else if (resource === "integridade-corporal") effect = heal(db, id, c.level * 3)
+  const text = `${c.name} usa ${r.name}: ${effect} Restam ${r.unlimited ? "usos ilimitados" : `${r.max - r.used}/${r.max}`} (descanso ${r.resets_on === "short" ? "curto" : "longo"}).`
+  log(db, "recurso", text)
+  return text
 }
 
 export function useSlot(db: DB, id: string, level: number): string {

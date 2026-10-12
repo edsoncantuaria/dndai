@@ -6,7 +6,7 @@ import { ensureCode, entityOfCode } from "./codes.ts"
 import { insertFact } from "./facts.ts"
 import { expandRefs, unknownNames } from "./narration.ts"
 import { assertFlatDamage, assertHeal, assertTemp, noteMoneyGain, noteXpGain } from "./guard.ts"
-import { gainXp, heal, applyDamage, useSlot } from "./mechanics.ts"
+import { gainXp, heal, applyDamage, selectFeature, useResource, useSlot } from "./mechanics.ts"
 import { CLASSES, parseCondition } from "./rules.ts"
 import { advanceTime, move } from "./simulation.ts"
 import { creatureFromSrd } from "./srd.ts"
@@ -107,6 +107,8 @@ export const OpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("event.resolve"), event: z.number().int().positive(), outcome: text }).strict(),
   z.object({ op: z.literal("xp"), who: ref, amount: z.number().int().positive(), confirm: z.boolean().default(false), reason: z.string().default("") }).strict(),
   z.object({ op: z.literal("slot.use"), who: ref, level: z.number().int().min(1).max(9) }).strict(),
+  z.object({ op: z.literal("resource.use"), who: ref, resource: text, amount: z.number().int().positive().default(1), target: ref.optional() }).strict(),
+  z.object({ op: z.literal("feature.choose"), who: ref, feature: text, choices: z.array(text).min(1) }).strict(),
   z.object({ op: z.literal("time"), advance: duration }).strict(),
 ])
 
@@ -453,6 +455,10 @@ function applyOne(tx: Tx, op: Op): string {
     }
     case "slot.use":
       return useSlot(db, r(tx, op.who, CHAR), op.level)
+    case "resource.use":
+      return useResource(db, r(tx, op.who, CHAR), op.resource, op.amount, op.target ? r(tx, op.target, CHAR) : undefined)
+    case "feature.choose":
+      return selectFeature(db, r(tx, op.who, CHAR), op.feature, op.choices)
     case "time":
       return advanceTime(db, parseDuration(op.advance)).join(" ")
   }

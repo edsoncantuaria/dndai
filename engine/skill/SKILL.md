@@ -36,7 +36,7 @@ Mensagens `[mesa dndai · campanha <slug>]`: `Jogador: «...»` é a ação do j
    Itens do jogador: `item <usar|equipar|guardar|empunhar|embainhar|largar> <item>` (o motor rola cura, recalcula CA e faz a cena reagir à arma). Nunca simule com `hp`/`update`.
 3. **Crie antes de narrar**: nome novo só nasce em `create.*`. Antes de inventar, `recall`.
 4. **Narre** só com o que a cena/`show` mostrou, o resultado do motor e o que acabou de criar. `{n1}` na narração vira o nome exato. Morto agindo, lugar errado, item que o PC não tem ou nome desconhecido: **nada é publicado**; corrija e reenvie.
-5. **Grave tudo num `apply`** e confira (o PC mudou de lugar? gastou dinheiro? usou/pegou item? alguém entrou ou saiu? quem viu lembra? passou tempo?). O `apply` mostra o estado do PC (ou "sem mudança"); se não bater com a narração, corrija antes de fechar.
+5. **Grave tudo num `apply`** (`move`, `money` e `item.give` são ops do lote JSON, nunca comandos da raiz da CLI) e confira (o PC mudou de lugar? gastou dinheiro? usou/pegou item? alguém entrou ou saiu? quem viu lembra? passou tempo?). O `apply` mostra o estado do PC (ou "sem mudança"); se não bater com a narração, corrija antes de fechar.
 6. `turn end --summary "<quem, o quê, onde, resultado>"` com a narração na `entrada`.
 
 `undo` volta o mundo (no máximo duas vezes seguidas; o dado continua em `rolls` como desfeito). Depois que o PC existe, toda mudança pede turno aberto.
@@ -96,7 +96,7 @@ Fora do Modo mesa (jogo direto no chat):
 
 - `combat start <ids>`, siga a ordem com `combat next`; NPCs agem com `attack`; `combat end` ao final.
 - Ataques do jogador com `--mesa`. PC a 0 PV: `deathsave pc` na vez dele (`--mesa` no Modo mesa).
-- Monstros prontos: `srd monster <busca>` e `create.npc` com `srd:"goblin"`. Magias: `srd spell <busca>`, `slot.use`.
+- Monstros prontos: `srd monster <busca>` e `create.npc` com `srd:"goblin"`. Magias: `srd spell <busca>`, `slot.use`. Habilidades e opções oficiais: `srd feature <busca>`, `srd subclass <classe|nome>`, `srd race <busca>`, `srd subrace <busca>`, `srd trait <busca>` e `srd feat <busca>` (o SRD 2014 inclui apenas Grappler). As buscas usam nomes/índices em inglês; subclasses também aceitam a classe em português. Consultar o catálogo não aplica habilidades à ficha.
 
 ## Multiverso compartilhado
 
@@ -133,4 +133,13 @@ clock.tick {clock, n?}   clock.resolve {clock, outcome}   event.resolve {event:<
 xp {who, amount, confirm?, reason?}   slot.use {who, level}   time {advance:"30m"}
 ```
 
-Outros comandos: `show <id>`, `fact <id>`, `chapter`, `recall <termos>`, `rolls`, `rest short|long [quem] [--dice N]`, `levelup <quem> [--roll]`, `srd monster|spell <busca>`, `log`, `validate`, `undo`, `help`.
+Outros comandos: `show <id>`, `fact <id>`, `chapter`, `recall <termos>`, `rolls`, `rest short|long [quem] [--dice N]`, `levelup <quem> [--roll] [--subclass nome] [--asi for+2 | --feat nome] [--choices JSON]`, `srd monster|spell|feature|subclass|race|subrace|feat|trait <busca>`, `log`, `validate`, `undo`, `help`.
+
+## Progressão e habilidades
+
+- Escolhas pertencem ao jogador: nunca escolha subclasse, atributo, talento, estilo, Metamagia ou invocação por ele. Consulte `show pc`, apresente opções e confirme a preferência no chat antes de aplicar.
+- `levelup pc --subclass champion`; nos marcos oficiais da classe, exige `--asi con+2` ou `--asi des+1,con+1` ou `--feat grappler`. Guerreiro também tem ASI nos níveis 6 e 14; Ladino no 10. Limite de atributo: 20. Talentos respeitam pré-requisitos e não se repetem; o catálogo SRD só contém Grappler.
+- Habilidade nova com opções exige `--choices '{"hunters-prey":["hunters-prey-colossus-slayer"]}'` na subida. Invocações incluem todas as anteriores mais as novas; requisitos de nível, magia e pacto são validados. Escolhas iniciais pendentes podem ser resolvidas com `feature choose pc fighter-fighting-style fighter-fighting-style-defense` (op `feature.choose {who, feature, choices:[...]}`).
+- Recursos: `resource use pc segundo-folego`, `resource use pc cura-pelas-maos --amount 5 --target n1`; em `apply`, `resource.use {who, resource, amount?, target?}`. O motor consome a carga; Segundo Fôlego rola e cura automaticamente; Cura pelas Mãos e Integridade Corporal aplicam cura. Não duplique cura ou consumo com `hp`.
+- Fúria, Ki, Inspiração, Canalizar Divindade, Forma Selvagem e Pontos de Feitiçaria controlam gastos/recargas. Conduza os demais efeitos pelas regras descritas no SRD; gastar um recurso não concede automaticamente todas as suas opções. Os descansos restauram cargas apropriadas, sem usar `update`.
+- `pc create`: `abilities` contém valores finais, inclusive bônus raciais; `base_abilities` opcional permite validar os valores pré-raça. O motor não soma bônus novamente. Raças/sub-raças SRD injetam traços automaticamente; use índices em inglês ou nomes portugueses reconhecidos. `choices` opcional no JSON registra escolhas iniciais. Raças próprias permanecem possíveis, sem bônus inferidos.

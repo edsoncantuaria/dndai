@@ -78,6 +78,9 @@ export interface PcView {
   money: { po: number; pp: number; pc: number }
   inventory: ItemView[]
   features: string[]
+  featureDetails: { id: string; name: string; description: string; source: "race" | "class" | "subclass" | "feat" }[]
+  resources: { id: string; name: string; max: number; used: number; resets_on: "short" | "long"; effect: string; unlimited?: boolean; available: boolean }[]
+  pendingChoices: { id: string; name: string; choose: number; options: { id: string; name: string }[] }[]
   portrait: string | null
 }
 

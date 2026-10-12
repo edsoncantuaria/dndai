@@ -1,3 +1,4 @@
+import { pendingFeatureChoices } from "./progression.ts"
 // Briefings em texto para o Mestre (ChatGPT). Incluem segredos, sempre marcados.
 import { entityOfCode } from "./codes.ts"
 import { all, type DB, getMeta, metaNum, one } from "./db.ts"
@@ -46,6 +47,9 @@ export function pcBlock(db: DB, c: Character): string[] {
   const bag = items.filter((i) => !i.equipped)
   if (bag.length) lines.push(`Mochila: ${bag.map(itemLine).join("; ")}`)
   if (s.features.length) lines.push(`Habilidades: ${s.features.join("; ")}`)
+  if (Object.keys(s.resources).length) lines.push(`Recursos: ${Object.values(s.resources).map((r) => `${r.name} [${r.id}] ${r.unlimited ? "ilimitado" : `${r.max - r.used}/${r.max}`} (descanso ${r.resets_on})`).join("; ")}`)
+  const choices = pendingFeatureChoices(s, c.level)
+  if (choices.length) lines.push(`Escolhas pendentes: ${choices.map((c) => `${c.id}: ${c.choose} opção(ões)`).join("; ")}. Consulte show pc e combine com o jogador; aplique feature.choose.`)
   return lines
 }
 
@@ -208,7 +212,10 @@ export function showEntity(db: DB, id: string): string {
   const out: string[] = []
   if (prefix === "pc" || prefix === "npc") {
     const c = getCharacter(db, id)
-    if (c.kind === "pc") out.push(...pcBlock(db, c))
+    if (c.kind === "pc") {
+      out.push(...pcBlock(db, c))
+      for (const choice of pendingFeatureChoices(c.sheet, c.level)) out.push(`  ${choice.id}: escolha ${choice.choose} entre ${choice.options.map((o) => `${o.id} (${o.name})`).join("; ")}`)
+    }
     else {
       out.push(...npcBlock(db, one<CharacterRow>(db, "SELECT * FROM characters WHERE id = ?", id)!, true))
       out.push(`  Local: ${c.place_id ? getPlace(db, c.place_id).name : "desconhecido"}${c.faction_id ? ` · Facção: ${c.faction_id}` : ""}`)
@@ -382,4 +389,3 @@ export function resume(db: DB, slug: string, opts: { page?: number; limit?: numb
   if (done.length) out.push("", `## MISSÕES ENCERRADAS: ${done.map((q) => `${q.title} [${short(db, q.id)}] (${q.status})`).join("; ")}`)
   return out.join("\n")
 }
-

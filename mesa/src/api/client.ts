@@ -14,6 +14,7 @@ export interface MesaApi {
   postMessage(text: string): Promise<{ id: number }>
   /** Usar/equipar/empunhar… um item do herói: o motor aplica as regras e avisa o Mestre. Retorna o resumo mecânico. */
   itemAction(action: ItemAction, item: string): Promise<{ text: string }>
+  useResource(resource: string, amount: number): Promise<{ text: string }>
 }
 
 export class ApiError extends Error {
@@ -108,6 +109,7 @@ export const httpApi: MesaApi = {
   getState: () => request<GameView>("/api/state"),
   submitRoll: (id, dice) => request<RollOutcome>(`/api/rolls/${id}`, { method: "POST", body: JSON.stringify({ dice }) }),
   itemAction: (action, item) => request<{ text: string }>("/api/actions", { method: "POST", body: JSON.stringify({ action, item }) }),
+  useResource: (resource, amount) => request<{ text: string }>("/api/resources", { method: "POST", body: JSON.stringify({ resource, amount }) }),
   postMessage: (text) => request<{ id: number }>("/api/messages", { method: "POST", body: JSON.stringify({ text }) }),
   subscribe(onChange, onStatus) {
     let source: EventSource | null = null

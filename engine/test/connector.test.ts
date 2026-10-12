@@ -65,6 +65,21 @@ describe("conector MCP dndai (ChatGPT, sem shell)", () => {
     assert.match((await call("dnd_ler", { campanha: "conec2", comando: "log" })).text + (await call("dnd_ler", { campanha: "conec2", comando: "resume" })).text, /Você olha a praça vazia\./)
   })
 
+  it("permite progressão validada e recursos pelas ferramentas do Mestre", async () => {
+    assert.equal((await call("dnd_agir", { comando: "campaign", args: ["new", "habilidades", "--name", "H", "--premise", "p"] })).error, false)
+    const character = { name: "Kael", race: "Humano", class: "guerreiro", level: 3, subclass: "champion", ac: 12, abilities: { for: 16, des: 12, con: 14, int: 10, sab: 10, car: 10 } }
+    assert.equal((await call("dnd_agir", { campanha: "habilidades", comando: "pc", args: ["create"], entrada: JSON.stringify(character) })).error, false)
+    assert.equal((await call("dnd_agir", { campanha: "habilidades", comando: "turn", args: ["begin", "--action", "Escolho minhas habilidades"] })).error, false)
+    assert.equal((await call("dnd_agir", { campanha: "habilidades", comando: "feature", args: ["choose", "pc", "fighter-fighting-style", "fighter-fighting-style-defense"] })).error, false)
+    const award = await call("dnd_agir", { campanha: "habilidades", comando: "apply", entrada: JSON.stringify([{ op: "xp", who: "pc", amount: 2700, confirm: true, reason: "Marco de progressão confirmado pelo jogador." }]) })
+    assert.equal(award.error, false, award.text)
+    const missing = await call("dnd_agir", { campanha: "habilidades", comando: "levelup", args: ["pc"] })
+    assert.equal(missing.error, true)
+    assert.match(missing.text, /escolha --asi/)
+    assert.match((await call("dnd_agir", { campanha: "habilidades", comando: "levelup", args: ["pc", "--asi", "con+2"] })).text, /nível 4/)
+    assert.match((await call("dnd_agir", { campanha: "habilidades", comando: "resource", args: ["use", "pc", "surto-de-acao", "--amount", "1"] })).text, /Surto de Ação/)
+  })
+
   it("bloqueia o que não é do jogo", async () => {
     const tries: [string, Record<string, unknown>, RegExp][] = [
       ["dnd_ler", { campanha: "conec", comando: "apply", entrada: "[]" }, /use dnd_agir/],

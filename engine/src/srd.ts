@@ -1,8 +1,8 @@
-// Consulta ao snapshot SRD 2014 (data/srd) para estatísticas de criaturas e magias.
+// Consulta ao snapshot SRD 2014 (data/srd), incluindo as tabelas oficiais de progressão.
 import { existsSync, readFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { type Ability, norm, parseAbility, parseSkill } from "./rules.ts"
+import { type Ability, norm, parseAbility, parseClass, parseSkill } from "./rules.ts"
 import { type Attack, defaultSheet, type Sheet } from "./world.ts"
 
 function srdDir(): string {
@@ -20,20 +20,82 @@ const DAMAGE_TYPES: Record<string, string> = {
 const cache = new Map<string, Record<string, unknown>[]>()
 
 function load(resource: string): Record<string, unknown>[] {
-  if (!cache.has(resource)) {
-    const file = resolve(srdDir(), `${resource}.json`)
+  const file = resolve(srdDir(), `${resource}.json`)
+  if (!cache.has(file)) {
     if (!existsSync(file)) throw new Error(`SRD indisponível: ${file} não existe (defina DNDAI_SRD_DIR).`)
-    cache.set(resource, JSON.parse(readFileSync(file, "utf8")))
+    cache.set(file, JSON.parse(readFileSync(file, "utf8")))
   }
-  return cache.get(resource)!
+  return cache.get(file)!
 }
 
-export function searchSrd(resource: "monsters" | "spells", query: string): Record<string, unknown>[] {
+export const SRD_RESOURCES = {
+  monster: "monsters", spell: "spells", feature: "features", subclass: "subclasses",
+  race: "races", subrace: "subraces", feat: "feats", trait: "traits",
+} as const
+
+export type SrdResource = typeof SRD_RESOURCES[keyof typeof SRD_RESOURCES]
+
+interface SrdRef { index: string; name: string }
+export interface SrdLevel { level: number; features: SrdRef[]; class_specific?: Record<string, unknown> }
+interface SrdClass extends SrdRef { levels: SrdLevel[] }
+export interface SrdSubclass extends SrdClass { class: SrdRef }
+export interface SrdFeature extends SrdRef {
+  class: SrdRef
+  subclass?: SrdRef
+  level: number
+  desc: string[]
+  prerequisites: Record<string, unknown>[]
+}
+
+function classFromSrd(query: string): SrdClass | undefined {
+  const key = parseClass(query)
+  if (!key) return undefined
+  return (load("classes") as unknown as SrdClass[]).find((c) => parseClass(c.index) === key)
+}
+
+export function getClassLevel(cls: string, level: number): SrdLevel {
+  const row = classFromSrd(cls)?.levels.find((l) => l.level === level)
+  if (!row) throw new Error(`Progressão SRD indisponível: ${cls} nível ${level}.`)
+  return row
+}
+
+export function subclassesForClass(cls: string): SrdSubclass[] {
+  const base = classFromSrd(cls)
+  if (!base) throw new Error(`Classe "${cls}" não encontrada no SRD.`)
+  return (load("subclasses") as unknown as SrdSubclass[]).filter((s) => s.class.index === base.index)
+}
+
+export function searchSrd(resource: SrdResource, query: string): Record<string, unknown>[] {
   const q = norm(query)
   const items = load(resource)
   const exact = items.filter((m) => norm(String(m.index)) === q || norm(String(m.name)) === q)
   if (exact.length) return exact
+  if (resource === "subclasses") {
+    const cls = classFromSrd(query)
+    if (cls) return items.filter((s) => (s.class as SrdRef).index === cls.index)
+  }
   return items.filter((m) => norm(String(m.name)).includes(q) || norm(String(m.index)).includes(q)).slice(0, 10)
+}
+
+/** Só habilidades concedidas neste nível; escolhas opcionais não são concedidas automaticamente. */
+export function getFeaturesForLevel(cls: string, subclass: string | null, level: number): SrdFeature[] {
+  if (!Number.isInteger(level) || level < 1 || level > 20) throw new Error("Nível SRD deve ser inteiro de 1 a 20.")
+  const base = classFromSrd(cls)
+  if (!base) throw new Error(`Classe "${cls}" não encontrada no SRD.`)
+  const refs = [...(base.levels.find((l) => l.level === level)?.features ?? [])]
+  if (subclass) {
+    const found = searchSrd("subclasses", subclass) as unknown as SrdSubclass[]
+    if (found.length !== 1) throw new Error(`Subclasse "${subclass}" não encontrada ou ambígua no SRD.`)
+    const sub = found[0]
+    if (sub.class.index !== base.index) throw new Error(`Subclasse "${sub.name}" não pertence a ${base.name}.`)
+    refs.push(...(sub.levels.find((l) => l.level === level)?.features ?? []))
+  }
+  const features = load("features") as unknown as SrdFeature[]
+  return [...new Set(refs.map((ref) => ref.index))].map((index) => {
+    const feature = features.find((f) => f.index === index)
+    if (!feature) throw new Error(`Habilidade "${index}" ausente no snapshot SRD.`)
+    return feature
+  })
 }
 
 export interface CreatureStats {

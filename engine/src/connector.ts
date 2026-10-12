@@ -15,7 +15,7 @@ import { strictRefs } from "./world.ts"
 const READ = new Set(["skill", "context", "resume", "show", "recall", "rolls", "log", "validate", "srd", "help", "atlas", "chapter", "fact"])
 const WRITE = new Set([
   "campaign", "pc", "turn", "narrate", "undo", "apply", "time", "check", "save", "attack", "damage", "roll", "deathsave",
-  "item", "rest", "levelup", "combat", "atlas", "chapter",
+  "item", "rest", "levelup", "resource", "feature", "combat", "atlas", "chapter",
 ])
 
 /** Flags permitidas por comando. O que não está aqui é recusado (allowlist, não denylist). */
@@ -29,7 +29,8 @@ const ALLOW: Record<string, Set<string>> = {
   roll: new Set(["by", "reason", "mesa"]),
   deathsave: new Set(["reason", "mesa"]),
   rest: new Set(["dice"]),
-  levelup: new Set(["roll"]),
+  levelup: new Set(["roll", "subclass", "asi", "feat", "choices"]),
+  resource: new Set(["amount", "target"]),
   narrate: new Set(["text"]),
   context: new Set(["full", "json", "cena"]),
   resume: new Set(["page", "limit", "chapter"]),
@@ -143,7 +144,7 @@ export function buildConnector(secret: string): McpServer {
   server.registerTool(
     "dnd_ler",
     {
-      description: "Lê sem alterar nada. Saída em TOON com ids curtos (n1, l2, i3, f4, q5, h5). context (delta desde o último turno), context --cena (cena inteira), context --full, context --json, resume, show <id>, fact <id>, chapter, recall <termos>, rolls, log, validate, atlas, srd monster|spell <busca>, skill, help.",
+      description: "Lê sem alterar nada. Saída em TOON com ids curtos (n1, l2, i3, f4, q5, h5). context (delta desde o último turno), context --cena (cena inteira), context --full, context --json, resume, show <id>, fact <id>, chapter, recall <termos>, rolls, log, validate, atlas, srd monster|spell|feature|subclass|race|subrace|feat|trait <busca>, skill, help.",
       inputSchema: shape,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
@@ -153,7 +154,7 @@ export function buildConnector(secret: string): McpServer {
     "dnd_agir",
     {
       description:
-        "Altera o jogo pelo motor (atômico e validado). Aceita ids curtos. turn begin|end, narrate, apply (ops JSON em entrada), check/save/attack/damage/roll/deathsave (com --mesa para o jogador rolar), item, time, rest, levelup, combat, undo, pc create, campaign new, chapter close, atlas sync. Sem --values e sem cancelar rolagem do jogador.",
+        "Altera o jogo pelo motor (atômico e validado). Aceita ids curtos. turn begin|end, narrate, apply (ops JSON em entrada), check/save/attack/damage/roll/deathsave (com --mesa para o jogador rolar), item, time, rest, levelup (--subclass/--asi/--feat/--choices), resource use, feature choose, combat, undo, pc create, campaign new, chapter close, atlas sync. Sem --values e sem cancelar rolagem do jogador.",
       inputSchema: shape,
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },

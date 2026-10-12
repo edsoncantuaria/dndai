@@ -96,6 +96,10 @@ class GameController extends ChangeNotifier {
         lastOutcome = await api.roll(campaign, id, dice);
       });
 
+  Future<String?> useResource(String resource, int amount) => _act(() async {
+        lastActionText = await api.useResource(campaign, resource, amount);
+      });
+
   /// Executa e devolve a mensagem de erro (para a UI mostrar), ou null em caso de sucesso.
   Future<String?> _act(Future<void> Function() fn) async {
     sending = true;

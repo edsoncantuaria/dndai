@@ -1,8 +1,9 @@
 import type { PcView } from "../../api/types"
 import { ABILITIES, ABILITY_LABEL, ABILITY_SHORT, signed } from "../../lib/format"
 import { Chip, SectionTitle } from "../ui"
+import { ResourcePanel } from "./ResourcePanel"
 
-export function CharacterSheet({ pc }: { pc: PcView }) {
+export function CharacterSheet({ pc, locked = false }: { pc: PcView; locked?: boolean }) {
   const sc = pc.spellcasting
   return (
     <div className="space-y-6">
@@ -112,11 +113,34 @@ export function CharacterSheet({ pc }: { pc: PcView }) {
         </section>
       )}
 
-      {pc.features.length > 0 && (
+      <ResourcePanel pc={pc} locked={locked} />
+      {(["race", "class", "subclass", "feat"] as const).map((source) => {
+        const details = (pc.featureDetails ?? []).filter((f) => f.source === source)
+        const title = { race: "Características raciais", class: "Habilidades de classe", subclass: "Habilidades de arquétipo", feat: "Talentos" }[source]
+        return details.length > 0 && (
+          <section key={source} aria-label={title}>
+            <SectionTitle>{title}</SectionTitle>
+            {details.map((f) => (
+              <details key={f.id} className="mb-2 rounded-md border border-white/10 p-2 text-sm text-dnd-parchment">
+                <summary className="cursor-pointer">{f.name}</summary>
+                <p className="mt-2 whitespace-pre-line text-dnd-parchment-muted">{f.description}</p>
+              </details>
+            ))}
+          </section>
+        )
+      })}
+      {(pc.pendingChoices ?? []).length > 0 && (
+        <section aria-label="Escolhas pendentes">
+          <SectionTitle>Escolhas pendentes</SectionTitle>
+          <p className="text-xs text-dnd-parchment-muted">Combine suas escolhas com o Mestre no chat.</p>
+          {pc.pendingChoices.map((c) => <p key={c.id} className="mt-2 text-sm text-dnd-gold">{c.name}: escolha {c.choose} — {c.options.map((o) => o.name).join(", ")}</p>)}
+        </section>
+      )}
+      {pc.features.some((name) => !(pc.featureDetails ?? []).some((f) => f.name === name)) && (
         <section aria-label="Características">
           <SectionTitle>Características</SectionTitle>
           <ul className="list-inside list-[square] space-y-1 text-sm text-dnd-parchment marker:text-dnd-gold">
-            {pc.features.map((f) => (
+            {pc.features.filter((name) => !(pc.featureDetails ?? []).some((f) => f.name === name)).map((f) => (
               <li key={f}>{f}</li>
             ))}
           </ul>

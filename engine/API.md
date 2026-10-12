@@ -79,6 +79,9 @@ interface PcView {
   money: { po: number; pp: number; pc: number }   // ouro, prata, cobre
   inventory: ItemView[]
   features: string[]
+  featureDetails: { id: string; name: string; description: string; source: "race" | "class" | "subclass" | "feat" }[]
+  resources: { id: string; name: string; max: number; used: number; resets_on: "short" | "long"; effect: string; unlimited?: boolean; available: boolean }[]
+  pendingChoices: { id: string; name: string; level: number; choose: number; kind: "feature" | "expertise"; options: { id: string; name: string }[] }[]
   portrait: string | null              // URL/caminho opcional
 }
 
@@ -155,3 +158,9 @@ interface RollOutcome {
 - Em ataques, `dice` traz o(s) d20 primeiro e depois os dados de dano (ex.: `[d20, d8]`); o motor só aplica o dano se acertar e rola sozinho os dados extras de crítico.
 - O motor aplica o modificador, vantagem/desvantagem (mantém maior/menor d20), compara com a CD e grava o resultado.
 - O Mestre lê o resultado no próximo `dnd context` e narra a partir dele. O Mestre também pode resolver sozinho (`source: "motor"`) se o jogador pedir.
+
+### POST `/api/resources?campaign=<slug>`
+
+Corpo: `{ "resource": "segundo-folego", "amount": 1 }`. Apenas recursos do PC; o alvo de cura na mesa é o próprio PC. Retorna `{ "text": "resumo mecânico" }`. Usa a mesma autenticação dos demais endpoints. Consumo e cura são atômicos, validados novamente no banco; recurso esgotado, incapacidade ou rolagem pendente retornam 409. Quantidade inválida retorna 400; recurso inexistente, 404. O Mestre recebe aviso após a aplicação, e a mesa atualiza via SSE. Cura de outra criatura por Cura pelas Mãos pode ser conduzida pelo Mestre com CLI/apply.
+
+`featureDetails`, `resources` e `pendingChoices` são campos aditivos da ficha. Fichas antigas são enriquecidas em memória e persistidas na próxima mutação; não há migração destrutiva. Recursos legados sem histórico de consumo começam disponíveis. Escolhas antigas permanecem pendentes até registradas; o motor nunca escolhe por conta própria.

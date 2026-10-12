@@ -56,6 +56,30 @@ void main() {
     expect(find.text('Furtividade'), findsOneWidget);
   });
 
+  testWidgets('recursos enviam uso ao motor e ficam bloqueados enquanto ocupados', (tester) async {
+    await phone(tester);
+    final calls = <String>[];
+    final view = sampleView(withResource: true);
+    await tester.pumpWidget(host(Scaffold(body: SheetDrawer(view: view, onResource: (id, amount) async {
+      calls.add('$id:$amount');
+      return 'Segundo Fôlego: cura 6 PV';
+    }))));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Usar Segundo Fôlego'), 400, scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Usar Segundo Fôlego'));
+    await tester.pumpAndSettle();
+    expect(calls, ['segundo-folego:1']);
+    expect(find.text('Segundo Fôlego: cura 6 PV'), findsOneWidget);
+
+    await tester.pumpWidget(host(Scaffold(body: SheetDrawer(view: view, busy: true, onResource: (_, _) async => null))));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Usar Segundo Fôlego'), 400, scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)).first);
+    await tester.pumpAndSettle();
+    final button = tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Usar Segundo Fôlego'));
+    expect(button.onPressed, isNull);
+  });
+
   testWidgets('bolsa expande o item e soltar em Usar chama o motor', (tester) async {
     await phone(tester);
     final calls = <String>[];
@@ -213,7 +237,7 @@ Widget host(Widget child, {PlaySettings? settings}) {
   );
 }
 
-GameView sampleView() => GameView.fromJson({
+GameView sampleView({bool withResource = false}) => GameView.fromJson({
       'version': 3,
       'campaign': {'name': 'O Selo Quebrado', 'premise': 'Uma mina selada chama os vivos.', 'tone': 'sombrio'},
       'clock': {'day': 4, 'time': '21:10', 'period': 'noite'},
@@ -270,6 +294,9 @@ GameView sampleView() => GameView.fromJson({
           {'id': 'seixo', 'name': 'Seixo', 'qty': 1, 'kind': 'equipamento', 'equipped': false, 'drawn': false, 'notes': '', 'effect': null, 'actions': ['largar'], 'props': {'rarity': 'brilhante'}},
         ],
         'features': ['Ataque Furtivo'],
+        if (withResource) 'resources': [
+          {'id': 'segundo-folego', 'name': 'Segundo Fôlego', 'max': 1, 'used': 0, 'resets_on': 'short', 'effect': 'Cura 1d10 + nível', 'available': true},
+        ],
       },
       'location': {
         'id': 'lugar:taverna',

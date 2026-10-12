@@ -73,7 +73,7 @@ export function narrationProblems(db: DB, text: string): string[] {
 }
 
 const STARTERS = new Set(
-  "voce tu ele ela eles elas o a os as um uma uns umas no na nos nas de do da dos das e mas entao depois quando se por para com sem dia noite manha tarde faca paragrafo enquanto antes agora ali aqui isso isto tudo nada alguem ninguem ha houve era foi sao esta estao seu sua seus suas ao aos em ou nem logo ainda ja tambem porem contudo todavia assim teste rolagem ataque dano cura magia".split(" "),
+  "voce tu ele ela eles elas o a os as um uma uns umas no na nos nas de do da dos das e mas nao entao depois quando se por para com sem dia noite manha tarde faca paragrafo enquanto antes agora ali aqui isso isto tudo nada alguem ninguem ha houve era foi sao esta estao seu sua seus suas ao aos em ou nem logo ainda ja tambem porem contudo todavia assim teste rolagem ataque dano cura magia".split(" "),
 )
 
 function allowedToken(token: string): boolean {

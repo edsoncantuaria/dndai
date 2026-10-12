@@ -3,6 +3,24 @@ import { isSharedPrefix, reserveId } from "./atlas.ts"
 import { ensureCode, entityOfCode } from "./codes.ts"
 import { all, type DB, metaNum, one } from "./db.ts"
 import { type Ability, CLASSES, mod, norm, profBonus, spellSlots } from "./rules.ts"
+import { syncProgression } from "./progression.ts"
+
+export interface TrackedResource {
+  id: string
+  name: string
+  max: number
+  used: number
+  resets_on: "short" | "long"
+  effect: string
+  unlimited?: boolean
+}
+
+export interface FeatureDetail {
+  id: string
+  name: string
+  description: string
+  source: "race" | "class" | "subclass" | "feat"
+}
 
 export interface Attack {
   name: string
@@ -24,6 +42,10 @@ export interface Sheet {
   slots: Record<string, { max: number; used: number }>
   spells: string[]
   features: string[]
+  featureDetails: FeatureDetail[]
+  feats: string[]
+  featureChoices: Record<string, string[]>
+  resources: Record<string, TrackedResource>
   hitDice: { die: number; max: number; used: number }
   conditions: string[]
   death: { success: number; fail: number }
@@ -104,7 +126,7 @@ export function defaultSheet(partial: Partial<Sheet> = {}): Sheet {
   return {
     race: "", class: "", subclass: "", background: "",
     abilities: { for: 10, des: 10, con: 10, int: 10, sab: 10, car: 10 },
-    skills: [], expertise: [], saves: [], attacks: [], slots: {}, spells: [], features: [],
+    skills: [], expertise: [], saves: [], attacks: [], slots: {}, spells: [], features: [], featureDetails: [], feats: [], featureChoices: {}, resources: {},
     hitDice: { die: 8, max: 1, used: 0 }, conditions: [], death: { success: 0, fail: 0 }, speed: 9,
     ...partial,
   }
@@ -113,9 +135,12 @@ export function defaultSheet(partial: Partial<Sheet> = {}): Sheet {
 export function getCharacter(db: DB, id: string): Character {
   const row = one<CharacterRow>(db, "SELECT * FROM characters WHERE id = ?", id)
   if (!row) throw new Error(`Personagem ${id} não existe.`)
+  const sheet = defaultSheet(JSON.parse(row.sheet))
+  // Campanhas antigas ganham os novos campos em memória, sem reescrever o banco na leitura.
+  if (sheet.class && CLASSES[sheet.class]) syncProgression(sheet, row.level)
   return {
     ...row,
-    sheet: defaultSheet(JSON.parse(row.sheet)),
+    sheet,
     persona: JSON.parse(row.persona),
     schedule: JSON.parse(row.schedule),
   }

@@ -15,7 +15,7 @@ import { parseReplay, replaySteps } from "./replay.ts"
 import { roll } from "./dice.ts"
 import {
   cancelRequest, levelUp, longRest, parseCheckKey, parseMode, pendingRequests, requestRoll, resolveCharRef,
-  type RollSpec, rollNow, shortRest,
+  type RollSpec, rollNow, selectFeature, shortRest, useResource,
 } from "./mechanics.ts"
 import { applyItemAction, ITEM_ACTIONS } from "./items.ts"
 import { applyOps, parseOps } from "./ops.ts"
@@ -24,7 +24,7 @@ import { parseAbility } from "./rules.ts"
 import { startMasterServer } from "./master/mcp.ts"
 import { startServer } from "./server.ts"
 import { advanceTime, endCombat, getCombat, nextTurn, startCombat } from "./simulation.ts"
-import { searchSrd } from "./srd.ts"
+import { searchSrd, SRD_RESOURCES } from "./srd.ts"
 import { skillText } from "./skill.ts"
 import { beginTurn, endTurn, narrate, pcStateChange, requireOpenTurn, undoTurn } from "./turns.ts"
 import { getCharacter, parseDuration, pcId, resolveRef } from "./world.ts"
@@ -99,9 +99,10 @@ Testes:     check <quem> <perícia|atributo> [--dc N] [--adv|--dis] [--bonus N] 
 Combate:    attack <atacante> <alvo> [--with arma|ataque] [--spell --damage 1d10] [--adv|--dis] [--bonus N] [--mesa]
             damage <alvo> <expr> [--by quem] [--mesa] · roll <expr> [--reason R] [--mesa]
             combat start <ids...> · combat next · combat end · combat status
-Recursos:   rest short|long [quem] [--dice N] · levelup <quem> [--roll] · roll-cancel <id> (só CLI local) · chapter close
+Recursos:   rest short|long [quem] [--dice N] · levelup <quem> [--roll] [--subclass nome] [--asi for+2 | --feat nome] [--choices JSON] · roll-cancel <id> (só CLI local) · chapter close
 Itens:      item usar|equipar|guardar|empunhar|embainhar|largar <item>   (mesma regra da mesa)
-SRD:        srd monster|spell <busca>
+Habilidades: resource use <quem> <id> [--amount N] [--target quem] · feature choose <quem> <habilidade> <opções separadas por vírgula>
+SRD:        srd monster|spell|feature|subclass|race|subrace|feat|trait <busca>
 Mesa:       serve [--port 8790] [--host 127.0.0.1] [--static ../mesa/dist] [--token T]
 Mestre:     mestre [--port 8791] [--host 127.0.0.1] [--token T]   (MCP dndai-mestre: mesa → Shellby → ChatGPT)
 Conector:   conector [--port 8794]   (MCP "dndai" para o ChatGPT: ferramentas do jogo sem shell)
@@ -358,8 +359,20 @@ function dispatch(argv: string[], input?: string): string {
         return out
       })
     }
-    case "levelup":
-      return mutate(args, (db) => levelUp(db, resolveCharRef(db, sub ?? "pc"), args.flags.roll ? "rolar" : "media"))
+    case "levelup": {
+      const raw = str(args, "choices")
+      const choices = raw ? JSON.parse(raw) as unknown : undefined
+      if (choices !== undefined && (!choices || Array.isArray(choices) || typeof choices !== "object" || !Object.values(choices).every((v) => Array.isArray(v) && v.every((s) => typeof s === "string")))) throw new Error('--choices exige JSON {"habilidade":["opção"]}.')
+      return mutate(args, (db) => levelUp(db, resolveCharRef(db, sub ?? "pc"), args.flags.roll ? "rolar" : "media", undefined, {
+        subclass: str(args, "subclass"), asi: str(args, "asi"), feat: str(args, "feat"), choices: choices as Record<string, string[]> | undefined,
+      }))
+    }
+    case "resource":
+      if (sub !== "use" || rest.length !== 2) throw new Error("Uso: dnd resource use <quem> <id> [--amount N] [--target <quem>]")
+      return mutate(args, (db) => useResource(db, resolveCharRef(db, rest[0]), rest[1], num(args, "amount") ?? 1, str(args, "target") ? resolveCharRef(db, str(args, "target")!) : undefined))
+    case "feature":
+      if (sub !== "choose" || rest.length !== 3) throw new Error("Uso: dnd feature choose <quem> <habilidade> <opção1,opção2>")
+      return mutate(args, (db) => selectFeature(db, resolveCharRef(db, rest[0]), rest[1], rest[2].split(",")))
     case "combat":
       if (sub === "status")
         return withCampaign(args, (db) => {
@@ -375,8 +388,8 @@ function dispatch(argv: string[], input?: string): string {
       if (sub === "end") return mutate(args, (db) => endCombat(db))
       throw new Error("Uso: dnd combat start|next|end|status")
     case "srd": {
-      if ((sub !== "monster" && sub !== "spell") || !rest.length) throw new Error("Uso: dnd srd monster|spell <busca>")
-      const found = searchSrd(sub === "monster" ? "monsters" : "spells", rest.join(" "))
+      if (!sub || !Object.hasOwn(SRD_RESOURCES, sub) || !rest.length) throw new Error(`Uso: dnd srd ${Object.keys(SRD_RESOURCES).join("|")} <busca>`)
+      const found = searchSrd(SRD_RESOURCES[sub as keyof typeof SRD_RESOURCES], rest.join(" "))
       if (!found.length) return "Nada encontrado."
       if (found.length > 1) return found.map((f) => `${f.index} — ${f.name}`).join("\n")
       return JSON.stringify(found[0], null, 1).slice(0, 6000)

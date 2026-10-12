@@ -7,7 +7,8 @@ import { timingSafeEqual } from "node:crypto"
 import { listCampaigns, openCampaign, resolveCampaign, snapshotCampaign, withCampaignLock } from "./campaign.ts"
 import { type DB, metaNum, transaction } from "./db.ts"
 import { applyItemAction } from "./items.ts"
-import { pendingRequests, resolveRequest } from "./mechanics.ts"
+import { pendingRequests, resolveRequest, useResource } from "./mechanics.ts"
+import { requirePc } from "./world.ts"
 import { sendToMaster } from "./master/client.ts"
 import { chatVersion, chatView } from "./master/queue.ts"
 import { buildView } from "./view.ts"
@@ -239,6 +240,24 @@ export function startServer(opts: ServeOptions) {
         if (chatView(slug, 1).messages.length) {
           await sendToMaster(slug, `Ação do jogador na mesa: ${text} Narre a reação da cena a partir disto (o motor já aplicou a mecânica).`, "sistema").catch((error) => {
             console.error(`[mesa] não avisei o Mestre da ação: ${(error as Error).message}`)
+          })
+        }
+        return send(res, 200, { text })
+      }
+      if (req.method === "POST" && url.pathname === "/api/resources") {
+        const slug = slugOf(url)
+        const body = (await readBody(req)) as { resource?: unknown; amount?: unknown }
+        if (typeof body.resource !== "string" || !body.resource.trim() || (body.amount !== undefined && (!Number.isInteger(body.amount) || Number(body.amount) < 1))) throw new HttpError(400, 'Envie { "resource": "<id>", "amount": 1 }.')
+        let text: string
+        try {
+          text = withDb(slug, (db) => transaction(db, () => useResource(db, requirePc(db).id, body.resource as string, body.amount as number | undefined)))
+        } catch (error) {
+          const message = (error as Error).message
+          throw new HttpError(/Role os dados|não pode usar/.test(message) ? 409 : /não existe/.test(message) ? 404 : 400, message)
+        }
+        if (chatView(slug, 1).messages.length) {
+          await sendToMaster(slug, `Ação do jogador na mesa: ${text} Narre a reação da cena (o motor já consumiu o recurso e aplicou cura quando cabível).`, "sistema").catch((error) => {
+            console.error(`[mesa] não avisei o Mestre do recurso: ${(error as Error).message}`)
           })
         }
         return send(res, 200, { text })

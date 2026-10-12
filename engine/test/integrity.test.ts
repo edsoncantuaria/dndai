@@ -112,6 +112,7 @@ describe("mundo que não alucina", () => {
     assert.deepEqual(narrationProblems(w, "— {m} Forasteiros, hein? — resmunga Kael. — Paguem adiantado.\nChuva fina cai. Ela sussurra: “{f}Não confie nele.”"), [])
     assert.deepEqual(narrationProblems(w, "Lá fora, Zorvak espera. Silêncio."), ['"Zorvak" não é uma entidade do motor. Nomes novos só nascem via apply; cite quem já existe pelo nome que está no contexto.'])
     assert.match(narrationProblems(w, "Zorvak ergue a espada. Zorvak ri.").join(), /Zorvak/)
+    assert.deepEqual(narrationProblems(w, "Não há saída. Não desista.\n— {f} Não confie nele. Não vá sozinho."), [])
     // Depois de um dado, a narração traz a linha 🎲.
     assert.throws(() => narrate(w, "A lâmina encontra a fresta da armadura."), /falta a linha 🎲/)
     narrate(w, "A lâmina encontra a fresta da armadura.\n\n🎲 Ataque 15 — acerto")

@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { type DB, index, metaNum, setMeta } from "./db.ts"
 import { CLASSES, mod, parseClass, parseSkill, STARTING_GP, spellSlots } from "./rules.ts"
+import { chooseFeature, pendingFeatureChoices, racialInfo, resolveSubclass, subclassRequiredLevel, syncProgression, validateRacialAbilities } from "./progression.ts"
 import { defaultSheet, newId, parseMoney, pcId, resolveRef } from "./world.ts"
 
 const PcSchema = z
@@ -16,11 +17,16 @@ const PcSchema = z
       for: z.number().int().min(1).max(20), des: z.number().int().min(1).max(20), con: z.number().int().min(1).max(20),
       int: z.number().int().min(1).max(20), sab: z.number().int().min(1).max(20), car: z.number().int().min(1).max(20),
     }).strict(),
+    base_abilities: z.object({
+      for: z.number().int().min(1).max(20), des: z.number().int().min(1).max(20), con: z.number().int().min(1).max(20),
+      int: z.number().int().min(1).max(20), sab: z.number().int().min(1).max(20), car: z.number().int().min(1).max(20),
+    }).strict().optional(),
+    choices: z.record(z.array(z.string().min(1))).default({}),
     skills: z.array(z.string()).default([]),
     expertise: z.array(z.string()).default([]),
     ac: z.number().int().min(1),
     hp: z.number().int().positive().optional(),
-    speed: z.number().positive().default(9),
+    speed: z.number().positive().optional(),
     money: z.union([z.number().int(), z.string()]).default(0),
     place: z.string().optional(),
     items: z.array(z.object({
@@ -41,6 +47,9 @@ export function createPc(db: DB, input: unknown): string[] {
   const cls = parseClass(p.class)
   if (!cls) throw new Error(`Classe "${p.class}" desconhecida. Use: ${Object.keys(CLASSES).join(", ")}.`)
   const def = CLASSES[cls]
+  validateRacialAbilities(p.race, p.abilities, p.base_abilities)
+  const subclass = p.subclass ? resolveSubclass(cls, p.subclass).index : ""
+  if (subclass && p.level < subclassRequiredLevel(cls)) throw new Error("A escolha de subclasse ainda não está disponível.")
   const toSkill = (s: string) => {
     const k = parseSkill(s)
     if (!k) throw new Error(`Perícia "${s}" desconhecida.`)
@@ -67,10 +76,12 @@ export function createPc(db: DB, input: unknown): string[] {
   const slots: Record<string, { max: number; used: number }> = {}
   for (const [lvl, max] of Object.entries(spellSlots(cls, p.level))) slots[lvl] = { max, used: 0 }
   const sheet = defaultSheet({
-    race: p.race, class: cls, subclass: p.subclass, background: p.background, abilities: p.abilities,
+    race: p.race, class: cls, subclass, background: p.background, abilities: p.abilities,
     skills, expertise, saves: def.saves, slots, spells: p.spells, features: p.features,
-    hitDice: { die: def.hitDie, max: p.level, used: 0 }, speed: p.speed, portrait: p.portrait,
+    hitDice: { die: def.hitDie, max: p.level, used: 0 }, speed: p.speed ?? racialInfo(p.race)?.speed ?? 9, portrait: p.portrait,
   })
+  syncProgression(sheet, p.level)
+  for (const [id, selected] of Object.entries(p.choices)) chooseFeature(sheet, p.level, id, selected)
   const place = p.place ? resolveRef(db, p.place, ["place"]) : null
   const id = newId(db, "pc", p.name)
   const turn = metaNum(db, "turn")
@@ -85,5 +96,9 @@ export function createPc(db: DB, input: unknown): string[] {
     )
   }
   index(db, id, "entidade", `${p.name} — ${p.race} ${def.label} — ${p.summary}`)
-  return [`+ personagem do jogador ${p.name} [${id}]: ${p.race} ${def.label} nível ${p.level}, ${hp} PV, CA ${p.ac}${place ? `, em ${place}` : " (sem local: use move ou recrie com place)"}.`]
+  const pending = pendingFeatureChoices(sheet, p.level)
+  return [`+ personagem do jogador ${p.name} [${id}]: ${p.race} ${def.label} nível ${p.level}, ${hp} PV, CA ${p.ac}${place ? `, em ${place}` : " (sem local: use move ou recrie com place)"}.`,
+    ...pending.map((c) => `Escolha pendente: ${c.name} (${c.id}), ${c.choose} opção(ões). Use feature choose pc ${c.id} <opções>.`),
+    ...(!subclass && p.level >= subclassRequiredLevel(cls) ? ["Subclasse pendente: escolha com o jogador; será exigida na próxima subida de nível."] : []),
+  ]
 }

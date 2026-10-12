@@ -123,6 +123,14 @@ function Table() {
       <div ref={headerRef} className="sticky top-0 z-30">
         <TopBar game={game} status={status} mock={config.mock} voice={voice} onVoice={setVoice} sound={sound} onSound={setSound} />
         {game.combat && <InitiativeBar combat={game.combat} />}
+        {pendingCount > 0 && !rolls.active && (
+          <div role="status" className="flex items-center justify-center gap-3 border-b border-dnd-gold/25 bg-dnd-obsidian/95 px-4 py-2 text-sm text-dnd-gold-bright">
+            <span>🎲 Rolagem pendente{pendingCount > 1 ? ` (${pendingCount})` : ""}</span>
+            <button type="button" onClick={rolls.openFirst} className="rounded-md border border-dnd-gold/50 px-3 py-1 hover:bg-dnd-gold/10 focus-visible:outline-2 focus-visible:outline-dnd-gold">
+              Abrir dados
+            </button>
+          </div>
+        )}
         {error && (
           <p role="alert" className="bg-dnd-ember-deep/80 px-4 py-1.5 text-center text-xs text-dnd-parchment">
             {error.message}

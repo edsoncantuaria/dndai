@@ -66,7 +66,7 @@ export function SidePanel({ game }: { game: GameView }) {
         })}
       </div>
       <div role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`} tabIndex={0} className="dnd-scroll min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
-        {active === "ficha" && (pc ? <CharacterSheet pc={pc} /> : <Empty>Nenhum herói criado.</Empty>)}
+        {active === "ficha" && (pc ? <CharacterSheet pc={pc} locked={game.pendingRolls.length > 0} /> : <Empty>Nenhum herói criado.</Empty>)}
         {active === "inventario" && (pc ? <Inventory pc={pc} /> : <Empty>Nenhum herói criado.</Empty>)}
         {active === "missoes" && <Quests quests={game.quests} />}
         {active === "mapa" && <MapGraph map={game.map} />}

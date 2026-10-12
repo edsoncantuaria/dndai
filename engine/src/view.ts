@@ -1,6 +1,7 @@
 // GameView: o que a mesa (jogador) pode ver. NUNCA inclui segredos, agendas ou persona interna dos NPCs.
 import { all, type DB, getMeta, metaNum, one } from "./db.ts"
-import { pendingRequests, type RollOutcome } from "./mechanics.ts"
+import { pendingRequests, resourceAvailable, type RollOutcome } from "./mechanics.ts"
+import { pendingFeatureChoices } from "./progression.ts"
 import { itemActions, itemEffect, itemRarity, reactionOf } from "./items.ts"
 import { itemsOf } from "./ops.ts"
 import { ABILITIES, ABILITY_NAMES, attitudeLabel, CLASSES, levelForXp, SKILLS, XP_THRESHOLDS } from "./rules.ts"
@@ -61,6 +62,9 @@ export function buildView(db: DB, slug: string) {
       money: { po: Math.floor(c.cp / 100), pp: Math.floor((c.cp % 100) / 10), pc: c.cp % 10 },
       inventory: itemsOf(db, c.id).map((i) => itemView(db, i)),
       features: s.features,
+      featureDetails: s.featureDetails,
+      resources: Object.values(s.resources).map((r) => ({ ...r, available: resourceAvailable(c, r.id) })),
+      pendingChoices: pendingFeatureChoices(s, c.level),
       portrait: s.portrait ?? null,
     }
   })()

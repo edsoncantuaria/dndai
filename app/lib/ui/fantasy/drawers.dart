@@ -8,10 +8,14 @@ import '../play_settings.dart';
 import 'chrome.dart';
 import 'sigils.dart';
 
+typedef ResourceAct = Future<String?> Function(String resource, int amount);
+
 class SheetDrawer extends StatelessWidget {
-  const SheetDrawer({super.key, required this.view, this.scroll});
+  const SheetDrawer({super.key, required this.view, this.scroll, this.onResource, this.busy = false});
   final GameView view;
   final ScrollController? scroll;
+  final ResourceAct? onResource;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -121,15 +125,78 @@ class SheetDrawer extends StatelessWidget {
                   Text(signed(skill.bonus), style: const TextStyle(fontFamily: 'Cinzel', fontWeight: FontWeight.w600, fontSize: 16)),
                 ]),
               ),
-            if (pc.features.isNotEmpty) ...[
+            if (pc.resources.isNotEmpty) ...[
+              const SectionHeading('Recursos de habilidades'),
+              for (final resource in pc.resources)
+                _ResourceCard(resource: resource, locked: busy || view.pendingRolls.isNotEmpty, onResource: onResource),
+            ],
+            for (final group in {'race': 'Características raciais', 'class': 'Habilidades de classe', 'subclass': 'Habilidades de arquétipo', 'feat': 'Talentos'}.entries)
+              if (pc.featureDetails.any((f) => f.source == group.key)) ...[
+                SectionHeading(group.value),
+                for (final feature in pc.featureDetails.where((f) => f.source == group.key))
+                  ExpansionTile(title: Text(feature.name), children: [Padding(padding: const EdgeInsets.all(8), child: Text(feature.description))]),
+              ],
+            if (pc.pendingChoices.isNotEmpty) ...[
+              const SectionHeading('Escolhas pendentes'),
+              const Text('Combine suas escolhas com o Mestre no chat.'),
+              for (final choice in pc.pendingChoices) Padding(padding: const EdgeInsets.only(top: 6), child: Text(choice)),
+            ],
+            if (pc.features.any((name) => !pc.featureDetails.any((f) => f.name == name))) ...[
               const SectionHeading('Habilidades'),
-              for (final feature in pc.features) Padding(padding: const EdgeInsets.only(bottom: 4), child: Text('• $feature')),
+              for (final feature in pc.features.where((name) => !pc.featureDetails.any((f) => f.name == name))) Padding(padding: const EdgeInsets.only(bottom: 4), child: Text('• $feature')),
             ],
             const SectionHeading('Moedas'),
             Text('${pc.po} ouro · ${pc.pp} prata · ${pc.pcCoins} cobre'),
           ]),
         ),
       ],
+    );
+  }
+}
+
+class _ResourceCard extends StatefulWidget {
+  const _ResourceCard({required this.resource, required this.locked, required this.onResource});
+  final TrackedResource resource;
+  final bool locked;
+  final ResourceAct? onResource;
+  @override
+  State<_ResourceCard> createState() => _ResourceCardState();
+}
+
+class _ResourceCardState extends State<_ResourceCard> {
+  int _amount = 1;
+  bool _sending = false;
+  Future<void> _use() async {
+    if (_sending || widget.locked || widget.onResource == null) return;
+    setState(() => _sending = true);
+    try {
+      tableFeedback(context);
+      final text = await widget.onResource!(widget.resource.id, _amount);
+      if (mounted && text != null) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+  @override
+  Widget build(BuildContext context) {
+    final r = widget.resource;
+    final enabled = r.available && !widget.locked && !_sending && widget.onResource != null;
+    final points = ['cura-pelas-maos', 'ki', 'pontos-de-feiticaria'].contains(r.id);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('${r.name}: ${r.unlimited ? 'Ilimitado' : '${r.max - r.used}/${r.max}'}', style: const TextStyle(fontWeight: FontWeight.w700)),
+        Text(r.effect),
+        Text('Recarga: descanso ${r.resetsOn == 'short' ? 'curto ou longo' : 'longo'}', style: const TextStyle(color: Palette.inkSoft, fontSize: 12)),
+        Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 8, children: [
+          if (points) ...[
+            IconButton(tooltip: 'Gastar menos pontos', onPressed: enabled && _amount > 1 ? () => setState(() => _amount--) : null, icon: const Icon(Icons.remove)),
+            Text('$_amount ponto(s)'),
+            IconButton(tooltip: 'Gastar mais pontos', onPressed: enabled && _amount < r.max - r.used ? () => setState(() => _amount++) : null, icon: const Icon(Icons.add)),
+          ],
+          OutlinedButton(onPressed: enabled ? _use : null, child: Text(r.id == 'cura-pelas-maos' ? 'Curar a si mesmo' : 'Usar ${r.name}')),
+        ]),
+      ]),
     );
   }
 }

@@ -109,7 +109,10 @@ class Pc {
         pp = _i((j['money'] as Map?)?['pp']),
         pcCoins = _i((j['money'] as Map?)?['pc']),
         inventory = _l(j['inventory']).map(Item.fromJson).toList(),
-        features = _ls(j['features']);
+        features = _ls(j['features']),
+        featureDetails = _l(j['featureDetails']).map(FeatureDetail.fromJson).toList(),
+        resources = _l(j['resources']).map(TrackedResource.fromJson).toList(),
+        pendingChoices = _l(j['pendingChoices']).map((c) => '${_s(c['name'])}: escolha ${_i(c['choose'])} — ${_l(c['options']).map((o) => _s(o['name'])).join(', ')}').toList();
   final String id, name, race, classKey, classLabel, subclass, background, status;
   final int level, xp, hp, maxHp, tempHp, ac, speed, initiative, profBonus, passivePerception, deathSuccess, deathFail, po, pp, pcCoins, hitDie, hitDiceMax, hitDiceUsed;
   final int? nextLevelXp, spellSaveDc, spellAttack;
@@ -120,6 +123,24 @@ class Pc {
   final List<Skill> skills;
   final List<Slot> slots;
   final List<Item> inventory;
+  final List<FeatureDetail> featureDetails;
+  final List<TrackedResource> resources;
+  final List<String> pendingChoices;
+}
+
+class FeatureDetail {
+  FeatureDetail.fromJson(Json j) : name = _s(j['name']), description = _s(j['description']), source = _s(j['source']);
+  final String name, description, source;
+}
+
+class TrackedResource {
+  TrackedResource.fromJson(Json j)
+      : id = _s(j['id']), name = _s(j['name']), effect = _s(j['effect']),
+        max = _i(j['max']), used = _i(j['used']), resetsOn = _s(j['resets_on']),
+        unlimited = _b(j['unlimited']), available = _b(j['available']);
+  final String id, name, effect, resetsOn;
+  final int max, used;
+  final bool unlimited, available;
 }
 
 class Exit {
