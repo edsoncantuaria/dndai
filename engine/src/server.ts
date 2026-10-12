@@ -167,19 +167,16 @@ export function startServer(opts: ServeOptions) {
             return t && (t.narration || t.summary)
           })
     if (!text) throw new HttpError(404, "Narração não encontrada.")
-    // Serviço de voz local (engine/tts): Kokoro em pt-BR, devolve MP3 em streaming.
+    // Serviço de voz local (engine/tts): Kokoro em pt-BR, devolve MP3.
     const ttsBase = (process.env.DNDAI_TTS_URL ?? "http://127.0.0.1:8795").replace(/\/+$/, "")
-    // A mesa trocou de narração ou parou a voz: cancela a síntese.
-    const abort = new AbortController()
-    res.on("close", () => abort.abort())
     let upstream: Response
     try {
-      upstream = await fetch(`${ttsBase}/speak`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }), signal: abort.signal })
+      upstream = await fetch(`${ttsBase}/speak`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) })
     } catch {
       const recovered = await checkOrStartTts(ttsBase)
       if (recovered) {
         try {
-          upstream = await fetch(`${ttsBase}/speak`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }), signal: abort.signal })
+          upstream = await fetch(`${ttsBase}/speak`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) })
         } catch {
           throw new HttpError(503, `Voz indisponível: o serviço de TTS (${ttsBase}) não respondeu.`)
         }
@@ -187,13 +184,18 @@ export function startServer(opts: ServeOptions) {
         throw new HttpError(503, `Voz indisponível: o serviço de TTS (${ttsBase}) não respondeu.`)
       }
     }
-    if (!upstream.ok || !upstream.body) {
+    if (!upstream.ok) {
       const error = ((await upstream.json().catch(() => null)) as { error?: string } | null)?.error
       throw new HttpError(upstream.status === 422 ? 422 : 502, error ?? `Voz indisponível: o TTS respondeu ${upstream.status}.`)
     }
-    const length = upstream.headers.get("content-length")
-    res.writeHead(200, { "content-type": "audio/mpeg", "cache-control": "no-store", ...(length ? { "content-length": length } : {}) })
-    Readable.fromWeb(upstream.body as import("node:stream/web").ReadableStream).on("error", () => res.destroy()).pipe(res)
+    const audioBuffer = Buffer.from(await upstream.arrayBuffer())
+    res.writeHead(200, {
+      "content-type": "audio/mpeg",
+      "cache-control": "no-store",
+      "content-length": audioBuffer.length.toString(),
+      "accept-ranges": "bytes",
+    })
+    res.end(audioBuffer)
   }
 
   const serveStatic = (res: ServerResponse, pathname: string, method: string = "GET"): boolean => {
