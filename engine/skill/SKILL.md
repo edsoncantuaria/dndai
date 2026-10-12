@@ -32,7 +32,7 @@ Quando a conversa foi aberta pelo servidor dndai (mensagens começando com `[mes
 - `Mesa: Ação do jogador na mesa: ...` já foi aplicada pelo motor: **não** repita a mecânica. Narre a cena reagindo (NPCs com medo, guarda advertindo etc., conforme `context`) e grave só as consequências narrativas extras.
 - **Rolagem não fica para depois:** se `turn begin` recusar por rolagem pendente, não narre adiante. Lembre o jogador de rolar o dado pedido e encerre a resposta. Você não cancela a rolagem do jogador.
 - Ação nova do jogador → protocolo normal (`turn begin` com o texto dele). Se ainda houver turno aberto sem rolagem pendente, feche-o antes (`turn end`).
-- **Rolagens do jogador sempre com `--mesa`**: o jogador rola os dados 3D na mesa. Peça a rolagem na narração ("Faça um teste de Percepção"), grave essa narração com `dnd -c <slug> narrate <<'EOF' ... EOF`, **deixe o turno aberto** e encerre a resposta. Quando chegar `Mesa: Rolagem #N resolvida...`, **não** abra outro turno: rode `context`, narre a consequência, grave com `apply` e feche com `turn end`.
+- **Rolagens do jogador sempre com `--mesa`**: o jogador rola os dados 3D na mesa. Peça a rolagem na narração ("Faça um teste de Percepção"), grave essa narração com `dnd -c <slug> narrate <<'EOF' ... EOF`, **deixe o turno aberto** e encerre a resposta. Quando chegar `Mesa: Rolagem #N resolvida...`, **não** abra outro turno: a cena atual vem na própria mensagem; narre a consequência, grave com `apply` e feche com `turn end`.
 - A mesa exibe a narração que você grava no motor (`narrate` durante o turno, `turn end --narration -` ao fechar), com a formatação exata. Toda resposta precisa gravar sua narração por um desses dois. **Não repita a narração no chat**: sua resposta final é só `✓`. Resposta `✓` sem narração gravada vira erro para o jogador.
 - Se a conversa for reaberta (mensagem de configuração nova, por exemplo a cada capítulo fechado), rode `resume`: ele traz premissa e tom, a cena inteira, os arcos fechados em uma linha, os capítulos do arco atual com as mudanças, os turnos desde o último capítulo e a última narração. Para o detalhe de algo antigo: `resume --chapter N` (mudanças e turnos do capítulo) ou `resume --page N`. Continue de onde o motor parou, na mesma voz.
 
@@ -56,7 +56,7 @@ O mundo é **um só para todos os jogadores** e cresce a cada história. Cada ca
 ## Protocolo de cada turno (obrigatório)
 
 1. `dnd -c <slug> turn begin --action "<o que o jogador fez/disse, fiel>"`
-2. `dnd -c <slug> context`. A primeira leitura é a cena; depois de um turno fechado, vem o **delta** desde o último turno mais o índice de ids. Para detalhe, `show <id>` (nunca peça a cena inteira de novo). Como ler a cena:
+2. O `turn begin` já devolve a cena (a mesma saída do `context`): não chame `context` em seguida. A primeira leitura é a cena; depois de um turno fechado, vem o **delta** desde o último turno mais o índice de ids. Para detalhe, `show <id>` (nunca peça a cena inteira de novo). Como ler a cena:
    - `fios`: missões, ganchos, agendas e eventos mais urgentes, ligados à cena ou recentes (`estado` traz o próximo objetivo e as pistas; `alerta` diz o que fazer). `dormentes` lista os demais só pelo id; `*` marca fio parado há muito tempo: traga-o de volta à história ou encerre-o (`hook.update`, `quest.update`).
    - `saidas`: para onde dá para ir daqui, em minutos (`via: dentro/fora` = sublocal/local de cima). `mapa` conta o mundo conhecido.
    - `memorias: +N → show n1` e `fatos_mais` avisam que há mais: nada sumiu, só não coube. Busque pelo id ou por `recall`.

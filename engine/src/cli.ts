@@ -266,7 +266,8 @@ function dispatch(argv: string[], input?: string): string {
       if (sub === "begin") {
         const action = str(args, "action")
         if (!action) throw new Error('Uso: dnd turn begin --action "o que o jogador fez/disse"')
-        return withCampaign(args, (db, slug) => beginTurn(db, slug, action).join("\n"))
+        // Já devolve a cena: o Mestre não precisa de um context logo depois (uma chamada a menos por turno).
+        return withCampaign(args, (db, slug) => [...beginTurn(db, slug, action), "", buildContext(db, slug)].join("\n"))
       }
       if (sub === "end") {
         const summary = str(args, "summary")
