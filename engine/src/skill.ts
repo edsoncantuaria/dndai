@@ -8,6 +8,9 @@ import { join } from "node:path"
 const ON_DEMAND: Record<string, string> = {
   preparacao: "Preparação",
   chat: "Uma campanha por chat",
+  combate: "Combate",
+  multiverso: "Multiverso",
+  apply: "Referência do `apply`",
 }
 
 function sections(): { head: string; parts: { title: string; text: string }[] } {
@@ -25,9 +28,6 @@ export function skillText(which?: string): string {
     return parts.find((p) => p.title.startsWith(title))!.text.trim()
   }
   const core = parts.filter((p) => !Object.values(ON_DEMAND).some((t) => p.title.startsWith(t)))
-  return [
-    head,
-    ...core.map((p) => p.text),
-    "\n## Seções sob demanda\n\n- `skill preparacao`: antes de existir personagem (turno 0).\n- `skill chat`: jogo direto no chat, fora do Modo mesa.\n",
-  ].join("").trim()
+  // O núcleo já lista as seções sob demanda (em "Ferramentas").
+  return [head, ...core.map((p) => p.text)].join("").trim()
 }
