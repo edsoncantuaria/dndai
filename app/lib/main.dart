@@ -64,7 +64,7 @@ class _RootState extends State<Root> {
   SharedPreferences? _prefs;
   ApiClient? _api;
   String? _campaign;
-  String _serverUrl = 'http://192.168.0.5:8790';
+  String _serverUrl = 'http://100.91.215.59:8790';
 
   @override
   void initState() {
@@ -75,7 +75,7 @@ class _RootState extends State<Root> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final q = kIsWeb ? Uri.base.queryParameters : const <String, String>{};
-    final defaultUrl = kIsWeb ? Uri.base.origin : 'http://192.168.0.5:8790';
+    final defaultUrl = kIsWeb ? Uri.base.origin : 'http://100.91.215.59:8790';
     final url = prefs.getString('server') ?? defaultUrl;
     final token = q['token'] ?? await readToken(prefs);
 
@@ -94,12 +94,12 @@ class _RootState extends State<Root> {
     final res = await client.login(email, password);
     final token = res['token'] as String? ?? 'auth-ok';
 
-    await _prefs!.setString('server', url);
+    await _prefs!.setString('server', client.baseUrl);
     await writeToken(_prefs!, token);
 
     setState(() {
-      _serverUrl = url;
-      _api = ApiClient(baseUrl: url, token: token);
+      _serverUrl = client.baseUrl;
+      _api = ApiClient(baseUrl: client.baseUrl, token: token);
     });
   }
 
@@ -266,6 +266,21 @@ class _LoginScreenState extends State<LoginScreen> {
                           labelText: 'Endereço da mesa / API',
                           prefixIcon: Icon(Icons.dns_outlined),
                         ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ActionChip(
+                            label: const Text('Tailscale (100.91.215.59)', style: TextStyle(fontSize: 12)),
+                            onPressed: () => setState(() => _server.text = 'http://100.91.215.59:8790'),
+                          ),
+                          const SizedBox(width: 8),
+                          ActionChip(
+                            label: const Text('Wi-Fi Local (192.168.0.5)', style: TextStyle(fontSize: 12)),
+                            onPressed: () => setState(() => _server.text = 'http://192.168.0.5:8790'),
+                          ),
+                        ],
                       ),
                     ],
                   ],

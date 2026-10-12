@@ -162,14 +162,23 @@ export function startServer(opts: ServeOptions) {
     Readable.fromWeb(upstream.body as import("node:stream/web").ReadableStream).on("error", () => res.destroy()).pipe(res)
   }
 
-  const serveStatic = (res: ServerResponse, pathname: string): boolean => {
+  const serveStatic = (res: ServerResponse, pathname: string, method: string = "GET"): boolean => {
     if (!opts.staticDir) return false
     const root = resolve(opts.staticDir)
     let file = normalize(join(root, decodeURIComponent(pathname)))
     if (!file.startsWith(root)) return false
     if (!existsSync(file) || statSync(file).isDirectory()) file = join(root, "index.html") // SPA
     if (!existsSync(file)) return false
-    res.writeHead(200, { "content-type": MIME[extname(file)] ?? "application/octet-stream" })
+    const stat = statSync(file)
+    res.writeHead(200, {
+      "content-type": MIME[extname(file)] ?? "application/octet-stream",
+      "content-length": stat.size.toString(),
+      "accept-ranges": "bytes",
+    })
+    if (method === "HEAD") {
+      res.end()
+      return true
+    }
     createReadStream(file).pipe(res)
     return true
   }
@@ -181,12 +190,12 @@ export function startServer(opts: ServeOptions) {
       res.setHeader("access-control-allow-origin", origin)
       res.setHeader("vary", "origin")
       res.setHeader("access-control-allow-headers", "content-type, authorization")
-      res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS")
+      res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS, HEAD")
     }
     if (req.method === "OPTIONS") return void res.writeHead(204).end()
     try {
       if (!url.pathname.startsWith("/api/")) {
-        if (req.method === "GET" && serveStatic(res, url.pathname)) return
+        if ((req.method === "GET" || req.method === "HEAD") && serveStatic(res, url.pathname, req.method)) return
         throw new HttpError(404, "Não encontrado.")
       }
       if (req.method === "POST" && url.pathname === "/api/auth/login") {

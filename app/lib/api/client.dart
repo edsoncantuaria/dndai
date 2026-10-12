@@ -17,13 +17,25 @@ class ApiException implements Exception {
 
 /// Cliente do `dnd serve` (engine/API.md). Mesma API no celular e na web.
 class ApiClient {
-  ApiClient({required this.baseUrl, this.token});
+  ApiClient({required String baseUrl, this.token}) : baseUrl = _normalizeUrl(baseUrl);
   final String baseUrl;
   final String? token;
   final http.Client _http = http.Client();
 
+  static String _normalizeUrl(String raw) {
+    var url = raw.trim();
+    if (url.isEmpty) return 'http://100.91.215.59:8790';
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'http://$url';
+    }
+    while (url.endsWith('/')) {
+      url = url.substring(0, url.length - 1);
+    }
+    return url;
+  }
+
   Uri _uri(String path, [Map<String, String>? query]) {
-    final base = Uri.parse(baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl);
+    final base = Uri.parse(baseUrl);
     final params = {...?query};
     // Fora da web o token vai só no header Authorization. Na web o EventSource não define header.
     if (kIsWeb && token != null && token!.isNotEmpty) params['token'] = token!;
