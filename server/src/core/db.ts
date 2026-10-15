@@ -4,7 +4,7 @@ import { chmodSync } from "node:fs"
 import { DatabaseSync } from "node:sqlite"
 
 export type DB = DatabaseSync
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 
 /** Tabelas escritíveis pelo ledger e suas colunas JSON. */
 export const TABLES = {
@@ -28,6 +28,8 @@ export const TABLES = {
   events: { key: "id", json: [] },
   rumors: { key: "id", json: [] },
   bounties: { key: "faction_id", json: [] },
+  dungeons: { key: "id", json: ["layout"] },
+  features: { key: "id", json: ["data"] },
 } as const satisfies Record<string, { key: string; json: readonly string[] }>
 export type Table = keyof typeof TABLES
 
@@ -62,11 +64,26 @@ CREATE TABLE rumors (
 CREATE TABLE bounties (faction_id TEXT PRIMARY KEY, amount_cp INTEGER NOT NULL DEFAULT 0 CHECK (amount_cp >= 0), reason TEXT NOT NULL DEFAULT '');
 `
 
+/** Masmorras, salas e o que há nelas (schema 3). */
+const DUNGEON_SCHEMA = `
+CREATE TABLE dungeons (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, theme TEXT NOT NULL, level INTEGER NOT NULL, entrance TEXT NOT NULL, boss_room TEXT,
+  summary TEXT NOT NULL DEFAULT '', layout TEXT NOT NULL DEFAULT '{}', status TEXT NOT NULL DEFAULT 'inexplorada' CHECK (status IN ('inexplorada','em_andamento','concluida')), created_turn INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE features (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, place_id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('monstros','armadilha','tesouro','porta','segredo','perigo','enigma','altar')),
+  name TEXT NOT NULL, data TEXT NOT NULL DEFAULT '{}', state TEXT NOT NULL DEFAULT 'oculto' CHECK (state IN ('oculto','visivel','resolvido','acionado')),
+  dc_find INTEGER NOT NULL DEFAULT 0, created_turn INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX idx_features_place ON features(place_id);
+`
+
 const STATE_SCHEMA = `
 CREATE TABLE places (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, parent_id TEXT REFERENCES places(id),
   summary TEXT NOT NULL, details TEXT NOT NULL DEFAULT '', visited INTEGER NOT NULL DEFAULT 0, created_turn INTEGER NOT NULL DEFAULT 0,
-  faction_id TEXT
+  faction_id TEXT, aura TEXT, dungeon_id TEXT, danger INTEGER NOT NULL DEFAULT 1
 );
 CREATE TABLE links (
   from_id TEXT NOT NULL REFERENCES places(id), to_id TEXT NOT NULL REFERENCES places(id),
@@ -121,7 +138,7 @@ CREATE TABLE rolls (
 CREATE INDEX idx_chars_place ON characters(place_id);
 CREATE INDEX idx_items_owner ON items(owner_char);
 CREATE INDEX idx_mem_npc ON memories(npc_id);
-` + WORLD_SCHEMA
+` + WORLD_SCHEMA + DUNGEON_SCHEMA
 
 const FIXED_SCHEMA = `
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -154,6 +171,19 @@ export function openDb(path: string): DB {
     db.exec("BEGIN")
     db.exec(WORLD_SCHEMA)
     db.exec("ALTER TABLE places ADD COLUMN faction_id TEXT")
+    db.exec(DUNGEON_SCHEMA)
+    db.exec("ALTER TABLE places ADD COLUMN aura TEXT")
+    db.exec("ALTER TABLE places ADD COLUMN dungeon_id TEXT")
+    db.exec("ALTER TABLE places ADD COLUMN danger INTEGER NOT NULL DEFAULT 1")
+    db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
+    db.exec("COMMIT")
+  } else if (user_version === 2) {
+    // v2 → v3: masmorras, características de sala, aura e perigo dos lugares.
+    db.exec("BEGIN")
+    db.exec(DUNGEON_SCHEMA)
+    db.exec("ALTER TABLE places ADD COLUMN aura TEXT")
+    db.exec("ALTER TABLE places ADD COLUMN dungeon_id TEXT")
+    db.exec("ALTER TABLE places ADD COLUMN danger INTEGER NOT NULL DEFAULT 1")
     db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
     db.exec("COMMIT")
   } else if (user_version !== SCHEMA_VERSION) {

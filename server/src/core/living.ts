@@ -3,7 +3,8 @@
 import type { Campaign } from "./campaign.ts"
 import { all, one } from "./db.ts"
 import { type Op, put } from "./ledger.ts"
-import { RuleError, character, combatState } from "./mechanics.ts"
+import { auraOfCharacter } from "./auras.ts"
+import { RuleError, character, combatState, save, setCondition } from "./mechanics.ts"
 import { alloc, pcRow } from "./pc.ts"
 
 const fail = (m: string): never => { throw new RuleError(m) }
@@ -138,6 +139,15 @@ export function tickWorld(c: Campaign, from: number, to: number): void {
   // Eventos que venceram.
   for (const e of all<{ id: number }>(c.db, "SELECT id FROM events WHERE status = 'pendente' AND at_min <= ?", to)) ops.push(put("events", { id: e.id, status: "vencido" }))
   if (ops.length) c.commit("mundo-segue", ops)
+  // Clareira Feérica: a cada hora lá dentro, salvaguarda de SAB (CD 12) ou o encanto do lugar prende a mente.
+  const hours = Math.floor(to / 60) - Math.floor(from / 60)
+  if (hours > 0 && pcRow(c) && auraOfCharacter(c, "pc") === "feybleed") {
+    const sheet = JSON.parse(pcRow(c)!.sheet) as { conditions?: string[] }
+    if (!(sheet.conditions ?? []).includes("charmed")) {
+      const r = save(c, "pc", "wis", 12)
+      if (!r.success) setCondition(c, "pc", ["charmed"])
+    }
+  }
 }
 
 /** O que o Mestre precisa resolver agora por causa do tempo. */

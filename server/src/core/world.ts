@@ -5,6 +5,7 @@ import { all, one } from "./db.ts"
 import { meta, type Op, put } from "./ledger.ts"
 import { RuleError, character } from "./mechanics.ts"
 import { witnessMemory } from "./consequences.ts"
+import { assertPath, enterRoom, wanderingEncounter } from "./explore.ts"
 import { alloc } from "./pc.ts"
 
 const fail = (m: string): never => { throw new RuleError(m) }
@@ -55,19 +56,29 @@ export function route(c: Campaign, from: string, to: string): { minutes: number;
   return { minutes: dist.get(to)!, path }
 }
 
-/** Move um personagem (e quem o acompanha) pelo caminho mais curto, somando o tempo da viagem. */
-export function move(c: Campaign, who: string, to: string): { minutes: number; path: string[] } {
+/** Move um personagem (e quem o acompanha) pelo caminho mais curto, somando o tempo da viagem.
+ *  Portas trancadas barram o caminho; ao chegar a uma sala de masmorra os monstros aparecem; viagens longas
+ *  por lugares perigosos podem ter emboscada. `notes` traz o que o Mestre precisa narrar. */
+export function move(c: Campaign, who: string, to: string): { minutes: number; path: string[]; notes: string[] } {
   const row = character(c, who)
   place(c, to)
   if (!row.place_id) fail(`${row.name} não está em nenhum local`)
   const r = route(c, row.place_id!, to) ?? fail(`não há caminho de ${row.place_id} até ${to}`)
-  const ops: Op[] = [put("characters", { id: who, place_id: to }), put("places", { id: to, visited: 1 })]
-  if (row.kind === "pc") {
-    for (const f of all<{ id: string }>(c.db, "SELECT id FROM characters WHERE companion = 1 AND status = 'vivo'")) ops.push(put("characters", { id: f.id, place_id: to }))
-    ops.push(meta("time", c.time + r.minutes))
-  }
-  c.commit("mover", ops)
-  return r
+  assertPath(c, r.path)
+  return c.atomic("mover", () => {
+    const ops: Op[] = [put("characters", { id: who, place_id: to }), put("places", { id: to, visited: 1 })]
+    if (row.kind === "pc") {
+      for (const f of all<{ id: string }>(c.db, "SELECT id FROM characters WHERE companion = 1 AND status = 'vivo'")) ops.push(put("characters", { id: f.id, place_id: to }))
+      ops.push(meta("time", c.time + r.minutes))
+    }
+    c.commit("mover", ops)
+    const notes: string[] = []
+    if (row.kind === "pc") {
+      notes.push(...enterRoom(c, to))
+      notes.push(...wanderingEncounter(c, to, r.minutes))
+    }
+    return { ...r, notes }
+  })
 }
 
 export function advanceTime(c: Campaign, minutes: number): number {

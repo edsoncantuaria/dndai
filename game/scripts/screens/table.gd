@@ -61,7 +61,7 @@ func _ready() -> void:
 
 ## Só para testes: abre cada gaveta (e a subida de nível, se houver) e sai; erros de script aparecem no log.
 func _cycle_drawers() -> void:
-	for kind in ["sheet", "bag", "spells", "journal", "people", "map"]:
+	for kind in ["sheet", "bag", "spells", "journal", "people", "map", "world"]:
 		open_drawer(kind)
 		await get_tree().process_frame
 		await get_tree().process_frame
@@ -112,7 +112,7 @@ func _build() -> void:
 	nav_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	nav_scroll.custom_minimum_size.y = 52
 	_nav = UI.hbox(6)
-	for p in [["Ficha", "sheet"], ["Bolsa", "bag"], ["Grimório", "spells"], ["Diário", "journal"], ["Pessoas", "people"], ["Mapa", "map"]]:
+	for p in [["Ficha", "sheet"], ["Bolsa", "bag"], ["Grimório", "spells"], ["Diário", "journal"], ["Pessoas", "people"], ["Mapa", "map"], ["Mundo", "world"]]:
 		var kind: String = p[1]
 		_nav.add_child(UI.button(p[0], func(): open_drawer(kind), 44))
 	nav_scroll.add_child(_nav)
@@ -462,7 +462,7 @@ func close_drawer() -> void:
 
 func _fill_drawer() -> void:
 	UI.clear(_drawer_body)
-	_drawer_title.text = {"sheet": "Ficha", "bag": "Bolsa", "spells": "Grimório", "journal": "Diário", "people": "Pessoas", "map": "Mapa"}.get(_drawer_kind, "")
+	_drawer_title.text = {"sheet": "Ficha", "bag": "Bolsa", "spells": "Grimório", "journal": "Diário", "people": "Pessoas", "map": "Mapa", "world": "O Mundo"}.get(_drawer_kind, "")
 	var c: Control
 	match _drawer_kind:
 		"sheet": c = Drawers.sheet(view)
@@ -470,7 +470,8 @@ func _fill_drawer() -> void:
 		"spells": c = Drawers.spells(view, _on_spell)
 		"journal": c = Drawers.journal(view)
 		"people": c = Drawers.people(view)
-		"map": c = Drawers.map(view, _on_go)
+		"map": c = Drawers.map(view, _on_go, _on_say)
+		"world": c = Drawers.world(view)
 	if c:
 		_drawer_body.add_child(c)
 
@@ -480,6 +481,11 @@ func _on_item(action: String, id: String) -> void:
 	if not r.ok:
 		get_parent().toast(str(r.data.get("error", "Erro.")))
 	_request_load()
+
+
+func _on_say(text: String) -> void:
+	close_drawer()
+	_send_action(text)
 
 
 func _on_go(place_name: String) -> void:

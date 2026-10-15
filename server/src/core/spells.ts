@@ -3,6 +3,7 @@
 // Efeitos sem dados no SRD (utilidade, condição, cura) ficam para o Mestre, com o espaço já gasto.
 import type { Campaign } from "./campaign.ts"
 import { cryptoRng, roll, type Rng } from "./dice.ts"
+import { assertCanCast, rollSurge } from "./auras.ts"
 import { RuleError, character, damage, heal, save, setNotes, useSlot, type Mode } from "./mechanics.ts"
 import { pcView } from "./pc.ts"
 import type { Ability } from "./sheet.ts"
@@ -64,6 +65,7 @@ export function cast(c: Campaign, who: string, spellIndex: string, o: { slot?: n
     const isCantrip = sp.level === 0
     const known = isCantrip ? sheet.spell!.cantrips : sheet.spell!.prepared
     if (!known.includes(sp.index)) fail(`${v.row.name} não ${isCantrip ? "conhece" : "tem preparada"} ${sp.name}`)
+    assertCanCast(c, who)
     if (v.sheet.conditions.some((x) => ["incapacitated", "unconscious", "paralyzed", "stunned", "petrified"].includes(x))) fail("condição impede a conjuração")
     let slot = 0
     const lines: string[] = []
@@ -116,6 +118,14 @@ export function cast(c: Campaign, who: string, spellIndex: string, o: { slot?: n
           if (dmg) lines.push(damage(c, t, dmg, type, { crit: a.natural === 20 }))
         } else lines.push(damage(c, t, total.total, type))
       }
+    }
+    const surge = rollSurge(c, who, sp.level, rng)
+    if (surge) {
+      lines.push(surge.text)
+      if (surge.kind === "reembolso" && slot) { const sh = pcView(c, who).sheet; sh.slots[String(slot)]!.used = Math.max(0, sh.slots[String(slot)]!.used - 1); c.commit("surto", [{ op: "put", table: "characters", row: { id: who, sheet: sh } }]) }
+      if (surge.kind === "protecao") { const lvl = pcView(c, who).sheet.level; c.commit("surto", [{ op: "put", table: "characters", row: { id: who, temp_hp: Math.max(character(c, who).temp_hp, lvl) } }]) }
+      if (surge.kind === "retorno") lines.push(damage(c, who, roll("1d6", rng).total, "force", {}, rng))
+      if (surge.kind === "potencia") for (const t of targets) if (dice0) lines.push(damage(c, t, Math.floor(roll(dice0, rng).total / 2), type, {}, rng))
     }
     lines.push(manual ? `Efeito sem automação no SRD: resolva pela descrição (${sp.name}) e grave as consequências por ops.` : "")
     return { lines: lines.filter(Boolean), slotUsed: slot || undefined, manual, description: sp.description }

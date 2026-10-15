@@ -8,6 +8,8 @@ var _token: LineEdit
 var _name: LineEdit
 var _premise: TextEdit
 var _tone: LineEdit
+var _world: OptionButton
+var _worlds: Array = []
 
 
 func _ready() -> void:
@@ -54,6 +56,9 @@ func _ready() -> void:
 	var nv := UI.vbox(8)
 	np.add_child(nv)
 	nv.add_child(UI.label("Nova campanha", 20, UI.GOLD, UI.title_font()))
+	_world = OptionButton.new()
+	_world.add_item("Mundo em branco (o Mestre cria)", 0)
+	nv.add_child(_world)
 	_name = LineEdit.new()
 	_name.placeholder_text = "Nome da campanha"
 	nv.add_child(_name)
@@ -85,6 +90,13 @@ func _refresh() -> void:
 		_status.text = "✗ " + str(r.data.get("error", "erro"))
 		_status.add_theme_color_override("font_color", UI.RED)
 		return
+	var wr: Dictionary = await Api.get_json("/api/worlds")
+	if wr.ok:
+		_worlds = wr.data
+		_world.clear()
+		for w in _worlds:
+			_world.add_item("Mundo: %s — %s" % [w.name, str(w.summary).left(70) + "…"])
+		_world.add_item("Mundo em branco (o Mestre cria)")
 	_status.text = "✓ conectado"
 	_status.add_theme_color_override("font_color", UI.GREEN)
 	var items: Array = r.data
@@ -118,7 +130,10 @@ func _create() -> void:
 	if name == "":
 		_app().toast("Dê um nome à campanha.")
 		return
-	var r: Dictionary = await Api.post_json("/api/campaigns", {"name": name, "premise": _premise.text.strip_edges(), "tone": _tone.text.strip_edges()})
+	var body := {"name": name, "premise": _premise.text.strip_edges(), "tone": _tone.text.strip_edges()}
+	if _world.selected >= 0 and _world.selected < _worlds.size():
+		body["world"] = _worlds[_world.selected].id
+	var r: Dictionary = await Api.post_json("/api/campaigns", body)
 	if not r.ok:
 		_app().toast(str(r.data.get("error", "Erro ao criar.")))
 		return

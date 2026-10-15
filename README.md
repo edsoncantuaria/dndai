@@ -12,6 +12,7 @@ Godot (game/) ──HTTP+WS──▶ server/ (Node 24, SQLite) ──MCP──�
 - [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md) — como as peças se falam.
 - [`docs/ESCOPO-JOGAVEL.md`](docs/ESCOPO-JOGAVEL.md) — o que o Mestre pode e não pode (contrato imposto em código).
 - [`skill/SKILL.md`](skill/SKILL.md) — instruções do Mestre.
+- Mundo pronto: **Auralis** (alta fantasia mística) em `server/src/world/`; masmorras e encontros em `server/src/core/`.
 - [`old/`](old/README.md) — legado (engine 2014, Flutter, mesa React, PENAI), preservado.
 
 ## Rodar

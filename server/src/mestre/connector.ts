@@ -7,7 +7,7 @@ import { z } from "zod"
 import { scopeText } from "../core/scope.ts"
 import { campaign, campaignExists } from "../store.ts"
 import { allSecrets, assertInScope, auditCall, scopeOf, secretsEqual } from "./secrets.ts"
-import { context, recall, resume, showEntity, srdLookup } from "./context.ts"
+import { context, lore, recall, resume, showEntity, srdLookup, worldBook } from "./context.ts"
 import { readFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -27,7 +27,7 @@ const SKILL = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "s
 const err = (text: string) => ({ isError: true, content: [{ type: "text" as const, text: `ERRO: ${text}` }] })
 const ok = (text: string) => ({ content: [{ type: "text" as const, text: text || "ok" }] })
 
-export const LER = ["skill", "escopo", "contexto", "cena", "resume", "capitulo", "recall", "srd", "mostrar"] as const
+export const LER = ["skill", "escopo", "contexto", "cena", "resume", "capitulo", "recall", "srd", "mostrar", "mundo", "lore"] as const
 
 export function ler(slugs: string[], a: { campanha?: string; o: (typeof LER)[number]; q?: string; n?: number }): string {
   if (a.o === "skill") return readFileSync(SKILL, "utf8")
@@ -42,6 +42,8 @@ export function ler(slugs: string[], a: { campanha?: string; o: (typeof LER)[num
     case "capitulo": return resume(c, { chapter: a.n ?? Number(a.q) })
     case "recall": return JSON.stringify(recall(c, a.q ?? "", a.n ?? 8))
     case "mostrar": return showEntity(c, a.q ?? "")
+    case "mundo": return worldBook(c, a.q)
+    case "lore": return JSON.stringify(lore(c, a.q ?? "", a.n ?? 8))
     case "srd": { const [coll, ...rest] = (a.q ?? "").trim().split(/\s+/); return srdLookup(c, coll ?? "", rest.join(" ")) }
   }
 }
@@ -61,7 +63,7 @@ export function agir(slugs: string[], a: { campanha?: string; beat?: unknown; un
 
 const readShape = {
   campanha: z.string().optional().describe("slug da campanha (obrigatório se o conector enxerga mais de uma)"),
-  o: z.enum(LER).describe("skill=instruções · escopo=o que é jogável · contexto=delta da cena · cena=cena inteira · resume=memória longa · capitulo(n) · recall(q) · srd(q='monsters goblin' ou 'spells fireball') · mostrar(q=id)"),
+  o: z.enum(LER).describe("skill=instruções · escopo=o que é jogável · contexto=delta da cena · cena=cena inteira · resume=memória longa · capitulo(n) · recall(q) · srd(q='monsters goblin' ou 'spells fireball') · mostrar(q=id) · mundo(q=seção: cosmologia, magia, panteão, regiões, segredos) · lore(q=busca no saber, inclui segredos)"),
   q: z.string().optional(), n: z.number().int().optional(),
 }
 const actShape = {

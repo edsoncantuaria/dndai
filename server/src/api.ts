@@ -20,6 +20,7 @@ import { chatView, enqueue, type createMaster } from "./mestre/queue.ts"
 import { addSlugToScope, campaignSecret } from "./mestre/secrets.ts"
 import { openTurn } from "./mestre/submit.ts"
 import { gameView } from "./view.ts"
+import { seedWorld, WORLDS } from "./world/seed.ts"
 
 class HttpError extends Error {
   readonly status: number
@@ -60,7 +61,7 @@ const slugOf = (s: string | undefined): string => {
   return s
 }
 
-const NewCampaign = z.object({ slug: z.string().optional(), name: z.string().trim().min(1).max(80), premise: z.string().max(600).default(""), tone: z.string().max(200).default("") }).strict()
+const NewCampaign = z.object({ slug: z.string().optional(), name: z.string().trim().min(1).max(80), premise: z.string().max(600).default(""), tone: z.string().max(200).default(""), world: z.string().max(40).optional() }).strict()
 const Act = z.object({ text: z.string().trim().min(1).max(600) }).strict()
 const Item = z.object({ action: z.enum(["equipar", "desequipar", "largar"]), item: z.string() }).strict()
 const Rest = z.object({ kind: z.enum(["short", "long"]), dice: z.number().int().min(0).max(20).default(0) }).strict()
@@ -117,10 +118,14 @@ export function startApi(opts: ApiOptions) {
     if (!authed(req, url)) throw new HttpError(401, "Token inválido.")
 
     if (m === "GET" && p === "/api/campaigns") return send(res, 200, listCampaigns())
+    if (m === "GET" && p === "/api/worlds") return send(res, 200, WORLDS)
     if (m === "POST" && p === "/api/campaigns") {
       const b = NewCampaign.parse(await body(req))
       const slug = b.slug ?? slugify(b.name)
-      createCampaign(slug, b)
+      const created = createCampaign(slug, b)
+      if (b.world) {
+        try { seedWorld(created, b.world) } catch (e) { created.close(); throw new HttpError(422, (e as Error).message) }
+      }
       campaignSecret(slug)
       addSlugToScope(slug)
       return send(res, 201, { slug })

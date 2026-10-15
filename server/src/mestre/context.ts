@@ -5,6 +5,10 @@ import type { Campaign } from "../core/campaign.ts"
 import { all, getMeta, one, setMeta } from "../core/db.ts"
 import { put } from "../core/ledger.ts"
 import { authorityOf, faction as getFaction, membersOf, ranksOf, standing, ties } from "../core/factions.ts"
+import { AURAS } from "../core/auras.ts"
+import { dungeonOf, featuresAt } from "../core/dungeon.ts"
+import { bible } from "../world/seed.ts"
+import { doorBetween } from "../core/explore.ts"
 import { pendencias, rumorsAt } from "../core/living.ts"
 import { combatState } from "../core/mechanics.ts"
 import { pcRow, pcView } from "../core/pc.ts"
@@ -48,11 +52,24 @@ export function scene(c: Campaign): Record<string, unknown> {
   const pc = pcRow(c)
   if (!pc) { out.aviso = "Sem personagem. Conduza a criação com o jogador (a mesa tem o criador)."; return out }
   out.pc = pcCard(c)
-  const pl = pc.place_id ? one<{ id: string; name: string; kind: string; summary: string; details: string }>(c.db, "SELECT id, name, kind, summary, details FROM places WHERE id = ?", pc.place_id) : undefined
+  const pl = pc.place_id ? one<{ id: string; name: string; kind: string; summary: string; details: string; aura: string | null }>(c.db, "SELECT id, name, kind, summary, details, aura FROM places WHERE id = ?", pc.place_id) : undefined
   if (pl) {
     const auth = authorityOf(c, pl.id)
-    out.local = { id: pl.id, nome: pl.name, tipo: pl.kind, resumo: pl.summary, detalhes: pl.details || undefined, controle: auth.faction ? `${auth.faction.name} [${auth.faction.id}]${auth.realm && auth.realm.id !== auth.faction.id ? ` · reino ${auth.realm.name} [${auth.realm.id}]` : ""}` : undefined }
-    out.saidas = all<{ id: string; name: string; minutes: number; visited: number }>(c.db, "SELECT p.id, p.name, l.minutes, p.visited FROM links l JOIN places p ON p.id = l.to_id WHERE l.from_id = ? ORDER BY l.minutes", pl.id).map((e) => ({ id: e.id, nome: e.name, min: e.minutes, novo: e.visited ? "" : "sim" }))
+    out.local = { id: pl.id, nome: pl.name, tipo: pl.kind, resumo: pl.summary, detalhes: pl.details || undefined, aura: pl.aura ? `${AURAS[pl.aura]?.nome ?? pl.aura}: ${AURAS[pl.aura]?.efeito ?? ""}` : undefined, controle: auth.faction ? `${auth.faction.name} [${auth.faction.id}]${auth.realm && auth.realm.id !== auth.faction.id ? ` · reino ${auth.realm.name} [${auth.realm.id}]` : ""}` : undefined }
+    out.saidas = all<{ id: string; name: string; minutes: number; visited: number }>(c.db, "SELECT p.id, p.name, l.minutes, p.visited FROM links l JOIN places p ON p.id = l.to_id WHERE l.from_id = ? ORDER BY l.minutes", pl.id).map((e) => {
+      const door = doorBetween(c, pl.id, e.id)
+      return { id: e.id, nome: e.name, min: e.minutes, novo: e.visited ? "" : "sim", porta: door && door.data.locked > 0 && !door.data.open ? `#${door.id} trancada CD ${door.data.locked}${door.data.key ? " (há chave)" : ""}` : undefined }
+    })
+    const dun = dungeonOf(c, pl.id)
+    if (dun) {
+      const rooms = all<{ visited: number }>(c.db, "SELECT visited FROM places WHERE dungeon_id = ?", dun.id)
+      out.masmorra = { id: dun.id, nome: dun.name, tema: dun.theme, nivel: dun.level, estado: dun.status, salas: `${rooms.filter((r) => r.visited).length}/${rooms.length} visitadas`, sala_do_chefe: dun.boss_room }
+    }
+    const feats = featuresAt(c, pl.id).filter((f) => f.kind !== "monstros")
+    const vis = feats.filter((f) => f.state !== "oculto" && !(f.kind === "porta" && f.data.open))
+    if (vis.length) out.caracteristicas = vis.map((f) => ({ id: `#${f.id}`, tipo: f.kind, nome: f.name, estado: f.state, nota: f.data.note ?? f.data.prompt ?? f.data.desc ?? undefined, cd: f.kind === "armadilha" ? `desarmar ${f.data.disarm_dc}, salv. ${f.data.save?.ability?.toUpperCase()} ${f.data.save?.dc}` : f.kind === "enigma" ? `${f.data.check.skill} ${f.data.check.dc}` : undefined }))
+    const hid = feats.filter((f) => f.state === "oculto")
+    if (hid.length) out.ocultas = hid.map((f) => `🔒 #${f.id} ${f.kind}: ${f.name} (achar CD ${f.dc_find})${f.kind === "armadilha" ? ` — ${f.data.note}` : ""}`)
     const here = all<{ id: string; kind: string; name: string; summary: string; status: string; hp: number; max_hp: number; ac: number; attitude: number; persona: string; companion: number }>(c.db, "SELECT id, kind, name, summary, status, hp, max_hp, ac, attitude, persona, companion FROM characters WHERE place_id = ? AND kind <> 'pc' ORDER BY companion DESC, id", pl.id)
     out.presentes = here.map((n) => {
       const p = JSON.parse(n.persona) as { traits?: string[]; goal?: string; secret?: string; voice?: string; gender?: string }
@@ -250,4 +267,32 @@ function monsterFilter(c: Campaign, q: string): string {
   const list = c.srd.list("monsters", "en").filter((m) => ok(Number(m.challenge_rating)) && (!type || String(m.type).toLowerCase().startsWith(type))).slice(0, 40)
   if (!list.length) return "nenhum monstro com esse filtro"
   return encodeToon({ monstros: list.map((m) => ({ id: m.index, nome: m.name, nd: m.challenge_rating, tipo: m.type, pv: m.hit_points, ca: m.armor_class[0]?.value })) })
+}
+
+
+/** Livro do mundo (cosmologia, magia, panteão...). Sem `q` lista as seções; com `q` devolve a seção. O Mestre vê as secretas. */
+export function worldBook(c: Campaign, q?: string): string {
+  const all = bible(c, { secret: true })
+  if (!all.length) return "esta campanha não tem livro de mundo (o Mestre cria o cenário)"
+  if (!q?.trim()) return encodeToon({ secoes: all.map((b) => ({ id: b.key, titulo: b.title, segredo: b.secret ? "🔒" : "" })), auras: Object.entries(AURAS).map(([k, v]) => `${k}: ${v.efeito}`) })
+  const key = q.trim().toLowerCase()
+  const hit = all.filter((b) => b.key === key || b.title.toLowerCase().includes(key) || b.text.toLowerCase().includes(key))
+  if (!hit.length) return `nada sobre "${q}" (seções: ${all.map((b) => b.key).join(", ")})`
+  return hit.slice(0, 3).map((b) => `# ${b.title}${b.secret ? " 🔒" : ""}\n${b.text}`).join("\n\n")
+}
+
+/** Busca no saber da campanha, incluindo segredos (só o Mestre lê). */
+export function lore(c: Campaign, query: string, limit = 8): { kind: string; ref: string; text: string }[] {
+  const mem = new DatabaseSync(":memory:")
+  mem.exec("CREATE VIRTUAL TABLE s USING fts5(kind UNINDEXED, ref UNINDEXED, text, tokenize='unicode61 remove_diacritics 2')")
+  const ins = mem.prepare("INSERT INTO s(kind, ref, text) VALUES (?,?,?)")
+  for (const f of all<{ id: number; text: string; secret: number }>(c.db, "SELECT id, text, secret FROM facts")) ins.run(f.secret ? "fato 🔒" : "fato", `f${f.id}`, f.text)
+  for (const b of bible(c, { secret: true })) ins.run(b.secret ? "livro 🔒" : "livro", b.key, `${b.title} ${b.text}`)
+  for (const f of all<{ id: string; name: string; summary: string; goal: string; secret: string }>(c.db, "SELECT id, name, summary, goal, secret FROM factions")) ins.run("facção", f.id, `${f.name} ${f.summary} ${f.goal} ${f.secret}`)
+  for (const n of all<{ id: string; name: string; summary: string; persona: string }>(c.db, "SELECT id, name, summary, persona FROM characters WHERE kind = 'npc'")) ins.run("npc", n.id, `${n.name} ${n.summary} ${n.persona}`)
+  const q = query.replace(/[^\p{L}\p{N}\s]/gu, " ").trim().split(/\s+/).filter(Boolean).map((t) => `"${t}"*`).join(" OR ")
+  if (!q) return []
+  const rows = mem.prepare("SELECT kind, ref, snippet(s, 2, '[', ']', '…', 28) AS text FROM s WHERE s MATCH ? ORDER BY rank LIMIT ?").all(q, limit) as { kind: string; ref: string; text: string }[]
+  mem.close()
+  return rows
 }

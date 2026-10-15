@@ -155,7 +155,7 @@ function bootstrapLines(slug: string, name: string): string[] {
   return [
     `[dndai · campanha ${slug} · configuração]`,
     `Você é o Mestre da campanha "${name}" (slug ${slug}) do motor dndai (D&D 2024). As mensagens desta conversa chegam da mesa do jogador por um servidor; o jogador não vê este chat, só a narração que você grava no motor.`,
-    `Antes de responder, leia as instruções com dnd_ler {o:"skill"} e siga-as à risca. Jogue só por dnd_ler/dnd_agir (sem shell), sempre com campanha "${slug}". A memória da campanha e a cena atual vêm abaixo.`,
+    `Antes de responder, leia as instruções com dnd_ler {o:"skill"} e siga-as à risca. Jogue só por dnd_ler/dnd_agir (sem shell), sempre com campanha "${slug}". Se a campanha tem livro de mundo, consulte dnd_ler {o:"mundo"} (e {o:"lore",q:...} para segredos) antes de inventar cenário. A memória da campanha e a cena atual vêm abaixo.`,
     "",
   ]
 }

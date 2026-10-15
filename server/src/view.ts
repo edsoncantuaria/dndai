@@ -2,10 +2,14 @@
 import type { Campaign } from "./core/campaign.ts"
 import { all, getMeta } from "./core/db.ts"
 import { authorityOf, faction as getFaction, membersOf, ranksOf, standing } from "./core/factions.ts"
+import { dungeonOf, featuresAt } from "./core/dungeon.ts"
+import { doorBetween } from "./core/explore.ts"
 import { combatState } from "./core/mechanics.ts"
 import { pcRow, pcView } from "./core/pc.ts"
 import { ABILITIES, ABILITY_PT, mod, resourceList, XP_TABLE } from "./core/sheet.ts"
+import { AURAS } from "./core/auras.ts"
 import { clock } from "./mestre/context.ts"
+import { bible } from "./world/seed.ts"
 import { chatView } from "./mestre/queue.ts"
 
 export function gameView(c: Campaign, slug: string) {
@@ -43,13 +47,16 @@ export function gameView(c: Campaign, slug: string) {
       return { id: i.id, name: i.name, srd: i.srd, qty: i.qty, equipped: !!i.equipped, kind, actions: [...(wearable ? [i.equipped ? "desequipar" : "equipar"] : []), "largar"] }
     }),
     attacks: d.attacks,
-    place: place ? { ...place, control: ((a) => (a.faction ? { faction: a.faction.name, realm: a.realm && a.realm.id !== a.faction.id ? a.realm.name : null } : null))(authorityOf(c, place.id)) } : null,
+    bible: bible(c).map((b) => ({ key: b.key, title: b.title, text: b.text })),
+    place: place ? { ...place, aura: ((a) => (a ? { id: a, name: AURAS[a]?.nome ?? a, effect: AURAS[a]?.efeito ?? "" } : null))(all<{ aura: string | null }>(c.db, "SELECT aura FROM places WHERE id = ?", place.id)[0]?.aura), control: ((a) => (a.faction ? { faction: a.faction.name, realm: a.realm && a.realm.id !== a.faction.id ? a.realm.name : null } : null))(authorityOf(c, place.id)) } : null,
     factions: all<{ id: string }>(c.db, "SELECT id FROM factions ORDER BY power DESC").map((f) => getFaction(c, f.id)).filter((f) => f.known || standing(c, f.id).value !== 0 || standing(c, f.id).status !== "nenhum").map((f) => {
       const st = standing(c, f.id)
       return { id: f.id, name: f.name, kind: f.kind, summary: f.summary, power: f.power, standing: st.value, status: st.status, rank: st.status === "membro" ? ranksOf(f)[st.rank] : null, parent: f.parent_id ? getFaction(c, f.parent_id).name : null }
     }),
     bounties: all<{ faction_id: string; amount_cp: number; reason: string }>(c.db, "SELECT * FROM bounties WHERE amount_cp > 0").map((b) => ({ faction: getFaction(c, b.faction_id).name, amount_cp: b.amount_cp, reason: b.reason })),
-    exits: place ? all<{ id: string; name: string; minutes: number; visited: number }>(c.db, "SELECT p.id, p.name, l.minutes, p.visited FROM links l JOIN places p ON p.id = l.to_id WHERE l.from_id = ? ORDER BY l.minutes", place.id) : [],
+    exits: place ? all<{ id: string; name: string; minutes: number; visited: number }>(c.db, "SELECT p.id, p.name, l.minutes, p.visited FROM links l JOIN places p ON p.id = l.to_id WHERE l.from_id = ? ORDER BY l.minutes", place.id).map((e) => { const door = doorBetween(c, place.id, e.id); return { ...e, locked: !!(door && door.data.locked > 0 && !door.data.open) } }) : [],
+    dungeon: place ? ((d) => d ? { name: d.name, theme: d.theme, level: d.level, status: d.status, visited: all<{ n: number }>(c.db, "SELECT COUNT(*) n FROM places WHERE dungeon_id = ? AND visited = 1", d.id)[0]!.n, total: all<{ n: number }>(c.db, "SELECT COUNT(*) n FROM places WHERE dungeon_id = ?", d.id)[0]!.n } : null)(dungeonOf(c, place.id)) : null,
+    features: place ? featuresAt(c, place.id).filter((f) => f.state !== "oculto" && f.kind !== "monstros" && !(f.kind === "porta" && f.data.open)).map((f) => ({ id: f.id, kind: f.kind, name: f.name, state: f.state, note: f.data.note ?? f.data.prompt ?? f.data.desc ?? null })) : [],
     present: place ? all<{ id: string; kind: string; name: string; summary: string; status: string; hp: number; max_hp: number; attitude: number; companion: number }>(c.db, "SELECT id, kind, name, summary, status, hp, max_hp, attitude, companion FROM characters WHERE place_id = ? AND kind <> 'pc' ORDER BY companion DESC, id", place.id).map((n) => ({ ...n, factions: membersOf(c, n.id).filter((m) => getFaction(c, m.id).known).map((m) => ({ name: m.faction, rank: m.rank })), companion: !!n.companion, gender: (JSON.parse(all<{ persona: string }>(c.db, "SELECT persona FROM characters WHERE id = ?", n.id)[0]!.persona) as { gender?: string }).gender ?? null })) : [],
     combat: combat ? { round: combat.round, turn: combat.turn, order: combat.order.map((o) => { const r = all<{ name: string; hp: number; max_hp: number; status: string }>(c.db, "SELECT name, hp, max_hp, status FROM characters WHERE id = ?", o.id)[0]; return { id: o.id, init: o.init, name: r?.name, hp: r?.hp, max_hp: r?.max_hp, status: r?.status } }) } : null,
     quests: all<{ id: string; title: string; summary: string; status: string; objectives: string }>(c.db, "SELECT id, title, summary, status, objectives FROM quests WHERE secret = 0 ORDER BY status = 'ativa' DESC, updated_turn DESC").map((q) => ({ ...q, objectives: JSON.parse(q.objectives) })),

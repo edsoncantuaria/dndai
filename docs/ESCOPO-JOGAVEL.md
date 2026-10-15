@@ -40,6 +40,10 @@ multiclasse · criação de itens e downtime · montarias e veículos · grade t
 
 Condições do SRD (vantagem/desvantagem, falha automática, crítico em alvo indefeso, exaustão), Fúria, Ataque Furtivo (uma vez por turno), Retomar o Fôlego, Surto de Ação, Mãos Consagradas, Maestria com Armas (Graze, Topple, Vex, Sap; Push, Slow, Nick e Cleave viram aviso ao Mestre), concentração (dano exige salvaguarda de CON), cura por magia (2d8+mod, valor fixo, "todos os PV") e poção de cura, kit de curandeiro. Dano de 89 magias e 422 ações de monstros do SRD rodam pelo motor.
 
+## Masmorras, encontros e mundo (testados)
+
+Encontros nunca passam do orçamento de XP do nível (baixa/moderada/alta, por tamanho do grupo; regra da casa inspirada no DMG 2024). Masmorras: 10 temas, grafo conexo, portas trancadas barram o movimento, chave do chefe sempre existe, armadilhas com CD e dano por faixa de nível, enigmas, tesouro dentro do teto de ouro e itens mágicos por raridade. Auras de lugar (surto arcano, zona morta, solo sagrado, Pálido, clareira feérica, tempestade) têm efeito mecânico. O cenário Auralis (8 regiões, 14 facções, 15 NPCs, 10 masmorras, 3 agendas, livro do mundo com segredos) é original e vem pronto; campanha em branco continua possível.
+
 ## Ainda não imposto
 
 - Boato como categoria separada de fato (hoje: `fact` sem `secret`, ou memória de NPC).

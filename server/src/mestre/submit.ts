@@ -6,9 +6,14 @@ import { all, one } from "../core/db.ts"
 import { roll } from "../core/dice.ts"
 import { meta, put } from "../core/ledger.ts"
 import * as fc from "../core/factions.ts"
+import * as dg from "../core/dungeon.ts"
+import * as ex from "../core/explore.ts"
+import { DIFFICULTIES, buildEncounter, describeEncounter, THEME_TYPES } from "../core/encounters.ts"
+import { seeded, newSeed } from "../core/rng.ts"
 import * as fx from "../core/features.ts"
 import * as lv from "../core/living.ts"
 import * as mx from "../core/mechanics.ts"
+import { pcView } from "../core/pc.ts"
 import * as sc from "../core/scope.ts"
 import { cast } from "../core/spells.ts"
 import * as w from "../core/world.ts"
@@ -70,6 +75,18 @@ export const BeatOp = z.discriminatedUnion("op", [
   z.object({ op: z.literal("check"), who: ref, what: z.string(), dc: z.number().int().min(1).max(30), mode }).strict(),
   z.object({ op: z.literal("save"), who: ref, ability, dc: z.number().int().min(1).max(30), mode }).strict(),
   z.object({ op: z.literal("attack"), attacker: ref, target: ref, using: z.string(), mode, sneak: z.boolean().optional(), ally_near: z.boolean().optional() }).strict(),
+  z.object({ op: z.literal("dungeon.generate"), as: label.optional(), name: txt.optional(), theme: z.enum(dg.THEME_IDS_TUPLE), level: z.number().int().min(1).max(20).optional(), rooms: z.number().int().min(4).max(20).optional(), from: ref, difficulty: z.enum(DIFFICULTIES).optional(), seed: z.number().int().optional() }).strict(),
+  z.object({ op: z.literal("search"), mode: z.enum(["percepcao", "investigacao"]).optional() }).strict(),
+  z.object({ op: z.literal("disarm"), feature: z.number().int().positive() }).strict(),
+  z.object({ op: z.literal("trap.trigger"), feature: z.number().int().positive() }).strict(),
+  z.object({ op: z.literal("unlock"), door: z.number().int().positive(), method: z.enum(["chave", "ferramentas", "forca"]) }).strict(),
+  z.object({ op: z.literal("solve"), enigma: z.number().int().positive(), skill: z.string().optional() }).strict(),
+  z.object({ op: z.literal("loot"), feature: z.number().int().positive() }).strict(),
+  z.object({ op: z.literal("encounter.engage"), surprise: z.enum(["jogador", "monstros", "nenhum"]).optional() }).strict(),
+  z.object({ op: z.literal("encounter.suggest"), level: z.number().int().min(1).max(20).optional(), difficulty: z.enum(DIFFICULTIES).optional(), theme: z.string().optional() }).strict(),
+  z.object({ op: z.literal("place.describe"), place: ref, details: z.string().trim().min(10).max(900) }).strict(),
+  z.object({ op: z.literal("place.aura"), place: ref, aura: z.enum(["arcane-surge", "dead-magic", "hallowed", "shadowfell", "feybleed", "stormwild", "ley-node"]).nullable() }).strict(),
+  z.object({ op: z.literal("place.danger"), place: ref, danger: z.number().int().min(0).max(3) }).strict(),
   z.object({ op: z.literal("second-wind") }).strict(),
   z.object({ op: z.literal("action-surge") }).strict(),
   z.object({ op: z.literal("rage.start") }).strict(),
@@ -160,7 +177,7 @@ export function submit(c: Campaign, raw: unknown): BeatResult {
         case "create.quest": { const id = w.addQuest(c, { ...op, giver: op.giver ? r(op.giver) : undefined }); bind(op.as, id); lines.push(`missão ${id} ${op.title}`); break }
         case "link": w.link(c, r(op.a), r(op.b), op.minutes, op.via); lines.push(`ligação ${op.a}↔${op.b} ${op.minutes}min`); break
         case "spawn": { const id = sc.spawnChecked(c, op.srd, r(op.place), op); bind(op.as, id); lines.push(`monstro ${id} ${mx.character(c, id).name} (PV ${mx.character(c, id).hp}, CA ${mx.character(c, id).ac})`); break }
-        case "move": { const m = w.move(c, r(op.who), r(op.to)); lines.push(`${op.who} → ${op.to} (${m.minutes} min)`); break }
+        case "move": { const m = w.move(c, r(op.who), r(op.to)); lines.push(`${op.who} → ${op.to} (${m.minutes} min)`, ...m.notes); break }
         case "time": w.advanceTime(c, op.minutes); lines.push(`+${op.minutes} min`); break
         case "attitude": lines.push(`${op.npc} atitude ${w.setAttitude(c, r(op.npc), op.delta, op.reason)}`); break
         case "memory": w.remember(c, op.npcs.map(r), op.text, op.importance); break
@@ -182,6 +199,28 @@ export function submit(c: Campaign, raw: unknown): BeatResult {
         case "check": lines.push(mx.check(c, r(op.who), op.what, op.dc, op.mode).text); break
         case "save": lines.push(mx.save(c, r(op.who), op.ability, op.dc, op.mode).text); break
         case "attack": lines.push(mx.attack(c, r(op.attacker), r(op.target), op.using, op.mode, undefined, { sneak: op.sneak, allyNear: op.ally_near }).text); break
+        case "dungeon.generate": {
+          const d = dg.generateDungeon(c, { ...op, from: r(op.from) })
+          bind(op.as, d.id)
+          lines.push(`masmorra ${d.id} ${d.name} (${d.theme}, nível ${d.level}, semente ${d.seed}): entrada ${d.entrance}, chefe em ${d.boss}`, ...d.rooms.map((x) => `  ${x.id} ${x.name} [${x.role}]`))
+          break
+        }
+        case "search": lines.push(...ex.search(c, pcId, op.mode)); break
+        case "disarm": lines.push(...ex.disarm(c, pcId, op.feature)); break
+        case "trap.trigger": lines.push(...ex.trigger(c, pcId, op.feature)); break
+        case "unlock": lines.push(...ex.unlock(c, pcId, op.door, op.method)); break
+        case "solve": lines.push(...ex.solve(c, pcId, op.enigma, op.skill)); break
+        case "loot": lines.push(...ex.loot(c, pcId, op.feature)); break
+        case "encounter.engage": lines.push(ex.engage(c, op.surprise)); break
+        case "encounter.suggest": {
+          const lvl = op.level ?? pcView(c).sheet.level
+          const e = buildEncounter(c.srd, seeded(newSeed()), { level: lvl, difficulty: op.difficulty ?? "moderada", types: op.theme ? THEME_TYPES[op.theme] : undefined, party: 1 + (one<{ n: number }>(c.db, "SELECT COUNT(*) n FROM characters WHERE companion = 1 AND status = 'vivo'")?.n ?? 0) })
+          lines.push(`sugestão (${e.difficulty}, ${e.total}/${e.budget} XP): ${describeEncounter(e)} — use spawn com srd: ${e.group.map((m) => m.srd).join(", ")}`)
+          break
+        }
+        case "place.describe": c.commit("descricao", [put("places", { id: r(op.place), details: op.details })]); break
+        case "place.aura": c.commit("aura", [put("places", { id: r(op.place), aura: op.aura })]); break
+        case "place.danger": c.commit("perigo-local", [put("places", { id: r(op.place), danger: op.danger })]); break
         case "second-wind": lines.push(fx.secondWind(c, pcId)); break
         case "action-surge": lines.push(fx.actionSurge(c, pcId)); break
         case "rage.start": lines.push(fx.rageStart(c, pcId)); break
@@ -200,6 +239,9 @@ export function submit(c: Campaign, raw: unknown): BeatResult {
         case "death.save": lines.push(mx.deathSave(c, pcId)); break
       }
     }
+    const here = one<{ place_id: string | null }>(c.db, "SELECT place_id FROM characters WHERE id = 'pc'")?.place_id
+    const done = here ? ex.refreshDungeon(c, here) : undefined
+    if (done) lines.push(done)
     if (beat.narration) {
       const expanded = expandRefs(c, beat.narration)
       assertNarration(c, expanded)

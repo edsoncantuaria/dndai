@@ -4,6 +4,7 @@ import type { Campaign } from "./campaign.ts"
 import { getMeta, one } from "./db.ts"
 import { cryptoRng, type RollResult, roll, rollD20, type Rng } from "./dice.ts"
 import { del, meta, type Op, put } from "./ledger.ts"
+import { auraAt, auraOfCharacter, isHallowedFoe } from "./auras.ts"
 import { afterKill } from "./consequences.ts"
 import { alloc, type CharRow, itemsOf, pcView } from "./pc.ts"
 import { attackMods, checkMods, type CreatureState, type D20Mods, resolveMode, saveMods } from "./conditions.ts"
@@ -73,6 +74,20 @@ export function check(c: Campaign, who: string, what: string, dc: number, asked:
   const { mode, why } = resolveMode(asked, mods)
   const r = d20(bonus, mode, rng, mods.penalty)
   const o: RollOutcome = { who, label: `${label}`, expr: `1d20${bonus >= 0 ? "+" : ""}${bonus}`, natural: r.natural, total: r.total, dc, success: r.total >= dc, faces: r.faces, text: "" }
+  o.text = `${row.name} · ${label}: ${r.natural}${bonus >= 0 ? "+" : ""}${bonus}${mods.penalty ? `−${mods.penalty}` : ""} = ${r.total} vs CD ${dc} → ${o.success ? "sucesso" : "falha"}${describe(mods, mode, why)}`
+  const ops: Op[] = []
+  rollRecord(c, o, ops)
+  c.commit("teste", ops)
+  return o
+}
+
+/** Teste com bônus explícito (ferramentas, arma específica): o modo, a exaustão e as condições continuam valendo. */
+export function customCheck(c: Campaign, who: string, label: string, bonus: number, dc: number, ability: Ability | undefined, asked: Mode = "normal", rng: Rng = cryptoRng): RollOutcome {
+  const row = character(c, who)
+  const mods = checkMods(stateOf(JSON.parse(row.sheet)), ability)
+  const { mode, why } = resolveMode(asked, mods)
+  const r = d20(bonus, mode, rng, mods.penalty)
+  const o: RollOutcome = { who, label, expr: `1d20${bonus >= 0 ? "+" : ""}${bonus}`, natural: r.natural, total: r.total, dc, success: r.total >= dc, faces: r.faces, text: "" }
   o.text = `${row.name} · ${label}: ${r.natural}${bonus >= 0 ? "+" : ""}${bonus}${mods.penalty ? `−${mods.penalty}` : ""} = ${r.total} vs CD ${dc} → ${o.success ? "sucesso" : "falha"}${describe(mods, mode, why)}`
   const ops: Op[] = []
   rollRecord(c, o, ops)
@@ -177,6 +192,7 @@ export function endConcentration(c: Campaign, who: string): string {
 
 export function heal(c: Campaign, target: string, amount: number): string {
   if (!Number.isInteger(amount) || amount <= 0) fail("cura inválida")
+  if (auraOfCharacter(c, target) === "shadowfell") amount = Math.max(1, Math.floor(amount / 2)) // o Pálido sufoca a cura
   const row = character(c, target)
   if (row.status === "morto") fail(`${row.name} está morto (cura não ressuscita)`)
   const hp = Math.min(row.max_hp, row.hp + amount)
@@ -282,6 +298,8 @@ export function attack(c: Campaign, attacker: string, target: string, using: str
   // Marcas de Maestria: Vex (vantagem contra o alvo marcado) e Sap (desvantagem no próximo ataque).
   if (notes.vex === target) { mods.adv.push("Maestria Vex"); effects.push("Vex consumido") }
   if (notes.sapped) { mods.dis.push("Maestria Sap"); effects.push("Sap consumido") }
+  if (isHallowedFoe(c, attacker, a.place_id)) mods.dis.push("Solo Sagrado")
+  if (ranged && auraAt(c, a.place_id) === "stormwild") mods.dis.push("vento de tempestade")
   const { mode, why } = resolveMode(asked, mods)
   const r = d20(bonus, mode, rng, mods.penalty)
   const nat20 = r.natural === 20, nat1 = r.natural === 1
@@ -384,7 +402,7 @@ export function combatState(c: Campaign): CombatState | undefined {
   return raw ? (JSON.parse(raw) as CombatState) : undefined
 }
 
-export function startCombat(c: Campaign, ids: string[], rng: Rng = cryptoRng): CombatState {
+export function startCombat(c: Campaign, ids: string[], rng: Rng = cryptoRng, opts: { disadvantage?: string[] } = {}): CombatState {
   if (combatState(c)) fail("já há um combate em andamento")
   if (ids.length < 2) fail("combate precisa de ao menos dois combatentes")
   const ops: Op[] = []
@@ -392,7 +410,7 @@ export function startCombat(c: Campaign, ids: string[], rng: Rng = cryptoRng): C
     const row = character(c, id)
     const sheet = JSON.parse(row.sheet)
     const bonus = sheet.type === "pc" ? pcView(c, id).derived.initiative : mod(sheet.abilities.dex)
-    const r = d20(bonus, "normal", rng)
+    const r = d20(bonus, opts.disadvantage?.includes(id) ? "desvantagem" : "normal", rng)
     rollRecord(c, { who: id, label: "Iniciativa", expr: `1d20${bonus >= 0 ? "+" : ""}${bonus}`, natural: r.natural, total: r.total, faces: r.faces, text: "" }, ops)
     return { id, init: r.total * 100 + bonus * 2 + (r.natural === 20 ? 1 : 0) }
   }).sort((a, b) => b.init - a.init).map((o) => ({ id: o.id, init: Math.floor(o.init / 100) }))
@@ -454,8 +472,18 @@ export function shortRest(c: Campaign, who = "pc", spendDice = 0, rng: Rng = cry
     else if (r.recharge === "short1" && sheet.uses[r.key]) sheet.uses[r.key] = Math.max(0, sheet.uses[r.key]! - 1)
   }
   if (sheet.class === "warlock") for (const s of Object.values(sheet.slots)) s.used = 0
+  // Nó Arcano / Nó de Veio: a magia do lugar devolve até 2 espaços de nível ≤ 3.
+  let ley = ""
+  const aura = auraOfCharacter(c, who)
+  if (aura === "arcane-surge" || aura === "ley-node") {
+    let back = 0
+    for (const lvl of ["3", "2", "1"]) { const s = sheet.slots[lvl]; while (s && s.used > 0 && back < 2) { s.used--; back++ } }
+    if (back) ley = `; o Nó devolve ${back} espaço(s) de magia`
+  }
+  let hallow = ""
+  if (aura === "hallowed" && sheet.hitDiceLeft < sheet.level) { sheet.hitDiceLeft++; hallow = "; Solo Sagrado devolve 1 dado de vida" }
   c.commit("descanso-curto", [put("characters", { id: who, hp, sheet }), meta("time", c.time + 60)])
-  return `descanso curto: +${hp - v.row.hp} PV (${hp}/${v.row.max_hp}), ${sheet.hitDiceLeft} dado(s) de vida`
+  return `descanso curto: +${hp - v.row.hp} PV (${hp}/${v.row.max_hp}), ${sheet.hitDiceLeft} dado(s) de vida${ley}${hallow}`
 }
 
 export function longRest(c: Campaign, who = "pc"): string {
@@ -468,8 +496,10 @@ export function longRest(c: Campaign, who = "pc"): string {
   sheet.exhaustion = Math.max(0, sheet.exhaustion - 1)
   sheet.deathSaves = { ok: 0, fail: 0 }
   sheet.notes = { ...sheet.notes, raging: false }
-  c.commit("descanso-longo", [put("characters", { id: who, hp: v.row.max_hp, temp_hp: 0, sheet }), meta("time", c.time + 8 * 60)])
-  return `descanso longo: PV ${v.row.max_hp}/${v.row.max_hp}, espaços e dados de vida restaurados`
+  const pale = auraOfCharacter(c, who) === "shadowfell"
+  const hpAfter = pale ? Math.min(v.row.max_hp, v.row.hp + Math.ceil((v.row.max_hp - v.row.hp) / 2)) : v.row.max_hp
+  c.commit("descanso-longo", [put("characters", { id: who, hp: hpAfter, temp_hp: 0, sheet }), meta("time", c.time + 8 * 60)])
+  return pale ? `descanso longo no Pálido: PV ${hpAfter}/${v.row.max_hp} (a cura sufoca), espaços e dados restaurados` : `descanso longo: PV ${v.row.max_hp}/${v.row.max_hp}, espaços e dados de vida restaurados`
 }
 
 // ---------- itens e dinheiro ----------

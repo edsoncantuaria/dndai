@@ -4,6 +4,8 @@ import { Campaign } from "../src/core/campaign.ts"
 import { createCharacter, pcView } from "../src/core/pc.ts"
 import * as fc from "../src/core/factions.ts"
 import * as w from "../src/core/world.ts"
+import { generateDungeon } from "../src/core/dungeon.ts"
+import { seedWorld } from "../src/world/seed.ts"
 import { XP_TABLE } from "../src/core/sheet.ts"
 import { autoChoices, autoLevelUp } from "../test/helpers.ts"
 
@@ -19,12 +21,22 @@ function addWorld(c: Campaign): void {
   fc.crime(c, reino, 2, true, "agrediu um guarda na praça")
 }
 
+/** Mundo completo (Auralis) e uma masmorra para as telas de mapa e mundo. */
+function addAuralis(c: Campaign): void { seedWorld(c, "auralis") }
+void generateDungeon
+
 const classes = ["barbarian", "bard", "cleric", "druid", "fighter", "monk", "paladin", "ranger", "rogue", "sorcerer", "warlock", "wizard"]
 const stops = new Set([1, 5, 11, 20])
 for (const cls of classes) {
   const c = Campaign.create(`${cls}-1`, { name: `${cls} (teste)` })
   createCharacter(c, autoChoices(cls))
   addWorld(c)
+  c.close()
+}
+for (const cls of classes.slice(0, 3)) {
+  const c = Campaign.create(`${cls}-auralis`, { name: `${cls} em Auralis` })
+  addAuralis(c)
+  createCharacter(c, autoChoices(cls))
   c.close()
 }
 for (const cls of classes) {
@@ -43,4 +55,4 @@ for (const cls of classes) {
     c.close()
   }
 }
-console.log(`semeadas ${classes.length * 4} campanhas`)
+console.log(`semeadas ${classes.length * 4 + 3} campanhas`)

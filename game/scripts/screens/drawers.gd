@@ -149,6 +149,28 @@ static func spells(view: Dictionary, on_spell: Callable) -> Control:
 	return v
 
 
+static func world(view: Dictionary) -> Control:
+	var v := UI.vbox(10)
+	v.add_child(UI.heading("O Mundo", 28))
+	if view.bible.is_empty():
+		v.add_child(UI.muted("Este mundo ainda não tem um livro: o Mestre o revela jogando."))
+		return v
+	for b in view.bible:
+		var p := UI.panel(10, UI.PANEL_HI)
+		var cv := UI.vbox(4)
+		p.add_child(cv)
+		cv.add_child(UI.label(str(b.title), 21, UI.GOLD, UI.title_font()))
+		var rt := RichTextLabel.new()
+		rt.bbcode_enabled = true
+		rt.fit_content = true
+		rt.scroll_active = false
+		rt.text = str(b.text).replace("**", "")
+		rt.add_theme_font_size_override("normal_font_size", 18)
+		cv.add_child(rt)
+		v.add_child(p)
+	return v
+
+
 static func attitude_label(a: int) -> String:
 	if a <= -60:
 		return "hostil"
@@ -241,23 +263,53 @@ static func journal(view: Dictionary) -> Control:
 
 
 ## `on_go(place_id)` pede o movimento ao Mestre ("Vou para X").
-static func map(view: Dictionary, on_go: Callable) -> Control:
+static func map(view: Dictionary, on_go: Callable, on_say: Callable = Callable()) -> Control:
 	var v := UI.vbox(10)
 	v.add_child(UI.heading("Mapa", 28))
 	if view.place == null:
 		return v
 	v.add_child(UI.label("Você está em: %s" % view.place.name, 22, UI.GOLD))
 	v.add_child(UI.label(str(view.place.summary), 18, UI.MUTED))
+	if view.place.aura != null:
+		v.add_child(UI.label("✦ %s: %s" % [view.place.aura.name, view.place.aura.effect], 17, UI.BLUE))
 	if view.place.control != null:
 		var ctl: String = "Sob o domínio de %s" % view.place.control.faction
 		if view.place.control.realm != null:
 			ctl += " (reino de %s)" % view.place.control.realm
 		v.add_child(UI.label("⚑ " + ctl, 18, UI.GOLD_DIM))
+	if view.dungeon != null:
+		var d: Dictionary = view.dungeon
+		var st: String = {"inexplorada": "inexplorada", "em_andamento": "em exploração", "concluida": "concluída"}.get(str(d.status), str(d.status))
+		v.add_child(UI.label("🏰 %s (%s) — %d/%d salas — %s" % [d.name, str(d.theme).replace("-", " "), int(d.visited), int(d.total), st], 19, UI.GOLD))
+		if on_say.is_valid():
+			var row := UI.hbox(6)
+			row.add_child(UI.button("🔍 Procurar", func(): on_say.call("Procuro com cuidado por armadilhas, passagens secretas e tesouros."), 40))
+			row.add_child(UI.button("👂 Escutar", func(): on_say.call("Paro e escuto, atento a qualquer som por perto."), 40))
+			v.add_child(row)
+	if not view.features.is_empty():
+		v.add_child(_section("Nesta sala"))
+		for f in view.features:
+			var p := UI.panel(8, UI.PANEL_HI)
+			var cv := UI.vbox(2)
+			p.add_child(cv)
+			var icon: String = {"armadilha": "⚠", "perigo": "☠", "porta": "🚪", "tesouro": "💰", "enigma": "❓", "altar": "🕯", "segredo": "✦"}.get(str(f.kind), "•")
+			cv.add_child(UI.label("%s %s" % [icon, f.name], 19, UI.RED if f.kind == "armadilha" or f.kind == "perigo" else UI.TEXT))
+			if f.note != null:
+				cv.add_child(UI.label(str(f.note), 16, UI.MUTED))
+			if on_say.is_valid():
+				var verb: String = {"armadilha": "Tento desarmar", "porta": "Tento abrir", "tesouro": "Recolho", "enigma": "Tento resolver"}.get(str(f.kind), "")
+				if verb != "":
+					var fname: String = str(f.name)
+					cv.add_child(UI.button(verb, func(): on_say.call("%s: %s." % [verb, fname]), 36))
+			v.add_child(p)
 	v.add_child(_section("Saídas"))
 	if view.exits.is_empty():
 		v.add_child(UI.muted("Nenhuma saída conhecida."))
 	for e in view.exits:
 		var nm: String = str(e.name)
-		var label := "%s — %d min%s" % [nm, int(e.minutes), "" if int(e.visited) == 1 else "  (inexplorado)"]
-		v.add_child(UI.button(label, func(): on_go.call(nm), 44))
+		var label := "%s — %d min%s%s" % [nm, int(e.minutes), "" if int(e.visited) == 1 else "  (inexplorado)", "  🔒 trancada" if e.locked else ""]
+		var eb := UI.button(label, func(): on_go.call(nm), 44)
+		eb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		eb.clip_text = true
+		v.add_child(eb)
 	return v
