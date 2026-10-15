@@ -27,7 +27,7 @@ Servir a versão web pelo próprio motor (mesma origem, sem CORS):
 ../engine/bin/dnd serve --static ../app/build/web   # abre em http://127.0.0.1:8790/?campaign=<slug>
 ```
 
-No celular, o app pede o endereço do servidor (ex.: `http://192.168.0.10:8790` na rede local, ou um endereço HTTPS público) e o token, se houver. Fora do loopback, o `dnd serve` exige `--token`.
+No celular, o app usa o servidor da mesa já configurado no build: o jogador só informa suas credenciais. Fora do loopback, o `dnd serve` exige `--token`.
 
 ## Estrutura
 

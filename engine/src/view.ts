@@ -9,6 +9,7 @@ import { getCombat } from "./simulation.ts"
 import {
   abilityMod, type CharacterRow, type ItemRow, charProf, clockParts, getCharacter, getPlace, now, pcId, saveBonus, skillBonus, spellInfo,
 } from "./world.ts"
+import { translateItem, translateLanguage, translateTool } from "./character-options.ts"
 
 function itemView(db: DB, i: ItemRow) {
   const props = JSON.parse(i.props) as Record<string, unknown>
@@ -65,6 +66,13 @@ export function buildView(db: DB, slug: string) {
       featureDetails: s.featureDetails,
       resources: Object.values(s.resources).map((r) => ({ ...r, available: resourceAvailable(c, r.id) })),
       pendingChoices: pendingFeatureChoices(s, c.level),
+      proficiencies: (s.proficiencies ?? []).map((p) => ({
+        id: p,
+        name: translateTool(p) !== p ? translateTool(p) : translateItem(p) !== p ? translateItem(p) : p,
+        kind: p.includes("armor") || p.includes("shield") ? "armadura" : p.includes("weapon") ? "arma" : "geral",
+      })),
+      languages: (s.languages ?? []).map((l) => ({ id: l, name: translateLanguage(l) })),
+      tools: (s.tools ?? []).map((t) => ({ id: t, name: translateTool(t) })),
       portrait: s.portrait ?? null,
     }
   })()

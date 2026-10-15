@@ -19,13 +19,17 @@ const DAMAGE_TYPES: Record<string, string> = {
 
 const cache = new Map<string, Record<string, unknown>[]>()
 
-function load(resource: string): Record<string, unknown>[] {
+export function loadSrd(resource: string): Record<string, unknown>[] {
   const file = resolve(srdDir(), `${resource}.json`)
   if (!cache.has(file)) {
     if (!existsSync(file)) throw new Error(`SRD indisponível: ${file} não existe (defina DNDAI_SRD_DIR).`)
     cache.set(file, JSON.parse(readFileSync(file, "utf8")))
   }
   return cache.get(file)!
+}
+
+function load(resource: string): Record<string, unknown>[] {
+  return loadSrd(resource)
 }
 
 export const SRD_RESOURCES = {

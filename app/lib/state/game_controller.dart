@@ -18,6 +18,7 @@ class GameController extends ChangeNotifier {
   bool live = false;
   bool sending = false;
   RollOutcome? lastOutcome;
+
   /// Resultado da última ação de item, como o motor descreveu (ex.: a cura rolada).
   String? lastActionText;
 
@@ -39,19 +40,21 @@ class GameController extends ChangeNotifier {
   void _listen() {
     _sub?.cancel();
     try {
-      _sub = api.changes(campaign).listen(
-        (_) {
-          _sseAttempt = 0;
-          if (!live) {
-            live = true;
-            _notify();
-          }
-          refresh();
-        },
-        onError: (_) => _reconnect(),
-        onDone: _reconnect,
-        cancelOnError: true,
-      );
+      _sub = api
+          .changes(campaign)
+          .listen(
+            (_) {
+              _sseAttempt = 0;
+              if (!live) {
+                live = true;
+                _notify();
+              }
+              refresh();
+            },
+            onError: (_) => _reconnect(),
+            onDone: _reconnect,
+            cancelOnError: true,
+          );
     } catch (_) {
       _reconnect();
     }
@@ -89,26 +92,40 @@ class GameController extends ChangeNotifier {
   Future<String?> send(String text) => _act(() => api.message(campaign, text));
 
   Future<String?> itemAction(String action, String item) => _act(() async {
-        lastActionText = await api.itemAction(campaign, action, item);
-      });
+    lastActionText = await api.itemAction(campaign, action, item);
+  });
 
   Future<String?> resolveRoll(int id, List<int> dice) => _act(() async {
-        lastOutcome = await api.roll(campaign, id, dice);
-      });
+    lastOutcome = await api.roll(campaign, id, dice);
+  });
 
   Future<String?> useResource(String resource, int amount) => _act(() async {
-        lastActionText = await api.useResource(campaign, resource, amount);
-      });
+    lastActionText = await api.useResource(campaign, resource, amount);
+  });
 
-  Future<String?> levelUp({String hpMode = 'media', String? subclass, String? asi, String? feat, Map<String, List<String>>? choices}) =>
-      _act(() async {
-        lastActionText = await api.levelUp(campaign, hpMode: hpMode, subclass: subclass, asi: asi, feat: feat, choices: choices);
-      });
+  Future<String?> levelUp({
+    String hpMode = 'media',
+    String? subclass,
+    String? asi,
+    String? feat,
+    Map<String, List<String>>? choices,
+  }) => _act(() async {
+    lastActionText = await api.levelUp(
+      campaign,
+      hpMode: hpMode,
+      subclass: subclass,
+      asi: asi,
+      feat: feat,
+      choices: choices,
+    );
+  });
 
-  Future<String?> rest({String kind = 'short', int dice = 1}) =>
-      _act(() async {
-        lastActionText = await api.rest(campaign, kind: kind, dice: dice);
-      });
+  Future<LevelUpOptions> levelUpOptions({String? subclass}) =>
+      api.levelUpOptions(campaign, subclass: subclass);
+
+  Future<String?> rest({String kind = 'short', int dice = 1}) => _act(() async {
+    lastActionText = await api.rest(campaign, kind: kind, dice: dice);
+  });
 
   /// Executa e devolve a mensagem de erro (para a UI mostrar), ou null em caso de sucesso.
   Future<String?> _act(Future<void> Function() fn) async {

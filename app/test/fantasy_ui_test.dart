@@ -203,6 +203,53 @@ void main() {
     await shot('mesa_larga', GameTable(view: view, animateNarration: false, onSend: (_) async => null, onItem: (_, _) async => null, onLeave: () {}, onListen: (_) async {}), const Size(1100, 760));
     await tester.binding.setSurfaceSize(null);
   });
+
+  testWidgets('ficha exibe seções próprias para proficiências, idiomas e ferramentas', (tester) async {
+    await phone(tester);
+    final view = sampleView(withProficiencies: true);
+    await tester.pumpWidget(host(Scaffold(body: SheetDrawer(view: view))));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('Élfico'), 150, scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)).first);
+    expect(find.text('PROFICIÊNCIAS DE ARMAS & ARMADURAS'), findsOneWidget);
+    expect(find.text('Armadura de couro'), findsOneWidget);
+    expect(find.text('Espada curta'), findsOneWidget);
+    expect(find.text('IDIOMAS'), findsOneWidget);
+    expect(find.text('Élfico'), findsOneWidget);
+    expect(find.text('Comum'), findsOneWidget);
+    expect(find.text('FERRAMENTAS'), findsOneWidget);
+    expect(find.text('Ferramentas de ladrão'), findsOneWidget);
+  });
+
+  testWidgets('mapa progressivo oculta locais não descobertos e revela novas saídas dinamicamente', (tester) async {
+    await phone(tester);
+    final initialView = sampleView();
+    // Caverna Secreta é segredo do Mestre e não existe em places
+    await tester.pumpWidget(host(SizedBox(height: 700, child: MapDrawer(view: initialView))));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Taverna do Javali'), findsWidgets);
+    expect(find.textContaining('Trilha Norte'), findsWidgets);
+    expect(find.textContaining('Caverna Secreta'), findsNothing);
+
+    // Jogador descobre Mina Abandonada e o motor envia novo GameView com o local descoberto
+    final updatedView = sampleView(extraPlaces: [
+      {
+        'id': 'lugar:mina',
+        'name': 'Mina Abandonada',
+        'kind': 'mina',
+        'parent': 'lugar:vila',
+        'visited': false,
+        'current': false,
+      },
+    ]);
+
+    await tester.pumpWidget(host(SizedBox(height: 700, child: MapDrawer(view: updatedView))));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Mina Abandonada'), findsWidgets);
+    expect(find.textContaining('Caverna Secreta'), findsNothing);
+  });
 }
 
 Future<void> phone(WidgetTester tester) async {
@@ -237,7 +284,11 @@ Widget host(Widget child, {PlaySettings? settings}) {
   );
 }
 
-GameView sampleView({bool withResource = false}) => GameView.fromJson({
+GameView sampleView({
+  bool withResource = false,
+  bool withProficiencies = false,
+  List<Map<String, dynamic>>? extraPlaces,
+}) => GameView.fromJson({
       'version': 3,
       'campaign': {'name': 'O Selo Quebrado', 'premise': 'Uma mina selada chama os vivos.', 'tone': 'sombrio'},
       'clock': {'day': 4, 'time': '21:10', 'period': 'noite'},
@@ -297,6 +348,17 @@ GameView sampleView({bool withResource = false}) => GameView.fromJson({
         if (withResource) 'resources': [
           {'id': 'segundo-folego', 'name': 'Segundo Fôlego', 'max': 1, 'used': 0, 'resets_on': 'short', 'effect': 'Cura 1d10 + nível', 'available': true},
         ],
+        if (withProficiencies) 'proficiencies': [
+          {'id': 'leather-armor', 'name': 'Armadura de couro', 'kind': 'armadura'},
+          {'id': 'shortsword', 'name': 'Espada curta', 'kind': 'arma'},
+        ],
+        if (withProficiencies) 'languages': [
+          {'id': 'common', 'name': 'Comum'},
+          {'id': 'elvish', 'name': 'Élfico'},
+        ],
+        if (withProficiencies) 'tools': [
+          {'id': 'thieves-tools', 'name': 'Ferramentas de ladrão'},
+        ],
       },
       'location': {
         'id': 'lugar:taverna',
@@ -334,6 +396,7 @@ GameView sampleView({bool withResource = false}) => GameView.fromJson({
           {'id': 'lugar:vila', 'name': 'Vila de Pedra', 'kind': 'vila', 'parent': null, 'visited': true, 'current': false},
           {'id': 'lugar:taverna', 'name': 'Taverna do Javali', 'kind': 'taverna', 'parent': 'lugar:vila', 'visited': true, 'current': true},
           {'id': 'lugar:trilha', 'name': 'Trilha Norte', 'kind': 'trilha', 'parent': 'lugar:vila', 'visited': false, 'current': false},
+          ...?extraPlaces,
         ],
         'links': [
           {'from': 'lugar:taverna', 'to': 'lugar:trilha', 'minutes': 10, 'via': 'porta dos fundos'},

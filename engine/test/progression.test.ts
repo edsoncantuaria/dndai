@@ -8,8 +8,8 @@ import { transaction } from "../src/db.ts"
 import { levelUp, longRest, requestRoll, selectFeature, shortRest, useResource } from "../src/mechanics.ts"
 import { applyOps, parseOps } from "../src/ops.ts"
 import { createPc } from "../src/pc.ts"
-import { applyLevelChoices, pendingFeatureChoices, syncProgression, validateRacialAbilities } from "../src/progression.ts"
-import { XP_THRESHOLDS } from "../src/rules.ts"
+import { applyLevelChoices, levelUpOptions, pendingFeatureChoices, syncProgression, validateRacialAbilities } from "../src/progression.ts"
+import { CLASSES, XP_THRESHOLDS } from "../src/rules.ts"
 import { buildView } from "../src/view.ts"
 import { defaultSheet, getCharacter, pcId } from "../src/world.ts"
 
@@ -93,6 +93,17 @@ describe("recursos e compatibilidade", () => {
 })
 
 describe("subida com escolhas", () => {
+  it("expõe opções de progressão para todas as classes sem regra duplicada na mesa", () => {
+    for (const cls of Object.keys(CLASSES)) {
+      const options = levelUpOptions(defaultSheet({ class: cls }), 1)
+      assert.equal(options.level, 2, cls)
+      assert.ok(options.subclass.options.length > 0, cls)
+    }
+    assert.equal(levelUpOptions(defaultSheet({ class: "clerigo" }), 1).subclass.required, true)
+    assert.equal(levelUpOptions(defaultSheet({ class: "mago" }), 1).subclass.required, true)
+    assert.equal(levelUpOptions(defaultSheet({ class: "guerreiro" }), 5).asi, true)
+    assert.equal(levelUpOptions(defaultSheet({ class: "ladino" }), 9).asi, true)
+  })
   it("exige subclasse no marco e recusa classe errada ou troca", () => {
     create("guerreiro", 2)
     assert.throws(() => up(), /Escolha uma subclasse/)

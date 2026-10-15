@@ -35,9 +35,14 @@ export interface Sheet {
   subclass: string
   background: string
   abilities: Record<Ability, number>
+  baseAbilities: Record<Ability, number> | null
   skills: string[]
   expertise: string[]
   saves: Ability[]
+  proficiencies: string[]
+  tools: string[]
+  languages: string[]
+  creationChoices: Record<string, string[]>
   attacks: Attack[]
   slots: Record<string, { max: number; used: number }>
   spells: string[]
@@ -126,7 +131,9 @@ export function defaultSheet(partial: Partial<Sheet> = {}): Sheet {
   return {
     race: "", class: "", subclass: "", background: "",
     abilities: { for: 10, des: 10, con: 10, int: 10, sab: 10, car: 10 },
-    skills: [], expertise: [], saves: [], attacks: [], slots: {}, spells: [], features: [], featureDetails: [], feats: [], featureChoices: {}, resources: {},
+    baseAbilities: null,
+    skills: [], expertise: [], saves: [], proficiencies: [], tools: [], languages: [], creationChoices: {},
+    attacks: [], slots: {}, spells: [], features: [], featureDetails: [], feats: [], featureChoices: {}, resources: {},
     hitDice: { die: 8, max: 1, used: 0 }, conditions: [], death: { success: 0, fail: 0 }, speed: 9,
     ...partial,
   }

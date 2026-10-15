@@ -19,6 +19,11 @@ A mesa mostra o estado, a narração de cada turno e as rolagens pedidas pelo Me
 | GET | `/api/state?campaign=<slug>` | `GameView` (abaixo). `campaign` é obrigatório (não há campanha global; cada chat do Mestre é uma campanha), exceto se o servidor rodar com `DND_CAMPAIGN` definido. A mesa deve escolher a campanha em `/api/campaigns` e mantê-la na URL (`?campaign=`). |
 | GET | `/api/events?campaign=<slug>` | SSE. Emite `event: change` / `data: {"version": N, "chat": M}` quando o mundo ou a conversa muda. Refaça o GET /api/state. Heartbeat a cada 15s (`: ping`). |
 | GET | `/api/tts?campaign=<slug>&key=chat-<id>\|turn-<n>` | Voz da narração (`audio/mpeg` em streaming, frase a frase). `key` é a fala do Mestre no `chat` ou a narração de um turno do `journal`. Gerada pelo serviço local `engine/tts` (Kokoro pt-BR): o narrador usa a voz Santa, e as falas marcadas `{m}`/`{f}` usam Alex/Dora. Para tocar num `<audio>`, mande o token por `?token=`. 404 narração inexistente; 503 TTS desligado. Repetições saem do cache. |
+| GET | `/api/pc/creation-options?race=<id>&class=<id>&background=<id>` | `CharacterCreationOptions`. Retorna opções válidas de raça, classe, antecedente e equipamento derivadas do catálogo SRD 5e sem mutar o banco. |
+| POST | `/api/pc/create?campaign=<slug>` | Cria a ficha do jogador na campanha. No fluxo SRD atual (`base_abilities`), envie cada decisão em `choices`, indexada pelo `ChoiceGroup.id` retornado por `creation-options` (inclusive equipamento); o motor exige exatamente as opções de cada grupo. `skills`, `languages`, `tools` e `equipment_choices` são mantidos apenas para fichas/CLI legadas. 201 `{ ok, lines }`. |
+| GET | `/api/pc/levelup-options?campaign=<slug>&subclass=<id>` | `LevelUpOptions`. Opções da próxima subida de nível. Se `subclass` for informada, inclui opções da subclasse correspondente. |
+| POST | `/api/pc/levelup?campaign=<slug>` | Body `{ hpMode, subclass, asi, feat, choices }`. Sobe de nível com validação no motor. |
+| POST | `/api/pc/rest?campaign=<slug>` | Body `{ kind: "short"|"long", dice?: number }`. Descanso curto ou longo. |
 | POST | `/api/rolls/:id?campaign=<slug>` | Body `{ "dice": [12, 7] }`: valores naturais rolados na mesa, um por dado de `RollRequest.dice`. Retorna `RollOutcome`. 409 se já resolvida. 400 se a quantidade ou o intervalo dos dados for inválido. |
 | POST | `/api/messages?campaign=<slug>` | Body `{ "text": "..." }`: mensagem do jogador para o Mestre (ChatGPT). O servidor entrega via MCP `dndai-mestre` → Shellby. Retorna 202 `{ id }`. 503 se o Mestre estiver offline. A resposta chega depois em `chat` (acompanhe pelo SSE). |
 | POST | `/api/actions?campaign=<slug>` | Body `{ "action": "usar"\|"equipar"\|"guardar"\|"empunhar"\|"embainhar"\|"largar", "item": "<id>" }`. O motor aplica a regra numa transação (poção rola a cura e consome; armadura/escudo recalculam a CA; empunhar provoca reações em cena) e, com o Mestre conectado, avisa-o para narrar. 200 `{ text }`; 400 ação/body inválido; 404 item que o PC não tem; 409 ação impossível agora (ex.: inconsciente). Use só as ações listadas em `ItemView.actions`. |
@@ -82,7 +87,30 @@ interface PcView {
   featureDetails: { id: string; name: string; description: string; source: "race" | "class" | "subclass" | "feat" }[]
   resources: { id: string; name: string; max: number; used: number; resets_on: "short" | "long"; effect: string; unlimited?: boolean; available: boolean }[]
   pendingChoices: { id: string; name: string; level: number; choose: number; kind: "feature" | "expertise"; options: { id: string; name: string }[] }[]
+  proficiencies: { id: string; name: string; kind: string }[]
+  languages: { id: string; name: string }[]
+  tools: { id: string; name: string }[]
   portrait: string | null              // URL/caminho opcional
+}
+
+interface ChoiceOption { id: string; name: string }
+interface ChoiceGroup {
+  id: string
+  label: string
+  choose: number
+  options: ChoiceOption[]
+  kind: "skill" | "language" | "tool" | "equipment" | "ability"
+}
+interface CharacterCreationOptions {
+  catalog?: {
+    races: ChoiceOption[]
+    classes: ChoiceOption[]
+    backgrounds: ChoiceOption[]
+  }
+  race: { id: string; name: string; fixedBonuses: Partial<Record<Ability, number>>; choices: ChoiceGroup[] }
+  class: { id: string; name: string; savingThrows: Ability[]; proficiencies: ChoiceOption[]; choices: ChoiceGroup[] }
+  background: { id: string; name: string; proficiencies: ChoiceOption[]; choices: ChoiceGroup[] }
+  equipment: ChoiceGroup[]
 }
 
 interface ItemView {
