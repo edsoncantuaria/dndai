@@ -6,7 +6,7 @@ import { all, getMeta, one, setMeta } from "../core/db.ts"
 import { put } from "../core/ledger.ts"
 import { combatState } from "../core/mechanics.ts"
 import { pcRow, pcView } from "../core/pc.ts"
-import { ABILITIES, mod } from "../core/sheet.ts"
+import { ABILITIES, mod, resourceList } from "../core/sheet.ts"
 import { encodeToon } from "./toon.ts"
 
 export const CHAPTER_TURNS = 8
@@ -31,7 +31,8 @@ export function pcCard(c: Campaign): Record<string, unknown> | null {
     pericias: s.skills.map((k) => `${k}${d.skills[k]! >= 0 ? "+" : ""}${d.skills[k]}`).join(" "),
     ataques: d.attacks.map((a) => `${a.item || "-"}:${a.name} ${a.bonus >= 0 ? "+" : ""}${a.bonus} ${a.damage} ${a.damageType}`).join("; "),
     magia: s.spell ? `CD${d.spellDc} atq+${d.spellAttack} truques:${s.spell.cantrips.join(",")} preparadas:${s.spell.prepared.join(",")} espacos:${Object.entries(s.slots).map(([l, x]) => `${l}º${x.max - x.used}/${x.max}`).join(" ")}` : "",
-    recursos: Object.entries(s.classSpecific).filter(([, x]) => typeof x === "number").map(([k, x]) => `${k}:${(x as number) - (s.uses[k] ?? 0)}/${x}`).join(" "),
+    recursos: resourceList(s).map((r) => `${r.key}:${r.max - (s.uses[r.key] ?? 0)}/${r.max}`).join(" "),
+    estados: [s.notes.raging ? "FÚRIA" : "", s.notes.concentration ? `concentrando:${s.notes.concentration}` : ""].filter(Boolean).join(" "),
     dados_vida: `${s.hitDiceLeft}/${s.level}d${s.hitDie}`, dinheiro: gp(v.row.cp),
     itens: v.items.map((i) => `${i.id}:${i.qty > 1 ? `${i.qty}× ` : ""}${i.name}${i.equipped ? "*" : ""}`).join("; "),
     caracteristicas: s.features.join(","), talentos: s.feats.join(","),

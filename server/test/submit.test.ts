@@ -72,3 +72,40 @@ describe("beat do Mestre", () => {
     c.close()
   })
 })
+
+describe("beat: combate e características pelo protocolo do Mestre", () => {
+  it("encontro completo em beats: spawn, iniciativa, ataques, Retomar o Fôlego, XP, descanso e fim", () => {
+    const c = novo("b5")
+    openTurn(c, "Ataco os goblins na estrada.")
+    const r1 = submit(c, { ops: [
+      { op: "spawn", as: "g1", srd: "goblin-warrior", place: "l0" },
+      { op: "spawn", as: "g2", srd: "goblin-warrior", place: "l0" },
+      { op: "combat.start", ids: ["pc", "$g1", "$g2"] },
+    ] })
+    assert.match(r1.lines.join("\n"), /iniciativa:/)
+    // PC ataca até matar os dois (nunca erra feio o suficiente para travar: repete)
+    for (const alvo of ["m1", "m2"]) {
+      for (let i = 0; i < 30 && c.db.prepare("SELECT status FROM characters WHERE id = ?").get(alvo)!.status !== "morto"; i++) {
+        submit(c, { ops: [{ op: "attack", attacker: "pc", target: alvo, using: "Greatsword" }] })
+      }
+      assert.equal(c.db.prepare("SELECT status FROM characters WHERE id = ?").get(alvo)!.status, "morto")
+    }
+    c.db.prepare("UPDATE characters SET hp = 3 WHERE id = 'pc'").run()
+    const r2 = submit(c, { ops: [{ op: "second-wind" }, { op: "combat.end" }, { op: "xp.kills" }, { op: "rest", kind: "short" }] })
+    assert.match(r2.lines.join("\n"), /Retomar o Fôlego/); assert.match(r2.lines.join("\n"), /\+100 XP/)
+    const fin = submit(c, { narration: "Os goblins jazem na estrada e você respira fundo.", summary: "Brann derrotou dois goblins na estrada.", options: ["Revistar os corpos"] })
+    assert.equal(fin.closed, true)
+    assert.equal(pcView(c).row.xp, 100)
+    c.close()
+  })
+
+  it("Fúria, Furtivo, cura e magia inexistente chegam como erro claro e nada é gravado", () => {
+    const c = novo("b6")
+    assert.throws(() => submit(c, { ops: [{ op: "rage.start" }] }), /Fúria é do Bárbaro/)
+    assert.throws(() => submit(c, { ops: [{ op: "lay-on-hands", target: "pc", amount: 3 }] }), /do Paladino/)
+    assert.throws(() => submit(c, { ops: [{ op: "resource.use", key: "mana" }] }), /não existe/)
+    assert.throws(() => submit(c, { ops: [{ op: "item.use", item: "i99" }] }), /não existe/)
+    assert.equal(c.invariants().length, 0)
+    c.close()
+  })
+})

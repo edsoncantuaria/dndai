@@ -36,7 +36,11 @@ multiclasse · criação de itens e downtime · montarias e veículos · grade t
 - **Comércio:** `buy`/`sell` usam o preço do SRD (revenda pela metade).
 - **Escopo por conector:** cada campanha tem a sua URL secreta e só enxerga a si mesma; auditoria em `campaigns/connector-audit.log`.
 
+## Efeitos automáticos (testados)
+
+Condições do SRD (vantagem/desvantagem, falha automática, crítico em alvo indefeso, exaustão), Fúria, Ataque Furtivo (uma vez por turno), Retomar o Fôlego, Surto de Ação, Mãos Consagradas, Maestria com Armas (Graze, Topple, Vex, Sap; Push, Slow, Nick e Cleave viram aviso ao Mestre), concentração (dano exige salvaguarda de CON), cura por magia (2d8+mod, valor fixo, "todos os PV") e poção de cura, kit de curandeiro. Dano de 89 magias e 422 ações de monstros do SRD rodam pelo motor.
+
 ## Ainda não imposto
 
 - Boato como categoria separada de fato (hoje: `fact` sem `secret`, ou memória de NPC).
-- Efeitos mecânicos de características e talentos (Fúria, Ataque Furtivo...): registrados na ficha, adjudicados pelo Mestre.
+- Efeitos de talentos, subclasses e da maioria das magias de utilidade/condição (242 de 339): registrados e gastam espaço/recurso; o Mestre adjudica e usa `condition`/`hazard` para o que muda o estado.

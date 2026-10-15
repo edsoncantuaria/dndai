@@ -6,6 +6,7 @@ import { join } from "node:path"
 import { Campaign } from "../src/core/campaign.ts"
 import type { CreationChoices } from "../src/core/creation.ts"
 import type { Rng } from "../src/core/dice.ts"
+import { spend } from "../src/core/features.ts"
 import * as mx from "../src/core/mechanics.ts"
 import { createCharacter, pcView } from "../src/core/pc.ts"
 import { awardXp, levelUp } from "../src/core/progression.ts"
@@ -85,7 +86,7 @@ describe("mecânica", () => {
   it("descansos restauram PV, dados de vida e recursos", () => {
     const c = novo("m6")
     mx.damage(c, "pc", 8, "fire")
-    mx.useResource(c, "pc", "second_wind_uses")
+    spend(c, "pc", "second_wind_uses")
     assert.match(mx.shortRest(c, "pc", 1, seq(6)), /dado\(s\) de vida/)
     assert.equal(pcView(c).sheet.uses.second_wind_uses ?? 0, 0)
     assert.match(mx.longRest(c), /restaurados/)

@@ -40,6 +40,7 @@ export const MonsterSheetSchema = z.object({
   conditions: z.array(z.string()).default([]),
   uses: z.record(z.string(), z.number().int().min(0)).default({}),
   deathSaves: z.object({ ok: z.number().int().min(0).max(3), fail: z.number().int().min(0).max(3) }).default({ ok: 0, fail: 0 }),
+  notes: z.record(z.string(), z.unknown()).default({}),
 }).strict()
 export type MonsterSheet = z.infer<typeof MonsterSheetSchema>
 
@@ -64,7 +65,7 @@ export interface Derived {
   spellAttack?: number
   attacks: AttackOption[]
 }
-export interface AttackOption { item: string; name: string; bonus: number; damage: string; damageType: string; ranged: boolean; mastery?: string; mastered: boolean; properties: string[] }
+export interface AttackOption { item: string; name: string; bonus: number; damage: string; damageType: string; ranged: boolean; mastery?: string; mastered: boolean; properties: string[]; abilityMod: number; usesStr: boolean }
 
 const has = (list: string[], ...keys: string[]) => keys.some((k) => list.includes(k))
 
@@ -109,11 +110,17 @@ export function derivePc(srd: Srd, sheet: PcSheet, items: ItemRow[]): Derived {
       item: it.id, name: e.name, bonus: m(ab) + (proficient ? prof : 0),
       damage: m(ab) === 0 ? e.damage.damage_dice : `${e.damage.damage_dice}${fmt(m(ab))}`,
       damageType: e.damage.damage_type.index, ranged, mastery: e.mastery?.index,
-      mastered: sheet.mastery.includes(e.index), properties: props,
+      mastered: sheet.mastery.includes(e.index), properties: props, abilityMod: m(ab), usesStr: ab === "str",
     })
   }
-  // Ataque desarmado (2024: 1 + mod de Força, ou arte marcial do Monge tratada no combate).
-  attacks.push({ item: "", name: "Ataque desarmado", bonus: m("str") + prof, damage: `${Math.max(1, 1 + m("str"))}`, damageType: "bludgeoning", ranged: false, mastered: false, properties: [] })
+  // Ataque desarmado: 1 + FOR; o Monge usa a Arte Marcial (dado de classe, melhor entre FOR e DES).
+  const martial = sheet.class === "monk" ? Number((sheet.classSpecific as Record<string, unknown>).martial_arts_die ?? 0) : 0
+  const uAb: Ability = martial && m("dex") > m("str") ? "dex" : "str"
+  attacks.push({
+    item: "", name: "Ataque desarmado", bonus: m(uAb) + prof,
+    damage: martial ? (m(uAb) === 0 ? `1d${martial}` : `1d${martial}${fmt(m(uAb))}`) : `${Math.max(1, 1 + m("str"))}`,
+    damageType: "bludgeoning", ranged: false, mastered: false, properties: [], abilityMod: m(uAb), usesStr: uAb === "str",
+  })
 
   const d: Derived = {
     prof, ac, initiative: m("dex") + (sheet.feats.includes("alert") ? prof : 0),
@@ -124,4 +131,22 @@ export function derivePc(srd: Srd, sheet: PcSheet, items: ItemRow[]): Derived {
     d.spellAttack = prof + m(sheet.spell.ability)
   }
   return d
+}
+
+export interface Resource { key: string; max: number; label: string; recharge: "short" | "long" | "short1" }
+
+/** Recursos de classe: números do SRD (class_specific) + os que o SRD descreve só em texto. */
+export function resourceList(sheet: PcSheet): Resource[] {
+  const out: Resource[] = []
+  const cs = sheet.classSpecific as Record<string, unknown>
+  const num = (k: string) => (typeof cs[k] === "number" ? (cs[k] as number) : 0)
+  const mapping: [string, string, Resource["recharge"]][] = [
+    ["rage_count", "Fúrias", "short1"], ["second_wind_uses", "Retomar o Fôlego", "short1"], ["channel_divinity_charges", "Canalizar Divindade", "short1"],
+    ["wild_shape_uses", "Forma Selvagem", "short1"], ["focus_points", "Pontos de Foco", "short"], ["sorcery_points", "Pontos de Feitiçaria", "long"],
+  ]
+  for (const [k, label, recharge] of mapping) if (num(k) > 0) out.push({ key: k, max: num(k), label, recharge })
+  if (sheet.class === "fighter" && sheet.level >= 2) out.push({ key: "action_surge", max: sheet.level >= 17 ? 2 : 1, label: "Surto de Ação", recharge: "short" })
+  if (sheet.class === "bard") out.push({ key: "bardic_inspiration", max: Math.max(1, mod(sheet.abilities.cha)), label: "Inspiração de Bardo", recharge: sheet.level >= 5 ? "short" : "long" })
+  if (sheet.class === "paladin") out.push({ key: "lay_on_hands", max: 5 * sheet.level, label: "Mãos Consagradas (PV)", recharge: "long" })
+  return out
 }

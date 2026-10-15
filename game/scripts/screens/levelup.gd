@@ -58,6 +58,42 @@ func _ready() -> void:
 		var n: Dictionary = (await Api.post_json("/api/creation/needs", {"class": view.pc.class_index, "background": "soldier", "species": "human"})).data
 		_mastery_opts = n.mastery.from if n.get("mastery") != null else []
 	_render()
+	if OS.get_cmdline_user_args().has("--levelup-auto"):
+		await _dev_auto()
+
+
+## Só para testes: escolhe a primeira opção válida de tudo, como um jogador apressado, e confirma.
+func _dev_auto() -> void:
+	if needs.subclass != null:
+		c["subclass"] = str(needs.subclass[0].index)
+	if needs.asi != null:
+		c["asi_mode"] = "plus1"
+		c["asi_a"] = str(needs.asi.abilities[0])
+		c["asi_b"] = str(needs.asi.abilities[1])
+	if needs.epic_boon != null:
+		c["feat"] = str(needs.epic_boon[0].index)
+	if needs.spells != null:
+		var sp: Dictionary = needs.spells
+		for x in sp.cantrip_list:
+			if c["cantrips"].size() < int(sp.cantrips) and not c["cantrips"].has(x.index):
+				c["cantrips"].append(x.index)
+		if sp.wizard:
+			var want: int = c["spellbook"].size() + 2
+			for x in sp.spell_list:
+				if c["spellbook"].size() < want and not c["spellbook"].has(x.index):
+					c["spellbook"].append(x.index)
+		var pool: Array = c["spellbook"] if sp.wizard else sp.spell_list.map(func(x): return x.index)
+		c["prepared"] = c["prepared"].filter(func(x): return pool.has(x)).slice(0, int(sp.prepared))
+		for x in pool:
+			if c["prepared"].size() < int(sp.prepared) and not c["prepared"].has(x):
+				c["prepared"].append(x)
+	if needs.mastery != null:
+		for x in _mastery_opts:
+			if c["mastery"].size() < int(needs.mastery.count):
+				c["mastery"].append(x.index)
+	await _submit()
+	print("[levelup] ", "erro: " + _error.text if _error.text != "" else "ok", " nível ", int(needs.level))
+	get_tree().quit()
 
 
 func _checks(title: String, items: Array, selected: Array, limit: int, on_change := Callable()) -> VBoxContainer:

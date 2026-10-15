@@ -51,10 +51,26 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--act="):
 			_send_action(a.substr(6))
+		elif a == "--drawers=all":
+			await _cycle_drawers()
 		elif a == "--levelup":
 			_level_up()
 		elif a.begins_with("--drawer="):
 			open_drawer(a.substr(9))
+
+
+## Só para testes: abre cada gaveta (e a subida de nível, se houver) e sai; erros de script aparecem no log.
+func _cycle_drawers() -> void:
+	for kind in ["sheet", "bag", "spells", "journal", "people", "map"]:
+		open_drawer(kind)
+		await get_tree().process_frame
+		await get_tree().process_frame
+	close_drawer()
+	if view.pc.can_level_up:
+		_level_up()
+		await get_tree().create_timer(5.0).timeout  # com --levelup-auto o formulário se preenche, confirma e sai
+	print("[drawers] ok ", slug, " nível ", int(view.pc.level))
+	get_tree().quit()
 
 
 func _exit_tree() -> void:
@@ -221,6 +237,10 @@ func _render_side() -> void:
 	_side_box.add_child(UI.label("PV %d/%d · CA %d" % [int(pc.hp), int(pc.max_hp), int(pc.ac)], 18))
 	if not pc.conditions.is_empty():
 		_side_box.add_child(UI.label(", ".join(pc.conditions), 16, UI.RED))
+	if pc.raging:
+		_side_box.add_child(UI.label("🔥 Em Fúria", 17, UI.RED))
+	if pc.concentration != null:
+		_side_box.add_child(UI.label("◎ Concentrando: %s" % str(pc.concentration).replace("-", " "), 16, UI.BLUE))
 	if pc.can_level_up:
 		_side_box.add_child(UI.button("⬆ Subir de nível", _level_up, 40))
 	if view.combat != null:

@@ -3,7 +3,7 @@ import type { Campaign } from "./core/campaign.ts"
 import { all, getMeta } from "./core/db.ts"
 import { combatState } from "./core/mechanics.ts"
 import { pcRow, pcView } from "./core/pc.ts"
-import { ABILITIES, ABILITY_PT, mod, XP_TABLE } from "./core/sheet.ts"
+import { ABILITIES, ABILITY_PT, mod, resourceList, XP_TABLE } from "./core/sheet.ts"
 import { clock } from "./mestre/context.ts"
 import { chatView } from "./mestre/queue.ts"
 
@@ -30,7 +30,8 @@ export function gameView(c: Campaign, slug: string) {
       skills, prof: d.prof, initiative: d.initiative, passive_perception: d.passivePerception, speed: s.speed, size: s.size,
       spell: s.spell ? { ability: s.spell.ability, dc: d.spellDc, attack: d.spellAttack, cantrips: s.spell.cantrips.map((i) => ({ index: i, name: c.srd.get("spells", i)?.name ?? i })), prepared: s.spell.prepared.map((i) => ({ index: i, name: c.srd.get("spells", i)?.name ?? i, level: c.srd.get("spells", i)?.level })), spellbook: s.spell.spellbook ?? null } : null,
       slots: Object.entries(s.slots).map(([level, x]) => ({ level: Number(level), max: x.max, used: x.used })),
-      resources: Object.entries(s.classSpecific).filter(([, x]) => typeof x === "number").map(([key, x]) => ({ key, max: x as number, left: (x as number) - (s.uses[key] ?? 0) })),
+      resources: resourceList(s).map((r) => ({ key: r.key, label: r.label, max: r.max, left: r.max - (s.uses[r.key] ?? 0) })),
+      raging: !!s.notes.raging, concentration: (s.notes.concentration as string | null) ?? null,
       hit_dice: { die: s.hitDie, left: s.hitDiceLeft, max: s.level }, money_cp: v.row.cp,
       features: s.features.map((i) => ({ index: i, name: nameOf("features", i) })), feats: s.feats.map((i) => ({ index: i, name: nameOf("feats", i) })), traits: s.traits.map((i) => ({ index: i, name: nameOf("traits", i) })),
       languages: s.languages.map((i) => c.srd.get("languages", i)?.name ?? i), tools: s.tools, mastery: s.mastery,

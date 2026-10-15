@@ -5,12 +5,14 @@ import { getMeta, one } from "./db.ts"
 import { cryptoRng, type RollResult, roll, rollD20, type Rng } from "./dice.ts"
 import { del, meta, type Op, put } from "./ledger.ts"
 import { alloc, type CharRow, itemsOf, pcView } from "./pc.ts"
-import { ABILITIES, type Ability, type MonsterSheet, mod, MonsterSheetSchema, PcSheetSchema, profBonus } from "./sheet.ts"
+import { attackMods, checkMods, type CreatureState, type D20Mods, resolveMode, saveMods } from "./conditions.ts"
+import { ABILITIES, type Ability, type AttackOption, type MonsterSheet, mod, MonsterSheetSchema, PcSheetSchema, profBonus, resourceList } from "./sheet.ts"
 
 export class RuleError extends Error {}
 const fail = (m: string): never => { throw new RuleError(m) }
 
 export type Mode = "normal" | "vantagem" | "desvantagem"
+export type { Mode as D20Mode }
 
 export interface RollOutcome {
   who: string; label: string; expr: string; natural?: number; total: number; dc?: number; success?: boolean
@@ -29,49 +31,72 @@ function rollRecord(c: Campaign, o: RollOutcome, ops: Op[]): void {
   ops.push(put("rolls", { turn: c.turn, who: o.who, kind: "d20", label: o.label, expr: o.expr, total: o.total, natural: o.natural ?? null, dc: o.dc ?? null, success: o.success === undefined ? null : Number(o.success), result: { faces: o.faces, crit: o.crit } }))
 }
 
-/** d20 + bônus com vantagem/desvantagem. */
-function d20(bonus: number, mode: Mode, rng: Rng) {
+/** d20 + bônus (− penalidade) com vantagem/desvantagem. */
+function d20(bonus: number, mode: Mode, rng: Rng, penalty = 0) {
   const { natural, seen } = rollD20(mode, rng)
-  return { natural, total: natural + bonus, faces: seen.map((v) => ({ sides: 20, value: v, kept: v === natural })) }
+  return { natural, total: natural + bonus - penalty, faces: seen.map((v) => ({ sides: 20, value: v, kept: v === natural })) }
 }
 
-function bonusFor(c: Campaign, row: CharRow, what: string): { bonus: number; label: string } {
+export function stateOf(sheet: any): CreatureState {
+  return { conditions: sheet.conditions ?? [], exhaustion: sheet.exhaustion ?? 0, raging: !!sheet.notes?.raging }
+}
+
+function bonusFor(c: Campaign, row: CharRow, what: string): { bonus: number; label: string; ability?: Ability } {
   const sheet = JSON.parse(row.sheet)
   if (sheet.type === "pc") {
     const d = pcView(c, row.id).derived
-    if ((ABILITIES as readonly string[]).includes(what)) return { bonus: mod(sheet.abilities[what]), label: what.toUpperCase() }
-    if (what in d.skills) return { bonus: d.skills[what]!, label: c.srd.require("skills", what).name }
+    if ((ABILITIES as readonly string[]).includes(what)) return { bonus: mod(sheet.abilities[what]), label: what.toUpperCase(), ability: what as Ability }
+    if (what in d.skills) {
+      const sk = c.srd.require("skills", what)
+      return { bonus: d.skills[what]!, label: sk.name, ability: c.srd.require("skills", what, "en").ability_score.index }
+    }
     return fail(`"${what}" não é atributo nem perícia`)
   }
   const m = sheet as MonsterSheet
-  if ((ABILITIES as readonly string[]).includes(what)) return { bonus: mod(m.abilities[what as Ability]), label: what.toUpperCase() }
+  if ((ABILITIES as readonly string[]).includes(what)) return { bonus: mod(m.abilities[what as Ability]), label: what.toUpperCase(), ability: what as Ability }
   const sk = c.srd.get("skills", what, "en") ?? fail(`"${what}" não é atributo nem perícia`)
   const prof = (c.srd.require("monsters", m.srd, "en").proficiencies ?? []).find((p: any) => p.proficiency.index === `skill-${what}`)
-  return { bonus: prof ? prof.value : mod(m.abilities[sk.ability_score.index as Ability]), label: sk.name }
+  return { bonus: prof ? prof.value : mod(m.abilities[sk.ability_score.index as Ability]), label: c.srd.get("skills", what)?.name ?? sk.name, ability: sk.ability_score.index }
 }
 
-export function check(c: Campaign, who: string, what: string, dc: number, mode: Mode = "normal", rng: Rng = cryptoRng): RollOutcome {
+function describe(mods: D20Mods, mode: Mode, why: string[]): string {
+  const bits = [...why, ...(mods.penalty ? [`exaustão −${mods.penalty}`] : [])]
+  return bits.length ? ` [${bits.join("; ")}${mode !== "normal" ? ` ⇒ ${mode}` : ""}]` : ""
+}
+
+export function check(c: Campaign, who: string, what: string, dc: number, asked: Mode = "normal", rng: Rng = cryptoRng): RollOutcome {
   const row = character(c, who)
-  const { bonus, label } = bonusFor(c, row, what)
-  const r = d20(bonus, mode, rng)
+  const sheet = JSON.parse(row.sheet)
+  const { bonus, label, ability } = bonusFor(c, row, what)
+  const mods = checkMods(stateOf(sheet), ability)
+  const { mode, why } = resolveMode(asked, mods)
+  const r = d20(bonus, mode, rng, mods.penalty)
   const o: RollOutcome = { who, label: `${label}`, expr: `1d20${bonus >= 0 ? "+" : ""}${bonus}`, natural: r.natural, total: r.total, dc, success: r.total >= dc, faces: r.faces, text: "" }
-  o.text = `${row.name} · ${label}: ${r.natural}${bonus >= 0 ? "+" : ""}${bonus} = ${r.total} vs CD ${dc} → ${o.success ? "sucesso" : "falha"}`
+  o.text = `${row.name} · ${label}: ${r.natural}${bonus >= 0 ? "+" : ""}${bonus}${mods.penalty ? `−${mods.penalty}` : ""} = ${r.total} vs CD ${dc} → ${o.success ? "sucesso" : "falha"}${describe(mods, mode, why)}`
   const ops: Op[] = []
   rollRecord(c, o, ops)
   c.commit("teste", ops)
   return o
 }
 
-export function save(c: Campaign, who: string, ability: Ability, dc: number, mode: Mode = "normal", rng: Rng = cryptoRng): RollOutcome {
+export function save(c: Campaign, who: string, ability: Ability, dc: number, asked: Mode = "normal", rng: Rng = cryptoRng): RollOutcome {
   const row = character(c, who)
   const sheet = JSON.parse(row.sheet)
   const prof = sheet.type === "pc" ? profBonus(sheet.level) : sheet.prof
   const proficient = sheet.type === "pc" ? sheet.saves.includes(ability) : (c.srd.require("monsters", sheet.srd, "en").proficiencies ?? []).some((p: any) => p.proficiency.index === `saving-throw-${ability}`)
   const bonus = mod(sheet.abilities[ability]) + (proficient ? prof : 0)
-  const r = d20(bonus, mode, rng)
-  const o: RollOutcome = { who, label: `Salvaguarda de ${ability.toUpperCase()}`, expr: `1d20${bonus >= 0 ? "+" : ""}${bonus}`, natural: r.natural, total: r.total, dc, success: r.total >= dc, faces: r.faces, text: "" }
-  o.text = `${row.name} · ${o.label}: ${r.natural}${bonus >= 0 ? "+" : ""}${bonus} = ${r.total} vs CD ${dc} → ${o.success ? "sucesso" : "falha"}`
+  const mods = saveMods(stateOf(sheet), ability)
   const ops: Op[] = []
+  if (mods.autoFail) {
+    const o: RollOutcome = { who, label: `Salvaguarda de ${ability.toUpperCase()}`, expr: "falha automática", total: 0, dc, success: false, faces: [], text: `${row.name} · Salvaguarda de ${ability.toUpperCase()}: falha automática (${mods.autoFail})` }
+    rollRecord(c, o, ops)
+    c.commit("salvaguarda", ops)
+    return o
+  }
+  const { mode, why } = resolveMode(asked, mods)
+  const r = d20(bonus, mode, rng, mods.penalty)
+  const o: RollOutcome = { who, label: `Salvaguarda de ${ability.toUpperCase()}`, expr: `1d20${bonus >= 0 ? "+" : ""}${bonus}`, natural: r.natural, total: r.total, dc, success: r.total >= dc, faces: r.faces, text: "" }
+  o.text = `${row.name} · ${o.label}: ${r.natural}${bonus >= 0 ? "+" : ""}${bonus}${mods.penalty ? `−${mods.penalty}` : ""} = ${r.total} vs CD ${dc} → ${o.success ? "sucesso" : "falha"}${describe(mods, mode, why)}`
   rollRecord(c, o, ops)
   c.commit("salvaguarda", ops)
   return o
@@ -89,6 +114,7 @@ function hurt(row: CharRow, sheet: any, amount: number, crit = false): { patch: 
   temp -= absorbed; left -= absorbed
   const hp = Math.max(0, row.hp - left)
   const patch: Record<string, unknown> = { id: row.id, hp, temp_hp: temp }
+  if (row.status === "estavel" && left > 0) patch.status = "inconsciente" // dano desestabiliza
   let note = `${amount} de dano`
   if (row.hp === 0 && row.kind === "pc" && left > 0) {
     // Dano com 0 PV: falha automática na salvaguarda contra morte (crítico = 2).
@@ -98,29 +124,53 @@ function hurt(row: CharRow, sheet: any, amount: number, crit = false): { patch: 
     return { patch, note }
   }
   if (hp === 0) {
+    const ended = { ...(sheet.notes ?? {}), raging: false, concentration: null }
     if (row.kind === "pc") {
-      if (left - row.hp >= row.max_hp) { patch.status = "morto"; note += " — morte instantânea" }
-      else { patch.status = "inconsciente"; patch.sheet = { ...sheet, conditions: [...new Set([...(sheet.conditions ?? []), "unconscious"])], deathSaves: { ok: 0, fail: 0 } }; note += " — caiu inconsciente" }
-    } else { patch.status = "morto"; note += " — morreu" }
+      if (left - row.hp >= row.max_hp) { patch.status = "morto"; patch.sheet = { ...sheet, notes: ended }; note += " — morte instantânea" }
+      else { patch.status = "inconsciente"; patch.sheet = { ...sheet, conditions: [...new Set([...(sheet.conditions ?? []), "unconscious"])], deathSaves: { ok: 0, fail: 0 }, notes: ended }; note += " — caiu inconsciente" }
+    } else { patch.status = "morto"; patch.sheet = { ...sheet, notes: ended }; note += " — morreu" }
   }
   return { patch, note }
 }
 
-export function damage(c: Campaign, target: string, amount: number, type = "", opts: { crit?: boolean } = {}): string {
+const PHYSICAL = ["bludgeoning", "piercing", "slashing"]
+
+export function damage(c: Campaign, target: string, amount: number, type = "", opts: { crit?: boolean } = {}, rng: Rng = cryptoRng): string {
   if (!Number.isInteger(amount) || amount < 0) fail("dano inválido")
   const row = character(c, target)
   if (row.status === "morto") fail(`${row.name} já está morto`)
   const sheet = JSON.parse(row.sheet)
   let n = amount
+  let why = ""
   if (sheet.type === "monster") {
     const m = c.srd.require("monsters", sheet.srd, "en")
-    if (RES(m.damage_immunities, type)) n = 0
-    else if (RES(m.damage_resistances, type)) n = Math.floor(n / 2)
-    else if (RES(m.damage_vulnerabilities, type)) n *= 2
-  }
+    if (RES(m.damage_immunities, type)) { n = 0; why = "imune" }
+    else if (RES(m.damage_resistances, type)) { n = Math.floor(n / 2); why = "resistência" }
+    else if (RES(m.damage_vulnerabilities, type)) { n *= 2; why = "vulnerabilidade" }
+  } else if (sheet.notes?.raging && PHYSICAL.includes(type)) { n = Math.floor(n / 2); why = "Fúria" }
   const { patch, note } = hurt(row, sheet, n, opts.crit)
   c.commit("dano", [put("characters", patch)])
-  return `${row.name}: ${note}${n !== amount ? ` (ajustado por resistência: ${amount}→${n})` : ""}`
+  let text = `${row.name}: ${note}${n !== amount ? ` (${why}: ${amount}→${n})` : ""}`
+  // Concentração: dano exige salvaguarda de Constituição (CD 10 ou metade do dano); incapacitado perde na hora.
+  const after = character(c, target)
+  const notes = JSON.parse(after.sheet).notes ?? {}
+  if (notes.concentration && n > 0) {
+    if (after.status !== "vivo") text += ` · ${endConcentration(c, target)}`
+    else {
+      const r = save(c, target, "con", Math.max(10, Math.floor(n / 2)), "normal", rng)
+      text += ` · concentração (${notes.concentration}): ${r.success ? "mantida" : endConcentration(c, target)}`
+    }
+  }
+  return text
+}
+
+export function endConcentration(c: Campaign, who: string): string {
+  const row = character(c, who)
+  const sheet = JSON.parse(row.sheet)
+  const was = sheet.notes?.concentration
+  if (!was) return "sem concentração"
+  c.commit("concentracao", [put("characters", { id: who, sheet: { ...sheet, notes: { ...(sheet.notes ?? {}), concentration: null } } })])
+  return `${row.name} perdeu a concentração em ${was}`
 }
 
 export function heal(c: Campaign, target: string, amount: number): string {
@@ -190,44 +240,138 @@ export function spawnMonster(c: Campaign, srdIndex: string, place: string, name?
   return id
 }
 
-export interface AttackResult { text: string; hit: boolean; crit: boolean; damage: number; outcome: RollOutcome }
+export interface AttackResult { text: string; hit: boolean; crit: boolean; damage: number; outcome: RollOutcome; effects: string[] }
+export interface AttackOpts { sneak?: boolean; allyNear?: boolean }
 
-/** Ataque de um PC (item de arma ou desarmado) ou de um monstro (ação do bloco de estatísticas) contra um alvo. */
-export function attack(c: Campaign, attacker: string, target: string, using: string, mode: Mode = "normal", rng: Rng = cryptoRng): AttackResult {
+/** Mescla `patch` nas notas da ficha (estados temporários: Fúria, concentração, marcas de Maestria). */
+export function setNotes(c: Campaign, id: string, patch: Record<string, unknown>): void {
+  const row = character(c, id)
+  const sheet = JSON.parse(row.sheet)
+  c.commit("notas", [put("characters", { id, sheet: { ...sheet, notes: { ...(sheet.notes ?? {}), ...patch } } })])
+}
+
+/** Ataque de um PC (arma ou desarmado) ou de um monstro (ação do bloco de estatísticas) contra um alvo. */
+export function attack(c: Campaign, attacker: string, target: string, using: string, asked: Mode = "normal", rng: Rng = cryptoRng, opts: AttackOpts = {}): AttackResult {
   const a = character(c, attacker), t = character(c, target)
   if (a.status !== "vivo") fail(`${a.name} não pode atacar (${a.status})`)
   if (t.status === "morto") fail(`${t.name} já está morto`)
-  const sheet = JSON.parse(a.sheet)
-  let bonus: number, dmgExpr: string, dmgType: string, label: string
+  if (attacker === target) fail("não se ataca a si mesmo")
+  const sheet = JSON.parse(a.sheet), tSheet = JSON.parse(t.sheet)
+  if ((sheet.conditions ?? []).some((x: string) => ["incapacitated", "paralyzed", "stunned", "unconscious", "petrified"].includes(x))) fail(`${a.name} está incapacitado e não pode atacar`)
+  let bonus: number, label: string, ranged = false
+  let dmgParts: { expr: string; type: string; onlyAdv?: boolean }[]
+  let weapon: AttackOption | undefined
   if (sheet.type === "pc") {
-    const opts = pcView(c, attacker).derived.attacks
-    const opt = opts.find((o) => o.item === using || o.name.toLowerCase() === using.toLowerCase()) ?? fail(`arma "${using}" não encontrada (${opts.map((o) => o.item || o.name).join(", ")})`)
-    ;({ bonus, damage: dmgExpr, damageType: dmgType, name: label } = opt)
+    const options = pcView(c, attacker).derived.attacks
+    weapon = options.find((o) => o.item === using || o.name.toLowerCase() === using.toLowerCase()) ?? fail(`arma "${using}" não encontrada (${options.map((o) => o.item || o.name).join(", ")})`)
+    bonus = weapon.bonus; label = weapon.name; ranged = weapon.ranged
+    dmgParts = [{ expr: weapon.damage, type: weapon.damageType }]
   } else {
     const m = c.srd.require("monsters", sheet.srd, "en")
     const act = (m.actions ?? []).find((x: any) => x.name.toLowerCase() === using.toLowerCase() && x.attack_bonus !== undefined) ?? fail(`ação "${using}" não existe (${(m.actions ?? []).filter((x: any) => x.attack_bonus !== undefined).map((x: any) => x.name).join(", ")})`)
     bonus = act.attack_bonus; label = act.name
-    dmgExpr = act.damage[0].damage_dice; dmgType = act.damage[0].damage_type.index
+    ranged = /ranged attack roll/i.test(act.desc ?? "") && !/melee or ranged/i.test(act.desc ?? "")
+    dmgParts = act.damage.map((d: any, i: number) => ({ expr: d.damage_dice, type: d.damage_type.index, onlyAdv: i > 0 && /if the attack roll had advantage/i.test(act.desc ?? "") }))
   }
-  const r = d20(bonus, mode, rng)
-  const crit = r.natural === 20, miss = r.natural === 1
-  const hit = !miss && (crit || r.total >= t.ac)
-  const o: RollOutcome = { who: attacker, label: `Ataque: ${label}`, expr: `1d20${bonus >= 0 ? "+" : ""}${bonus}`, natural: r.natural, total: r.total, dc: t.ac, success: hit, crit: crit ? "acerto" : miss ? "falha" : undefined, faces: r.faces, text: "" }
-  const ops: Op[] = []
-  let dmg = 0
+
+  const effects: string[] = []
+  const mods = attackMods(stateOf(sheet), stateOf(tSheet), ranged)
+  const notes = sheet.notes ?? {}
+  // Marcas de Maestria: Vex (vantagem contra o alvo marcado) e Sap (desvantagem no próximo ataque).
+  if (notes.vex === target) { mods.adv.push("Maestria Vex"); effects.push("Vex consumido") }
+  if (notes.sapped) { mods.dis.push("Maestria Sap"); effects.push("Sap consumido") }
+  const { mode, why } = resolveMode(asked, mods)
+  const r = d20(bonus, mode, rng, mods.penalty)
+  const nat20 = r.natural === 20, nat1 = r.natural === 1
+  const hit = !nat1 && (nat20 || r.total >= t.ac)
+  const crit = hit && (nat20 || !!mods.critMelee)
+  const o: RollOutcome = { who: attacker, label: `Ataque: ${label}`, expr: `1d20${bonus >= 0 ? "+" : ""}${bonus}`, natural: r.natural, total: r.total, dc: t.ac, success: hit, crit: nat20 ? "acerto" : nat1 ? "falha" : undefined, faces: r.faces, text: "" }
+
+  // Dano: dados da arma/ação + Fúria + Ataque Furtivo.
+  const parts: { expr: string; type: string; value: number }[] = []
   let faces = o.faces
+  let total = 0
   if (hit) {
-    const d = roll(dmgExpr, rng, crit)
-    dmg = Math.max(0, d.total)
-    faces = [...faces, ...d.faces]
+    for (const p of dmgParts) {
+      if (p.onlyAdv && mode !== "vantagem") continue
+      let expr = p.expr
+      if (parts.length === 0 && sheet.type === "pc") {
+        if (sheet.notes?.raging && weapon?.usesStr && !ranged) expr += `+${Number(sheet.classSpecific?.rage_damage_bonus ?? 0)}`
+        if (opts.sneak) {
+          const cls = sheet.class
+          const sa = (sheet.classSpecific as any)?.sneak_attack
+          if (cls !== "rogue" || !sa) fail("só o Ladino tem Ataque Furtivo")
+          const finesseOrRanged = ranged || weapon?.properties.includes("finesse")
+          if (!finesseOrRanged) fail("Ataque Furtivo exige arma Finesse ou à distância")
+          if (mode === "desvantagem") fail("Ataque Furtivo não vale com desvantagem")
+          if (mode !== "vantagem" && !opts.allyNear) fail("Ataque Furtivo exige vantagem ou um aliado a 1,5 m do alvo (allyNear)")
+          const key = `${c.turn}:${combatState(c)?.round ?? 0}`
+          if (notes.sneak_key === key) fail("Ataque Furtivo já usado neste turno")
+          expr += `+${sa.dice_count}d${sa.dice_value}`
+          effects.push(`Ataque Furtivo +${sa.dice_count}d${sa.dice_value}`)
+          setNotes(c, attacker, { sneak_key: key })
+        }
+      }
+      const d = roll(expr, rng, crit)
+      faces = [...faces, ...d.faces]
+      total += Math.max(0, d.total)
+      parts.push({ expr, type: p.type, value: Math.max(0, d.total) })
+    }
     o.faces = faces
   }
+  const ops: Op[] = []
   rollRecord(c, o, ops)
   c.commit("ataque", ops)
-  let text = `${a.name} → ${t.name} (${label}): ${r.natural}${bonus >= 0 ? "+" : ""}${bonus} = ${r.total} vs CA ${t.ac} → ${crit ? "ACERTO CRÍTICO" : hit ? "acerta" : miss ? "erro crítico" : "erra"}`
-  if (hit) text += ` · ${damage(c, target, dmg, dmgType, { crit })}`
+  // Consome marcas de Maestria usadas neste ataque.
+  const spent: Record<string, unknown> = {}
+  if (notes.vex === target) spent.vex = null
+  if (notes.sapped) spent.sapped = false
+  if (Object.keys(spent).length) setNotes(c, attacker, spent)
+
+  const bonusTxt = `${bonus >= 0 ? "+" : ""}${bonus}${mods.penalty ? `−${mods.penalty}` : ""}`
+  let text = `${a.name} → ${t.name} (${label}): ${r.natural}${bonusTxt} = ${r.total} vs CA ${t.ac} → ${crit ? (nat20 ? "ACERTO CRÍTICO" : "CRÍTICO (alvo indefeso)") : hit ? "acerta" : nat1 ? "erro crítico" : "erra"}${describe(mods, mode, why)}`
+  if (hit) {
+    const results: string[] = []
+    for (const p of parts) {
+      if (character(c, target).status === "morto") break
+      results.push(damage(c, target, p.value, p.type, { crit }, rng))
+    }
+    text += ` · ${results.join(" · ")}`
+  }
+  // Maestria com a arma (2024): efeito extra quando o personagem dominou a arma.
+  if (weapon?.mastered && weapon.mastery) text += masteryEffect(c, a, t, weapon, hit, rng, effects)
+  if (effects.length) text += ` [${effects.join("; ")}]`
   o.text = text
-  return { text, hit, crit, damage: dmg, outcome: o }
+  return { text, hit, crit, damage: total, outcome: o, effects }
+}
+
+function masteryEffect(c: Campaign, a: CharRow, t: CharRow, w: AttackOption, hit: boolean, rng: Rng, effects: string[]): string {
+  const sheet = JSON.parse(a.sheet)
+  const alive = character(c, t.id).status !== "morto"
+  switch (w.mastery) {
+    case "graze":
+      if (!hit && w.abilityMod > 0) return ` · Graze: ${damage(c, t.id, w.abilityMod, w.damageType, {}, rng)}`
+      return ""
+    case "vex":
+      if (hit && alive) { setNotes(c, a.id, { vex: t.id }); effects.push("Vex: vantagem no próximo ataque contra o alvo") }
+      return ""
+    case "sap":
+      if (hit && alive) { setNotes(c, t.id, { sapped: true }); effects.push("Sap: alvo com desvantagem no próximo ataque") }
+      return ""
+    case "topple":
+      if (hit && alive) {
+        const dc = 8 + profBonus(sheet.level ?? 1) + w.abilityMod
+        const r = save(c, t.id, "con", dc, "normal", rng)
+        if (!r.success) { setCondition(c, t.id, ["prone"]); return ` · Topple: ${r.text} → caído` }
+        return ` · Topple: ${r.text}`
+      }
+      return ""
+    case "push": if (hit && alive) effects.push("Push: empurre o alvo até 3 m (Mestre narra a posição)"); return ""
+    case "slow": if (hit && alive) effects.push("Slow: −3 m de deslocamento do alvo até o início do seu próximo turno"); return ""
+    case "nick": if (hit) effects.push("Nick: o ataque extra da Ação de Ataque com arma Leve não gasta ação bônus"); return ""
+    case "cleave": if (hit) effects.push("Cleave: ataque extra contra outro alvo a 1,5 m (sem bônus de atributo no dano)"); return ""
+  }
+  return ""
 }
 
 // ---------- iniciativa e rodadas ----------
@@ -269,26 +413,20 @@ export function nextTurn(c: Campaign): CombatState {
 }
 
 export function endCombat(c: Campaign): void {
-  if (!combatState(c)) fail("não há combate")
-  c.commit("fim-combate", [meta("combat", "")])
+  const st = combatState(c) ?? fail("não há combate")
+  const ops: Op[] = [meta("combat", "")]
+  // A Fúria e as marcas de Maestria acabam com o combate.
+  for (const o of st.order) {
+    const row = one<CharRow>(c.db, "SELECT * FROM characters WHERE id = ?", o.id)
+    if (!row) continue
+    const sheet = JSON.parse(row.sheet)
+    if (sheet.notes && (sheet.notes.raging || sheet.notes.vex || sheet.notes.sapped)) ops.push(put("characters", { id: o.id, sheet: { ...sheet, notes: { ...sheet.notes, raging: false, vex: null, sapped: false } } }))
+  }
+  c.commit("fim-combate", ops)
 }
 
 // ---------- descansos e recursos ----------
 
-const SHORT_REST_FULL = ["focus_points"]
-const SHORT_REST_ONE = ["second_wind_uses", "channel_divinity_charges", "wild_shape_uses"]
-
-export function useResource(c: Campaign, who: string, key: string, n = 1): string {
-  const row = character(c, who)
-  const sheet = PcSheetSchema.parse(JSON.parse(row.sheet))
-  const max = Number((sheet.classSpecific as Record<string, unknown>)[key])
-  if (!Number.isFinite(max)) fail(`recurso "${key}" não existe (${Object.keys(sheet.classSpecific).join(", ")})`)
-  const used = sheet.uses[key] ?? 0
-  if (used + n > max) fail(`sem usos de ${key}: ${max - used}/${max} restantes`)
-  sheet.uses[key] = used + n
-  c.commit("recurso", [put("characters", { id: who, sheet })])
-  return `${key}: ${max - used - n}/${max}`
-}
 
 export function useSlot(c: Campaign, who: string, level: number): string {
   const row = character(c, who)
@@ -309,8 +447,10 @@ export function shortRest(c: Campaign, who = "pc", spendDice = 0, rng: Rng = cry
   for (let i = 0; i < spendDice; i++) gained += Math.max(0, roll(`1d${sheet.hitDie}`, rng).total + mod(sheet.abilities.con))
   sheet.hitDiceLeft -= spendDice
   const hp = Math.min(v.row.max_hp, v.row.hp + gained)
-  for (const k of SHORT_REST_FULL) delete sheet.uses[k]
-  for (const k of SHORT_REST_ONE) if (sheet.uses[k]) sheet.uses[k] = Math.max(0, sheet.uses[k]! - 1)
+  for (const r of resourceList(sheet)) {
+    if (r.recharge === "short") delete sheet.uses[r.key]
+    else if (r.recharge === "short1" && sheet.uses[r.key]) sheet.uses[r.key] = Math.max(0, sheet.uses[r.key]! - 1)
+  }
   if (sheet.class === "warlock") for (const s of Object.values(sheet.slots)) s.used = 0
   c.commit("descanso-curto", [put("characters", { id: who, hp, sheet }), meta("time", c.time + 60)])
   return `descanso curto: +${hp - v.row.hp} PV (${hp}/${v.row.max_hp}), ${sheet.hitDiceLeft} dado(s) de vida`
@@ -325,6 +465,7 @@ export function longRest(c: Campaign, who = "pc"): string {
   for (const s of Object.values(sheet.slots)) s.used = 0
   sheet.exhaustion = Math.max(0, sheet.exhaustion - 1)
   sheet.deathSaves = { ok: 0, fail: 0 }
+  sheet.notes = { ...sheet.notes, raging: false }
   c.commit("descanso-longo", [put("characters", { id: who, hp: v.row.max_hp, temp_hp: 0, sheet }), meta("time", c.time + 8 * 60)])
   return `descanso longo: PV ${v.row.max_hp}/${v.row.max_hp}, espaços e dados de vida restaurados`
 }

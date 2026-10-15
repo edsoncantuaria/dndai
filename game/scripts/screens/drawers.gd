@@ -37,6 +37,10 @@ static func sheet(view: Dictionary) -> Control:
 		v.add_child(UI.label("XP %d / %d%s" % [int(pc.xp), int(pc.xp_next), "   ⬆ subida de nível disponível" if pc.can_level_up else ""], 18, UI.GOLD if pc.can_level_up else UI.MUTED))
 	if not pc.conditions.is_empty():
 		v.add_child(UI.label("Condições: " + ", ".join(pc.conditions), 18, UI.RED))
+	if pc.raging:
+		v.add_child(UI.label("🔥 Em Fúria: resistência a dano físico, dano extra com Força, vantagem em Força", 18, UI.RED))
+	if pc.concentration != null:
+		v.add_child(UI.label("◎ Concentrando em %s" % str(pc.concentration).replace("-", " "), 18, UI.BLUE))
 	v.add_child(_section("Atributos"))
 	var g := GridContainer.new()
 	g.columns = 3
@@ -79,7 +83,7 @@ static func sheet(view: Dictionary) -> Control:
 	if not pc.resources.is_empty():
 		v.add_child(_section("Recursos"))
 		for r in pc.resources:
-			v.add_child(_kv(str(r.key).replace("_", " ").capitalize(), "%d/%d" % [int(r.left), int(r.max)]))
+			v.add_child(_kv(str(r.label), "%d/%d" % [int(r.left), int(r.max)]))
 	if not pc.slots.is_empty():
 		v.add_child(_section("Espaços de magia"))
 		for s in pc.slots:

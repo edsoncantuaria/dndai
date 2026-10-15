@@ -34,9 +34,9 @@ export function autoChoices(cls: string, species = "human", background = "soldie
   }
 }
 
-export function novoPc(slug: string, home: string, cls = "fighter", species = "human", background = "soldier"): Campaign {
+export function novoPc(slug: string, home: string, cls = "fighter", species = "human", background = "soldier", patch: Partial<CreationChoices> = {}): Campaign {
   const c = Campaign.create(slug, { name: "t" }, { home })
-  createCharacter(c, autoChoices(cls, species, background))
+  createCharacter(c, { ...autoChoices(cls, species, background), ...patch })
   return c
 }
 

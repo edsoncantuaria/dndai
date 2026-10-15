@@ -3,7 +3,7 @@
 // Efeitos sem dados no SRD (utilidade, condição, cura) ficam para o Mestre, com o espaço já gasto.
 import type { Campaign } from "./campaign.ts"
 import { cryptoRng, roll, type Rng } from "./dice.ts"
-import { RuleError, character, damage, save, useSlot, type Mode } from "./mechanics.ts"
+import { RuleError, character, damage, heal, save, setNotes, useSlot, type Mode } from "./mechanics.ts"
 import { pcView } from "./pc.ts"
 import type { Ability } from "./sheet.ts"
 import { put } from "./ledger.ts"
@@ -12,6 +12,30 @@ const fail = (m: string): never => { throw new RuleError(m) }
 const ABIL: Record<string, Ability> = { strength: "str", dexterity: "dex", constitution: "con", intelligence: "int", wisdom: "wis", charisma: "cha" }
 
 export interface CastResult { lines: string[]; slotUsed?: number; manual: boolean; description: string }
+
+/** Magias cuja cura depende de condição/escolha e não é automática. */
+const MANUAL_HEAL = new Set(["conjure-celestial", "mass-heal", "goodberry", "aura-of-vitality", "life-transference"])
+
+/** Cura automática a partir do texto do SRD ("regains 4d8 + 15", "2d8 plus your spellcasting ability modifier", "restoring 70"). */
+export function healingOf(spell: any, slot: number, abilityMod: number): { expr: string; max?: boolean } | undefined {
+  if (MANUAL_HEAL.has(spell.index)) return undefined
+  const text: string = spell.description ?? ""
+  if (/regains all its Hit Points/i.test(text)) return { expr: "0", max: true }
+  const dice = /(?:regains?|restoring|restores?)(?: a number of)? Hit Points equal to (\d+)d(\d+)(\s*(?:\+|plus)\s*your spellcasting ability modifier)?/i.exec(text)
+    ?? /(?:regains?|restoring) (\d+)d(\d+)(?:\s*\+\s*(\d+))?\s*Hit Points/i.exec(text)
+  if (dice) {
+    let n = Number(dice[1])
+    const up = /(?:increases?|healing increases) by (\d+)d(\d+) for each (?:spell )?slot level above (\d)/i.exec(spell.higher_level ?? text)
+    if (up && slot > Number(up[3])) n += Number(up[1]) * (slot - Number(up[3]))
+    let bonus = 0
+    if (dice[3] && /spellcasting/i.test(dice[3])) bonus = abilityMod
+    else if (dice[3]) bonus = Number(dice[3])
+    return { expr: `${n}d${dice[2]}${bonus ? (bonus > 0 ? `+${bonus}` : `${bonus}`) : ""}` }
+  }
+  const fixed = /(?:regains?|restoring|restores?) (\d+) Hit Points/i.exec(text)
+  if (fixed) return { expr: fixed[1]! }
+  return undefined
+}
 
 function cantripDice(base: string, level: number): string {
   const mult = 1 + Number(level >= 5) + Number(level >= 11) + Number(level >= 17)
@@ -48,8 +72,24 @@ export function cast(c: Campaign, who: string, spellIndex: string, o: { slot?: n
       if (slot < sp.level) fail(`${sp.name} exige espaço de nível ${sp.level} ou mais`)
       lines.push(`${sp.name}: ${useSlot(c, who, slot)}`)
     }
+    if (sheet.notes.raging) fail("não se conjura em Fúria")
     const targets = o.targets ?? []
     for (const t of targets) character(c, t)
+    if (sp.concentration) {
+      if (sheet.notes.concentration) lines.push(`${v.row.name} deixa de se concentrar em ${sheet.notes.concentration}`)
+      setNotes(c, who, { concentration: sp.index })
+      lines.push(`concentrando em ${sp.name}`)
+    }
+    // Cura: "recupera Pontos de Vida iguais a XdY + modificador de conjuração" ou valor fixo.
+    const healDice = healingOf(sp, slot, v.derived.spellAttack! - v.derived.prof)
+    if (healDice) {
+      for (const t of targets.length ? targets : [who]) {
+        const row = character(c, t)
+        const amount = healDice.max ? row.max_hp : roll(healDice.expr, rng).total
+        lines.push(heal(c, t, Math.max(1, amount)))
+      }
+      return { lines, slotUsed: slot || undefined, manual: false, description: sp.description }
+    }
     const dice0 = isCantrip ? (sp.damage?.damage_at_slot_level?.["0"] ? cantripDice(sp.damage.damage_at_slot_level["0"], sheet.level) : undefined) : dicePerSlot(sp, slot)
     const type = sp.damage?.damage_type?.index ?? ""
     let manual = true
@@ -57,7 +97,8 @@ export function cast(c: Campaign, who: string, spellIndex: string, o: { slot?: n
       manual = false
       const saveAb = ABIL[(/\b(strength|dexterity|constitution|intelligence|wisdom|charisma) saving throw/i.exec(sp.description) ?? [])[1]?.toLowerCase() ?? ""]
       const half = /half as much damage/i.test(sp.description)
-      const total = roll(dice0, rng)
+      let shared: { total: number } | undefined // um só sorteio de dano para todos os alvos de uma magia de salvaguarda
+      const total = { get total(): number { return (shared ??= roll(dice0, rng)).total } }
       for (const t of targets) {
         const tr = character(c, t)
         if (saveAb) {

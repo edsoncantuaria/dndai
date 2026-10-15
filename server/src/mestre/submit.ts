@@ -5,6 +5,7 @@ import type { Campaign } from "../core/campaign.ts"
 import { all, one } from "../core/db.ts"
 import { roll } from "../core/dice.ts"
 import { meta, put } from "../core/ledger.ts"
+import * as fx from "../core/features.ts"
 import * as mx from "../core/mechanics.ts"
 import * as sc from "../core/scope.ts"
 import { cast } from "../core/spells.ts"
@@ -47,7 +48,15 @@ export const BeatOp = z.discriminatedUnion("op", [
   z.object({ op: z.literal("xp.milestone"), reason: txt }).strict(),
   z.object({ op: z.literal("check"), who: ref, what: z.string(), dc: z.number().int().min(1).max(30), mode }).strict(),
   z.object({ op: z.literal("save"), who: ref, ability, dc: z.number().int().min(1).max(30), mode }).strict(),
-  z.object({ op: z.literal("attack"), attacker: ref, target: ref, using: z.string(), mode }).strict(),
+  z.object({ op: z.literal("attack"), attacker: ref, target: ref, using: z.string(), mode, sneak: z.boolean().optional(), ally_near: z.boolean().optional() }).strict(),
+  z.object({ op: z.literal("second-wind") }).strict(),
+  z.object({ op: z.literal("action-surge") }).strict(),
+  z.object({ op: z.literal("rage.start") }).strict(),
+  z.object({ op: z.literal("rage.end") }).strict(),
+  z.object({ op: z.literal("lay-on-hands"), target: ref, amount: z.number().int().positive() }).strict(),
+  z.object({ op: z.literal("resource.use"), key: z.string(), n: z.number().int().positive().max(20).optional() }).strict(),
+  z.object({ op: z.literal("item.use"), item: ref, target: ref.optional() }).strict(),
+  z.object({ op: z.literal("concentration.end"), who: ref.optional() }).strict(),
   z.object({ op: z.literal("cast"), who: ref, spell: z.string(), slot: z.number().int().min(1).max(9).optional(), targets: z.array(ref).max(8).optional(), mode }).strict(),
   z.object({ op: z.literal("hazard"), who: ref, dice: z.string().regex(/^\d{1,2}d\d{1,3}([+-]\d+)?$/), type: z.string(), reason: txt }).strict(),
   z.object({ op: z.literal("condition"), who: ref, add: z.array(z.string()).default([]), remove: z.array(z.string()).default([]) }).strict(),
@@ -126,7 +135,15 @@ export function submit(c: Campaign, raw: unknown): BeatResult {
         case "xp.milestone": lines.push(`+${sc.grantMilestoneXp(c, op.reason)} XP (marco)`); break
         case "check": lines.push(mx.check(c, r(op.who), op.what, op.dc, op.mode).text); break
         case "save": lines.push(mx.save(c, r(op.who), op.ability, op.dc, op.mode).text); break
-        case "attack": lines.push(mx.attack(c, r(op.attacker), r(op.target), op.using, op.mode).text); break
+        case "attack": lines.push(mx.attack(c, r(op.attacker), r(op.target), op.using, op.mode, undefined, { sneak: op.sneak, allyNear: op.ally_near }).text); break
+        case "second-wind": lines.push(fx.secondWind(c, pcId)); break
+        case "action-surge": lines.push(fx.actionSurge(c, pcId)); break
+        case "rage.start": lines.push(fx.rageStart(c, pcId)); break
+        case "rage.end": lines.push(fx.rageEnd(c, pcId)); break
+        case "lay-on-hands": lines.push(fx.layOnHands(c, pcId, r(op.target), op.amount)); break
+        case "resource.use": lines.push(fx.spend(c, pcId, op.key, op.n)); break
+        case "item.use": lines.push(fx.useItem(c, pcId, r(op.item), op.target ? r(op.target) : undefined)); break
+        case "concentration.end": lines.push(mx.endConcentration(c, op.who ? r(op.who) : pcId)); break
         case "cast": lines.push(...cast(c, r(op.who), op.spell, { slot: op.slot, targets: op.targets?.map(r), mode: op.mode }).lines); break
         case "hazard": { const t = r(op.who); const d = roll(op.dice); lines.push(`${op.reason}: ${d.detail} → ${mx.damage(c, t, d.total, op.type)}`); c.commit("perigo", [put("rolls", { turn: c.turn, who: t, kind: "dano", label: `Perigo: ${op.reason}`, expr: op.dice, total: d.total, result: { faces: d.faces } })]); break }
         case "condition": mx.setCondition(c, r(op.who), op.add, op.remove); break
