@@ -1,0 +1,26 @@
+{
+  "name": "dndai-server",
+  "version": "2.0.0",
+  "private": true,
+  "description": "dndai v2: motor, API e ponte do Mestre (D&D 2024, 5e-database).",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "srd:import": "node --no-warnings scripts/import-srd.ts",
+    "test": "node --no-warnings --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "serve": "node --no-warnings src/main.ts serve"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.0",
+    "ws": "^8.18.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/ws": "^8.18.2",
+    "typescript": "^5.6.0"
+  }
+}

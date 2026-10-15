@@ -53,3 +53,13 @@ backend/.tmp/
 # git worktrees (local dev)
 .worktrees/
 worktrees/
+
+# legado arquivado (old/): artefatos locais
+/old/.next/
+/old/.next-dev/
+/old/app-apk.tar.gz
+/old/logs/
+/old/tsconfig*.tsbuildinfo
+/old/next-env.d.ts
+/old/package-lock.json
+/old/backend/.tmp/

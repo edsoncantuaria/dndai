@@ -1,4 +1,7 @@
 [submodule "mom"]
-	path = mom
+	path = old/mom
 	url = git@github.com:edsoncantuaria/mom.git
 	branch = main
+[submodule "data/5e-database"]
+	path = data/5e-database
+	url = https://github.com/edsoncantuaria/5e-database
