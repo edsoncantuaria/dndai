@@ -4,6 +4,8 @@ import { DatabaseSync } from "node:sqlite"
 import type { Campaign } from "../core/campaign.ts"
 import { all, getMeta, one, setMeta } from "../core/db.ts"
 import { put } from "../core/ledger.ts"
+import { authorityOf, faction as getFaction, membersOf, ranksOf, standing, ties } from "../core/factions.ts"
+import { pendencias, rumorsAt } from "../core/living.ts"
 import { combatState } from "../core/mechanics.ts"
 import { pcRow, pcView } from "../core/pc.ts"
 import { ABILITIES, mod, resourceList } from "../core/sheet.ts"
@@ -48,17 +50,47 @@ export function scene(c: Campaign): Record<string, unknown> {
   out.pc = pcCard(c)
   const pl = pc.place_id ? one<{ id: string; name: string; kind: string; summary: string; details: string }>(c.db, "SELECT id, name, kind, summary, details FROM places WHERE id = ?", pc.place_id) : undefined
   if (pl) {
-    out.local = { id: pl.id, nome: pl.name, tipo: pl.kind, resumo: pl.summary, detalhes: pl.details || undefined }
+    const auth = authorityOf(c, pl.id)
+    out.local = { id: pl.id, nome: pl.name, tipo: pl.kind, resumo: pl.summary, detalhes: pl.details || undefined, controle: auth.faction ? `${auth.faction.name} [${auth.faction.id}]${auth.realm && auth.realm.id !== auth.faction.id ? ` · reino ${auth.realm.name} [${auth.realm.id}]` : ""}` : undefined }
     out.saidas = all<{ id: string; name: string; minutes: number; visited: number }>(c.db, "SELECT p.id, p.name, l.minutes, p.visited FROM links l JOIN places p ON p.id = l.to_id WHERE l.from_id = ? ORDER BY l.minutes", pl.id).map((e) => ({ id: e.id, nome: e.name, min: e.minutes, novo: e.visited ? "" : "sim" }))
     const here = all<{ id: string; kind: string; name: string; summary: string; status: string; hp: number; max_hp: number; ac: number; attitude: number; persona: string; companion: number }>(c.db, "SELECT id, kind, name, summary, status, hp, max_hp, ac, attitude, persona, companion FROM characters WHERE place_id = ? AND kind <> 'pc' ORDER BY companion DESC, id", pl.id)
     out.presentes = here.map((n) => {
       const p = JSON.parse(n.persona) as { traits?: string[]; goal?: string; secret?: string; voice?: string; gender?: string }
       const mem = all<{ id: number; text: string; consolidated: number; importance: number }>(c.db, "SELECT id, text, consolidated, importance FROM memories WHERE npc_id = ? AND merged_into IS NULL ORDER BY consolidated DESC, importance DESC, id DESC LIMIT 5", n.id)
-      return { id: n.id, nome: n.name, quem: n.summary, estado: n.status === "vivo" ? `PV ${n.hp}/${n.max_hp} CA ${n.ac}` : n.status, atitude: n.attitude, genero: p.gender, tracos: p.traits?.join(","), quer: p.goal, voz: p.voice, segredo: p.secret ? `🔒 ${p.secret}` : undefined, companheiro: n.companion ? "sim" : undefined, lembra: mem.map((m) => `#${m.id}${m.consolidated ? " RELAÇÃO" : ""} ${m.text}`).join(" | ") || "(nada sobre o PC)" }
+      return { id: n.id, nome: n.name, quem: n.summary, estado: n.status === "vivo" ? `PV ${n.hp}/${n.max_hp} CA ${n.ac}` : n.status, atitude: n.attitude, genero: p.gender, tracos: p.traits?.join(","), quer: p.goal, voz: p.voice, segredo: p.secret ? `🔒 ${p.secret}` : undefined, companheiro: n.companion ? "sim" : undefined, facoes: membersOf(c, n.id).map((m) => `${m.faction} [${m.id}]${m.rank ? ` (${m.rank})` : ""}`).join(", ") || undefined, lembra: mem.map((m) => `#${m.id}${m.consolidated ? " RELAÇÃO" : ""} ${m.text}`).join(" | ") || "(nada sobre o PC)" }
     })
   } else out.aviso_local = "PC sem local."
   const cs = combatState(c)
   if (cs) out.combate = { rodada: cs.round, vez: cs.order[cs.turn]!.id, ordem: cs.order.map((o) => `${o.id}:${o.init}`).join(" ") }
+  // Facções e reinos: as que o herói conhece ou com quem tem laço, as que controlam o lugar e as de quem está presente.
+  const here = new Set<string>()
+  const authHere = pl ? authorityOf(c, pl.id) : {}
+  for (const f of [authHere.faction, authHere.realm]) if (f) here.add(f.id)
+  for (const m of all<{ faction_id: string }>(c.db, "SELECT DISTINCT faction_id FROM members WHERE npc_id IN (SELECT id FROM characters WHERE place_id = ?)", pc.place_id ?? "")) here.add(m.faction_id)
+  const facs = all<{ id: string; name: string; kind: string; power: number; known: number; goal: string; secret: string; parent_id: string | null }>(c.db, "SELECT id, name, kind, power, known, goal, secret, parent_id FROM factions ORDER BY known DESC, power DESC")
+  const rel = facs.filter((f) => f.known || here.has(f.id) || standing(c, f.id).value !== 0 || standing(c, f.id).status !== "nenhum")
+  if (rel.length) {
+    out.facoes = rel.slice(0, 14).map((f) => { const st = standing(c, f.id); return { id: f.id, nome: f.name, tipo: f.kind, poder: f.power, rep: st.value, status: st.status, posto: st.status === "membro" ? ranksOf(getFaction(c, f.id))[st.rank] : undefined, pai: f.parent_id ?? undefined, conhecida: f.known ? "sim" : "só o Mestre", aqui: here.has(f.id) ? "sim" : undefined, laços: ties(c, f.id).map((t) => `${t.other}:${t.stance}`).join(" ") || undefined } })
+    if (rel.length > 14) out.facoes_mais = `${rel.length - 14} facções: use mostrar g<id>`
+  }
+  const bounties = all<{ faction_id: string; amount_cp: number; reason: string }>(c.db, "SELECT * FROM bounties WHERE amount_cp > 0")
+  if (bounties.length) out.recompensas = bounties.map((b) => `${b.faction_id}: ${b.amount_cp / 100} PO (${b.reason})`).join("; ")
+  const clocks = all<{ id: string; name: string; owner_id: string | null; segments: number; filled: number; on_complete: string; every_min: number | null }>(c.db, "SELECT id, name, owner_id, segments, filled, on_complete, every_min FROM clocks WHERE status = 'ativo' ORDER BY filled * 1.0 / segments DESC LIMIT 10")
+  if (clocks.length) out.agendas = clocks.map((k) => ({ id: k.id, nome: k.name, dono: k.owner_id ?? undefined, progresso: `${k.filled}/${k.segments}`, ritmo: k.every_min ? `+1/${Math.round(k.every_min / 60)}h` : "manual", quando_cheia: `🔒 ${k.on_complete}` }))
+  const pend = pendencias(c)
+  if (pend.length) out.pendencias = pend
+  if (pl) {
+    const rum = rumorsAt(c, pl.id).slice(0, 4)
+    if (rum.length) out.rumores_aqui = rum.map((r) => `#${r.id} (${r.truth}, há ${r.age_h}h) ${r.text}`)
+    // Expansão: o mundo tem que ter o que o jogador vai encontrar. Sinaliza buracos para o Mestre preencher ANTES de narrar.
+    const gaps: string[] = []
+    if (!pl.details) gaps.push("este lugar ainda não tem detalhes (descreva-o com um fato e crie quem mora aqui)")
+    const exits = (out.saidas as { nome: string; novo: string }[])
+    if (exits.length < 2) gaps.push("poucas saídas: crie vizinhos com create.place (links)")
+    if (!all<{ id: string }>(c.db, "SELECT id FROM characters WHERE place_id = ? AND kind = 'npc'", pl.id).length) gaps.push("ninguém mora/está aqui: crie NPCs com persona, quer e segredo")
+    if (!authHere.faction) gaps.push("nenhuma facção controla este lugar (place.control) — quem manda aqui?")
+    if (gaps.length) out.expansao = gaps
+  }
   out.missoes = all<{ id: string; title: string; summary: string; objectives: string; secret: number }>(c.db, "SELECT id, title, summary, objectives, secret FROM quests WHERE status = 'ativa' ORDER BY updated_turn DESC").map((q) => ({ id: q.id, titulo: q.title, resumo: q.summary, objetivos: (JSON.parse(q.objectives) as string[]).join(" | "), oculta: q.secret ? "sim" : "" }))
   out.fios = all<{ id: number; kind: string; text: string; turn: number }>(c.db, "SELECT id, kind, text, turn FROM hooks WHERE status = 'aberto' ORDER BY id DESC LIMIT 12").map((h) => ({ id: `h${h.id}`, tipo: h.kind, texto: h.text, desde: `T${h.turn}` }))
   const hookTotal = one<{ n: number }>(c.db, "SELECT COUNT(*) n FROM hooks WHERE status = 'aberto'")!.n
@@ -171,11 +203,25 @@ export function showEntity(c: Campaign, id: string): string {
   if (pl) return encodeToon({ id, tipo: "local", nome: pl.name, kind: pl.kind, resumo: pl.summary, detalhes: pl.details, pai: pl.parent_id, saidas: all<{ to_id: string; minutes: number; via: string }>(c.db, "SELECT to_id, minutes, via FROM links WHERE from_id = ?", id).map((e) => `${e.to_id} ${e.minutes}min${e.via ? ` via ${e.via}` : ""}`), presentes: all<{ id: string; name: string }>(c.db, "SELECT id, name FROM characters WHERE place_id = ?", id).map((x) => `${x.id}:${x.name}`) })
   const it = one<Record<string, unknown>>(c.db, "SELECT * FROM items WHERE id = ?", id)
   if (it) return encodeToon({ id, tipo: "item", nome: it.name, qtd: it.qty, dono: it.owner_char ?? it.owner_place, srd: it.srd, equipado: it.equipped, props: JSON.parse(it.props as string), descricao: it.srd ? (c.srd.get("equipment", it.srd as string, "pt-BR")?.description ?? c.srd.get("magic-items", it.srd as string, "pt-BR")?.desc) : undefined })
+  const fac = /^g\d+$/.test(id) ? getFaction(c, id) : undefined
+  if (fac) {
+    const st = standing(c, id)
+    return encodeToon({
+      id, tipo: "facção", nome: fac.name, kind: fac.kind, poder: fac.power, resumo: fac.summary, objetivo: fac.goal, segredo: fac.secret ? `🔒 ${fac.secret}` : undefined, conhecida: !!fac.known,
+      pai: fac.parent_id, postos: ranksOf(fac), regra_de_entrada: JSON.parse(fac.join_rule),
+      herói: { reputacao: st.value, status: st.status, posto: st.status === "membro" ? ranksOf(fac)[st.rank] : undefined },
+      laços: ties(c, id).map((t) => `${t.other} ${t.stance}`), filhas: all<{ id: string }>(c.db, "SELECT id FROM factions WHERE parent_id = ?", id).map((x) => x.id),
+      membros: all<{ npc_id: string; rank: string }>(c.db, "SELECT npc_id, rank FROM members WHERE faction_id = ?", id).map((m) => `${m.npc_id}${m.rank ? ` (${m.rank})` : ""}`),
+      controla: all<{ id: string }>(c.db, "SELECT id FROM places WHERE faction_id = ?", id).map((p) => p.id),
+    })
+  }
+  const clk = /^k\d+$/.test(id) ? one<Record<string, unknown>>(c.db, "SELECT * FROM clocks WHERE id = ?", id) : undefined
+  if (clk) return encodeToon({ id, tipo: "agenda", nome: clk.name, dono: clk.owner_id, progresso: `${clk.filled}/${clk.segments}`, ritmo_min: clk.every_min, quando_cheia: clk.on_complete, status: clk.status, desfecho: clk.outcome })
   const q = one<Record<string, unknown>>(c.db, "SELECT * FROM quests WHERE id = ?", id)
   if (q) return encodeToon({ id, tipo: "missao", titulo: q.title, resumo: q.summary, status: q.status, giver: q.giver_id, objetivos: JSON.parse(q.objectives as string) })
   const f = /^f(\d+)$/.exec(id) ? one<Record<string, unknown>>(c.db, "SELECT * FROM facts WHERE id = ?", Number(id.slice(1))) : undefined
   if (f) return encodeToon({ id, tipo: "fato", texto: f.text, segredo: !!f.secret, sobre: f.about_id, turno: f.turn })
-  throw new Error(`"${id}" não existe. Ids: pc, n1, m1, l1, i1, q1, f1.`)
+  throw new Error(`"${id}" não existe. Ids: pc, n1, m1, l1, i1, q1, g1 (facção), k1 (agenda), f1.`)
 }
 
 const SRD_COLLS = ["monsters", "spells", "equipment", "magic-items", "classes", "species", "subspecies", "feats", "features", "traits", "conditions", "backgrounds", "subclasses", "skills", "weapon-properties", "weapon-mastery-properties", "poisons", "damage-types", "levels"] as const
@@ -183,6 +229,7 @@ const SRD_COLLS = ["monsters", "spells", "equipment", "magic-items", "classes", 
 /** Consulta ao SRD: com `id` devolve o registro (texto relevante); senão busca por texto. */
 export function srdLookup(c: Campaign, coll: string, q: string): string {
   if (!(SRD_COLLS as readonly string[]).includes(coll)) throw new Error(`coleção inválida. Use: ${SRD_COLLS.join(", ")}`)
+  if (coll === "monsters" && /\b(cr|nd)\s*(<=|>=|=|<|>)\s*[\d./]+|\btype\s*=/.test(q)) return monsterFilter(c, q)
   const rec = c.srd.get(coll as never, q, "pt-BR")
   if (rec) {
     const { url: _u, image: _i, ...rest } = rec
@@ -191,4 +238,16 @@ export function srdLookup(c: Campaign, coll: string, q: string): string {
   const hits = c.srd.search(q, coll as never, 8)
   if (!hits.length) return `nada em ${coll} para "${q}"`
   return encodeToon({ resultados: hits.map((h) => ({ id: h.url.split("/").pop()!, nome: h.name, trecho: h.snippet })) })
+}
+
+
+/** Monstros por ND e tipo, para montar encontros: "cr<=2 type=undead", "cr>=1 cr<=3". */
+function monsterFilter(c: Campaign, q: string): string {
+  const num = (x: string): number => (x.includes("/") ? Number(x.split("/")[0]) / Number(x.split("/")[1]) : Number(x))
+  const conds = [...q.matchAll(/\b(?:cr|nd)\s*(<=|>=|=|<|>)\s*([\d./]+)/g)].map((m) => ({ op: m[1]!, v: num(m[2]!) }))
+  const type = /type\s*=\s*([a-z-]+)/i.exec(q)?.[1]?.toLowerCase()
+  const ok = (cr: number) => conds.every((x) => (x.op === "<=" ? cr <= x.v : x.op === ">=" ? cr >= x.v : x.op === "<" ? cr < x.v : x.op === ">" ? cr > x.v : cr === x.v))
+  const list = c.srd.list("monsters", "en").filter((m) => ok(Number(m.challenge_rating)) && (!type || String(m.type).toLowerCase().startsWith(type))).slice(0, 40)
+  if (!list.length) return "nenhum monstro com esse filtro"
+  return encodeToon({ monstros: list.map((m) => ({ id: m.index, nome: m.name, nd: m.challenge_rating, tipo: m.type, pv: m.hit_points, ca: m.armor_class[0]?.value })) })
 }

@@ -4,7 +4,7 @@ import { chmodSync } from "node:fs"
 import { DatabaseSync } from "node:sqlite"
 
 export type DB = DatabaseSync
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 /** Tabelas escritíveis pelo ledger e suas colunas JSON. */
 export const TABLES = {
@@ -20,13 +20,53 @@ export const TABLES = {
   turns: { key: "n", json: [] },
   narrations: { key: "id", json: [] },
   rolls: { key: "id", json: ["result"] },
+  factions: { key: "id", json: ["join_rule", "ranks"] },
+  faction_ties: { key: "a,b", json: [] },
+  standing: { key: "faction_id", json: [] },
+  members: { key: "npc_id,faction_id", json: [] },
+  clocks: { key: "id", json: [] },
+  events: { key: "id", json: [] },
+  rumors: { key: "id", json: [] },
+  bounties: { key: "faction_id", json: [] },
 } as const satisfies Record<string, { key: string; json: readonly string[] }>
 export type Table = keyof typeof TABLES
+
+/** Facções, reinos, reputação, agendas, eventos e rumores (schema 2). */
+const WORLD_SCHEMA = `
+CREATE TABLE factions (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, summary TEXT NOT NULL, goal TEXT NOT NULL DEFAULT '',
+  secret TEXT NOT NULL DEFAULT '', parent_id TEXT, power INTEGER NOT NULL DEFAULT 5 CHECK (power BETWEEN 1 AND 10),
+  known INTEGER NOT NULL DEFAULT 0, join_rule TEXT NOT NULL DEFAULT '{}', ranks TEXT NOT NULL DEFAULT '[]', created_turn INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE faction_ties (a TEXT NOT NULL, b TEXT NOT NULL, stance INTEGER NOT NULL CHECK (stance BETWEEN -100 AND 100), PRIMARY KEY (a, b), CHECK (a < b));
+CREATE TABLE standing (
+  faction_id TEXT PRIMARY KEY, value INTEGER NOT NULL DEFAULT 0 CHECK (value BETWEEN -100 AND 100),
+  status TEXT NOT NULL DEFAULT 'nenhum' CHECK (status IN ('nenhum','aliado','membro','expulso','traidor')),
+  rank INTEGER NOT NULL DEFAULT 0, since_turn INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE members (npc_id TEXT NOT NULL, faction_id TEXT NOT NULL, rank TEXT NOT NULL DEFAULT '', PRIMARY KEY (npc_id, faction_id));
+CREATE TABLE clocks (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, owner_id TEXT, segments INTEGER NOT NULL CHECK (segments BETWEEN 2 AND 12),
+  filled INTEGER NOT NULL DEFAULT 0 CHECK (filled >= 0), every_min INTEGER CHECK (every_min IS NULL OR every_min > 0),
+  last_tick_min INTEGER NOT NULL DEFAULT 0, on_complete TEXT NOT NULL, secret INTEGER NOT NULL DEFAULT 1,
+  status TEXT NOT NULL DEFAULT 'ativo' CHECK (status IN ('ativo','disparado','resolvido')), outcome TEXT NOT NULL DEFAULT '', created_turn INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, at_min INTEGER NOT NULL, text TEXT NOT NULL, place_id TEXT,
+  status TEXT NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente','vencido','resolvido')), outcome TEXT NOT NULL DEFAULT '', created_turn INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE rumors (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, truth TEXT NOT NULL DEFAULT 'verdade' CHECK (truth IN ('verdade','falso','exagero')),
+  origin_place TEXT NOT NULL, born_min INTEGER NOT NULL, spread_min INTEGER NOT NULL DEFAULT 480, about_id TEXT
+);
+CREATE TABLE bounties (faction_id TEXT PRIMARY KEY, amount_cp INTEGER NOT NULL DEFAULT 0 CHECK (amount_cp >= 0), reason TEXT NOT NULL DEFAULT '');
+`
 
 const STATE_SCHEMA = `
 CREATE TABLE places (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, parent_id TEXT REFERENCES places(id),
-  summary TEXT NOT NULL, details TEXT NOT NULL DEFAULT '', visited INTEGER NOT NULL DEFAULT 0, created_turn INTEGER NOT NULL DEFAULT 0
+  summary TEXT NOT NULL, details TEXT NOT NULL DEFAULT '', visited INTEGER NOT NULL DEFAULT 0, created_turn INTEGER NOT NULL DEFAULT 0,
+  faction_id TEXT
 );
 CREATE TABLE links (
   from_id TEXT NOT NULL REFERENCES places(id), to_id TEXT NOT NULL REFERENCES places(id),
@@ -81,7 +121,7 @@ CREATE TABLE rolls (
 CREATE INDEX idx_chars_place ON characters(place_id);
 CREATE INDEX idx_items_owner ON items(owner_char);
 CREATE INDEX idx_mem_npc ON memories(npc_id);
-`
+` + WORLD_SCHEMA
 
 const FIXED_SCHEMA = `
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -107,6 +147,13 @@ export function openDb(path: string): DB {
     db.exec("BEGIN")
     db.exec(FIXED_SCHEMA)
     db.exec(STATE_SCHEMA)
+    db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
+    db.exec("COMMIT")
+  } else if (user_version === 1) {
+    // v1 → v2: mundo vivo (facções, agendas, rumores) e controle de lugares.
+    db.exec("BEGIN")
+    db.exec(WORLD_SCHEMA)
+    db.exec("ALTER TABLE places ADD COLUMN faction_id TEXT")
     db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
     db.exec("COMMIT")
   } else if (user_version !== SCHEMA_VERSION) {

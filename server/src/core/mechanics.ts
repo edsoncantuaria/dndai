@@ -4,6 +4,7 @@ import type { Campaign } from "./campaign.ts"
 import { getMeta, one } from "./db.ts"
 import { cryptoRng, type RollResult, roll, rollD20, type Rng } from "./dice.ts"
 import { del, meta, type Op, put } from "./ledger.ts"
+import { afterKill } from "./consequences.ts"
 import { alloc, type CharRow, itemsOf, pcView } from "./pc.ts"
 import { attackMods, checkMods, type CreatureState, type D20Mods, resolveMode, saveMods } from "./conditions.ts"
 import { ABILITIES, type Ability, type AttackOption, type MonsterSheet, mod, MonsterSheetSchema, PcSheetSchema, profBonus, resourceList } from "./sheet.ts"
@@ -153,6 +154,7 @@ export function damage(c: Campaign, target: string, amount: number, type = "", o
   let text = `${row.name}: ${note}${n !== amount ? ` (${why}: ${amount}→${n})` : ""}`
   // Concentração: dano exige salvaguarda de Constituição (CD 10 ou metade do dano); incapacitado perde na hora.
   const after = character(c, target)
+  if (after.status === "morto" && row.status !== "morto" && row.kind === "npc") for (const l of afterKill(c, target)) text += ` · ${l}`
   const notes = JSON.parse(after.sheet).notes ?? {}
   if (notes.concentration && n > 0) {
     if (after.status !== "vivo") text += ` · ${endConcentration(c, target)}`

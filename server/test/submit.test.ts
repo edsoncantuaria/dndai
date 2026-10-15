@@ -44,7 +44,7 @@ describe("beat do Mestre", () => {
 
   it("é tudo ou nada: op inválida desfaz o lote inteiro", () => {
     const c = novo("b2")
-    assert.throws(() => submit(c, { ops: [{ op: "create.place", name: "Ruínas", kind: "ruína", summary: "x" }, { op: "move", who: "pc", to: "l99" }] }), /não existe/)
+    assert.throws(() => submit(c, { ops: [{ op: "create.place", name: "Ruínas", kind: "ruína", summary: "x", links: [{ to: "l0", minutes: 5 }] }, { op: "move", who: "pc", to: "l99" }] }), /não existe/)
     assert.equal(c.db.prepare("SELECT COUNT(*) n FROM places").get()!.n, 1)
     c.close()
   })

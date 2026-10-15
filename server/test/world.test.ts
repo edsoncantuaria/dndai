@@ -39,7 +39,7 @@ describe("backup", () => {
     process.env.DNDAI_BACKUP_DIR = dir
     try {
       const c = Campaign.create("bk", { name: "t" }, { home })
-      w.createPlace(c, { name: "Ponte", kind: "ponte", summary: "Velha." })
+      w.createPlace(c, { name: "Ponte", kind: "ponte", summary: "Velha.", links: [{ to: "l0", minutes: 5 }] })
       const files = readdirSync(join(dir, "bk"))
       assert.ok(files.some((f: string) => f.startsWith("world-")))
       c.close()

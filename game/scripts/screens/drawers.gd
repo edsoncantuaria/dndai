@@ -180,6 +180,8 @@ static func people(view: Dictionary) -> Control:
 		head.add_child(UI.label(tag, 17, UI.MUTED))
 		cv.add_child(head)
 		cv.add_child(UI.label(str(n.summary), 18, UI.MUTED))
+		if not n.factions.is_empty():
+			cv.add_child(UI.label("⚑ " + ", ".join(n.factions.map(func(f): return "%s%s" % [f.name, " (%s)" % f.rank if str(f.rank) != "" else ""])), 16, UI.GOLD_DIM))
 		if n.kind == "monster" or int(n.hp) < int(n.max_hp):
 			cv.add_child(UI.hp_bar(int(n.hp), int(n.max_hp), 10))
 		if n.status != "vivo":
@@ -206,6 +208,35 @@ static func journal(view: Dictionary) -> Control:
 		v.add_child(p)
 	if not any:
 		v.add_child(UI.muted("Nenhuma missão ainda."))
+	v.add_child(_section("Facções e reinos"))
+	if view.factions.is_empty():
+		v.add_child(UI.muted("Você ainda não tem laços com nenhuma facção."))
+	for f in view.factions:
+		var p := UI.panel(10, UI.PANEL_HI)
+		var cv := UI.vbox(4)
+		p.add_child(cv)
+		var st: String = str(f.status)
+		var head := "%s  ·  %s" % [f.name, str(f.kind).capitalize()]
+		cv.add_child(UI.label(head, 20, UI.RED if st == "traidor" or int(f.standing) <= -50 else UI.GOLD, UI.title_font()))
+		var tag: String = {"nenhum": "sem vínculo", "aliado": "aliado", "membro": "membro", "expulso": "expulso", "traidor": "TRAIDOR"}.get(st, st)
+		if f.rank != null:
+			tag = "membro — %s" % f.rank
+		cv.add_child(UI.label("%s · reputação %d%s" % [tag, int(f.standing), "" if f.parent == null else " · parte de %s" % f.parent], 17, UI.MUTED))
+		var bar := ProgressBar.new()
+		bar.min_value = -100
+		bar.max_value = 100
+		bar.value = int(f.standing)
+		bar.show_percentage = false
+		bar.custom_minimum_size = Vector2(0, 8)
+		var col := UI.GREEN if int(f.standing) >= 20 else (UI.RED if int(f.standing) <= -20 else UI.GOLD_DIM)
+		bar.add_theme_stylebox_override("fill", UI.box(col, col, 4, 0, 0))
+		cv.add_child(bar)
+		cv.add_child(UI.label(str(f.summary), 17))
+		v.add_child(p)
+	if not view.bounties.is_empty():
+		v.add_child(_section("Recompensas pela sua cabeça"))
+		for b in view.bounties:
+			v.add_child(UI.label("%s: %s (%s)" % [b.faction, UI.money(int(b.amount_cp)), b.reason], 18, UI.RED))
 	return v
 
 
@@ -217,6 +248,11 @@ static func map(view: Dictionary, on_go: Callable) -> Control:
 		return v
 	v.add_child(UI.label("Você está em: %s" % view.place.name, 22, UI.GOLD))
 	v.add_child(UI.label(str(view.place.summary), 18, UI.MUTED))
+	if view.place.control != null:
+		var ctl: String = "Sob o domínio de %s" % view.place.control.faction
+		if view.place.control.realm != null:
+			ctl += " (reino de %s)" % view.place.control.realm
+		v.add_child(UI.label("⚑ " + ctl, 18, UI.GOLD_DIM))
 	v.add_child(_section("Saídas"))
 	if view.exits.is_empty():
 		v.add_child(UI.muted("Nenhuma saída conhecida."))

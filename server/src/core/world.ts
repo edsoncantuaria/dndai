@@ -4,6 +4,7 @@ import type { Campaign } from "./campaign.ts"
 import { all, one } from "./db.ts"
 import { meta, type Op, put } from "./ledger.ts"
 import { RuleError, character } from "./mechanics.ts"
+import { witnessMemory } from "./consequences.ts"
 import { alloc } from "./pc.ts"
 
 const fail = (m: string): never => { throw new RuleError(m) }
@@ -16,6 +17,8 @@ function place(c: Campaign, id: string) {
 export function createPlace(c: Campaign, p: { name: string; kind: string; summary: string; parent?: string; links?: { to: string; minutes: number; via?: string }[] }): string {
   const ops: Op[] = []
   if (p.parent) place(c, p.parent)
+  // O mundo cresce sempre conectado: todo lugar novo liga a pelo menos um lugar existente.
+  if (!p.links?.length) fail("todo lugar novo precisa de ao menos uma ligação (links: [{to, minutes}]) para o mundo não ficar solto")
   const id = alloc(c, "l", ops)
   ops.push(put("places", { id, name: text(p.name, "nome"), kind: text(p.kind, "tipo"), parent_id: p.parent ?? null, summary: text(p.summary, "resumo"), created_turn: c.turn }))
   for (const l of p.links ?? []) { place(c, l.to); ops.push(...linkOps(id, l.to, l.minutes, l.via)) }
@@ -105,8 +108,10 @@ export function remember(c: Campaign, npcs: string[], t: string, importance = 1)
   c.commit("memoria", memoryOps(c, npcs, t, importance))
 }
 
-export function addFact(c: Campaign, f: { text: string; about?: string; secret?: boolean }): void {
+export function addFact(c: Campaign, f: { text: string; about?: string; secret?: boolean; witnessed?: boolean }): void {
   c.commit("fato", [put("facts", { about_id: f.about ?? null, text: text(f.text, "fato"), secret: Number(!!f.secret), turn: c.turn, at_min: c.time })])
+  // Fato testemunhado: quem está no lugar passa a lembrar dele.
+  if (f.witnessed && !f.secret) witnessMemory(c, one<{ place_id: string | null }>(c.db, "SELECT place_id FROM characters WHERE kind = 'pc'")?.place_id ?? null, f.text, 2)
 }
 
 export function addQuest(c: Campaign, q: { title: string; summary: string; giver?: string; objectives?: string[]; secret?: boolean }): string {

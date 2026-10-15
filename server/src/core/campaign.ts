@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { all, type DB, getMeta, one, openDb, setMeta } from "./db.ts"
 import { append, type Op, OpSchema, put, reduce, replay, meta } from "./ledger.ts"
+import { tickWorld } from "./living.ts"
 import { type Srd, srd as sharedSrd } from "../srd/index.ts"
 
 export const HOME = process.env.DNDAI_HOME ? resolve(process.env.DNDAI_HOME) : resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "campaigns")
@@ -65,7 +66,9 @@ export class Campaign {
     this.db.exec("BEGIN IMMEDIATE")
     try {
       this.label = label
+      const t0 = this.time
       const r = fn()
+      if (this.time > t0) tickWorld(this, t0, this.time) // o relógio andou: o mundo segue (rotinas, agendas, eventos)
       const bad = this.invariants()
       if (bad.length) throw new CampaignError(`invariante violada: ${bad.join("; ")}`)
       setMeta(this.db, "version", this.version + 1)

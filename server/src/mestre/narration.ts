@@ -8,12 +8,12 @@ const mentions = (phrase: string, name: string): boolean => fold(name).length >=
 const sentencesOf = (name: string, text: string): string[] => text.split(/[.!?\n]/).filter((s) => new RegExp(`\\b${esc(name)}\\b`, "i").test(s))
 
 const DEAD_OK = /corpo|cadáver|cadaver|morto|morta|jaz|jaze|restos|túmulo|tumulo|lembrança|lembra|memória|memoria|foi |era /i
-const REF_RE = /\{(pc|[nmliq]\d+)\}/g
-const CODE_RE = /^(pc|[nmliq]\d+)$/
+const REF_RE = /\{(pc|[nmliqg]\d+)\}/g
+const CODE_RE = /^(pc|[nmliqg]\d+)$/
 
 const NAME_SQL: Record<string, string> = {
   p: "SELECT name FROM characters WHERE id = ?", n: "SELECT name FROM characters WHERE id = ?", m: "SELECT name FROM characters WHERE id = ?",
-  l: "SELECT name FROM places WHERE id = ?", i: "SELECT name FROM items WHERE id = ?", q: "SELECT title AS name FROM quests WHERE id = ?",
+  l: "SELECT name FROM places WHERE id = ?", g: "SELECT name FROM factions WHERE id = ?", i: "SELECT name FROM items WHERE id = ?", q: "SELECT title AS name FROM quests WHERE id = ?",
 }
 const nameOf = (c: Campaign, code: string): string | undefined => (c.db.prepare(NAME_SQL[code[0]!]!).get(code) as { name: string } | undefined)?.name
 
@@ -35,7 +35,7 @@ let srdCache: { c: Campaign; set: Set<string> } | undefined
 function knownTokens(c: Campaign): Set<string> {
   if (srdCache?.c !== c) srdCache = { c, set: srdTokens(c) }
   const known = new Set(srdCache.set)
-  const rows = all<{ name: string }>(c.db, "SELECT name FROM characters UNION ALL SELECT name FROM places UNION ALL SELECT name FROM items UNION ALL SELECT title AS name FROM quests")
+  const rows = all<{ name: string }>(c.db, "SELECT name FROM characters UNION ALL SELECT name FROM places UNION ALL SELECT name FROM items UNION ALL SELECT title AS name FROM quests UNION ALL SELECT name FROM factions")
   for (const r of rows) for (const part of r.name.split(/\s+/)) { const f = fold(part.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, "")); if (f.length >= 3) known.add(f) }
   return known
 }

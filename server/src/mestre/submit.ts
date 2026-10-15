@@ -5,7 +5,9 @@ import type { Campaign } from "../core/campaign.ts"
 import { all, one } from "../core/db.ts"
 import { roll } from "../core/dice.ts"
 import { meta, put } from "../core/ledger.ts"
+import * as fc from "../core/factions.ts"
 import * as fx from "../core/features.ts"
+import * as lv from "../core/living.ts"
 import * as mx from "../core/mechanics.ts"
 import * as sc from "../core/scope.ts"
 import { cast } from "../core/spells.ts"
@@ -23,7 +25,26 @@ const persona = z.object({ traits: z.array(txt).max(6).optional(), goal: txt.opt
 
 export const BeatOp = z.discriminatedUnion("op", [
   z.object({ op: z.literal("create.place"), as: label.optional(), name: txt, kind: txt, summary: txt, parent: ref.optional(), links: z.array(z.object({ to: ref, minutes: z.number().int().min(0), via: z.string().optional() }).strict()).max(8).optional() }).strict(),
-  z.object({ op: z.literal("create.npc"), as: label.optional(), name: txt, summary: txt, place: ref, persona: persona.optional(), attitude: z.number().int().min(-100).max(100).optional(), srd: z.string().optional(), companion: z.boolean().optional() }).strict(),
+  z.object({ op: z.literal("create.npc"), as: label.optional(), name: txt, summary: txt, place: ref, persona: persona.optional(), attitude: z.number().int().min(-100).max(100).optional(), srd: z.string().optional(), companion: z.boolean().optional(), faction: ref.optional(), rank: z.string().max(40).optional() }).strict(),
+  z.object({ op: z.literal("create.faction"), as: label.optional(), name: txt, kind: z.enum(fc.KINDS), summary: txt, goal: txt.optional(), secret: txt.optional(), parent: ref.optional(), power: z.number().int().min(1).max(10).optional(), known: z.boolean().optional(), ranks: z.array(z.string().max(30)).min(2).max(7).optional(), join: z.object({ min_standing: z.number().int().min(0).max(80).optional(), quest: ref.optional(), level: z.number().int().min(1).max(20).optional() }).strict().optional(), ties: z.array(z.object({ with: ref, stance: z.number().int().min(-100).max(100) }).strict()).max(6).optional() }).strict(),
+  z.object({ op: z.literal("faction.tie"), a: ref, b: ref, stance: z.number().int().min(-100).max(100) }).strict(),
+  z.object({ op: z.literal("faction.reveal"), faction: ref }).strict(),
+  z.object({ op: z.literal("faction.standing"), faction: ref, delta: z.number().int().min(-25).max(25), reason: txt }).strict(),
+  z.object({ op: z.literal("faction.join"), faction: ref }).strict(),
+  z.object({ op: z.literal("faction.leave"), faction: ref }).strict(),
+  z.object({ op: z.literal("faction.promote"), faction: ref, reason: txt }).strict(),
+  z.object({ op: z.literal("faction.betray"), faction: ref, reason: txt }).strict(),
+  z.object({ op: z.literal("npc.member"), npc: ref, faction: ref, rank: z.string().max(40).optional() }).strict(),
+  z.object({ op: z.literal("place.control"), place: ref, faction: ref.nullable() }).strict(),
+  z.object({ op: z.literal("crime"), faction: ref, severity: z.number().int().min(1).max(5), witnessed: z.boolean(), reason: txt }).strict(),
+  z.object({ op: z.literal("bounty.pay"), faction: ref }).strict(),
+  z.object({ op: z.literal("clock.create"), as: label.optional(), name: txt, owner: ref.optional(), segments: z.number().int().min(2).max(12), every_hours: z.number().min(1).max(720).optional(), on_complete: txt, secret: z.boolean().optional() }).strict(),
+  z.object({ op: z.literal("clock.tick"), clock: ref, n: z.number().int().min(-4).max(4).default(1) }).strict(),
+  z.object({ op: z.literal("clock.resolve"), clock: ref, outcome: txt }).strict(),
+  z.object({ op: z.literal("event.create"), in_hours: z.number().min(0.1).max(720), text: txt, place: ref.optional() }).strict(),
+  z.object({ op: z.literal("event.resolve"), event: z.number().int().positive(), outcome: txt }).strict(),
+  z.object({ op: z.literal("rumor"), text: txt, truth: z.enum(["verdade", "falso", "exagero"]).optional(), spread_hours: z.number().int().min(1).max(72).optional(), about: ref.optional(), place: ref.optional() }).strict(),
+  z.object({ op: z.literal("npc.schedule"), npc: ref, entries: z.array(z.object({ from: z.string(), to: z.string(), place: ref }).strict()).max(8) }).strict(),
   z.object({ op: z.literal("create.quest"), as: label.optional(), title: txt, summary: txt, giver: ref.optional(), objectives: z.array(txt).max(8).optional(), secret: z.boolean().optional() }).strict(),
   z.object({ op: z.literal("link"), a: ref, b: ref, minutes: z.number().int().min(0), via: z.string().optional() }).strict(),
   z.object({ op: z.literal("spawn"), as: label.optional(), srd: z.string(), place: ref, name: txt.optional(), confirm: z.boolean().optional() }).strict(),
@@ -32,7 +53,7 @@ export const BeatOp = z.discriminatedUnion("op", [
   z.object({ op: z.literal("attitude"), npc: ref, delta: z.number().int().min(-100).max(100), reason: txt }).strict(),
   z.object({ op: z.literal("memory"), npcs: z.array(ref).min(1), text: txt, importance: z.number().int().min(1).max(3).optional() }).strict(),
   z.object({ op: z.literal("memory.consolidate"), npc: ref, ids: z.array(z.number().int().positive()).min(2), text: z.string().trim().min(10).max(400) }).strict(),
-  z.object({ op: z.literal("fact"), text: txt, about: ref.optional(), secret: z.boolean().optional() }).strict(),
+  z.object({ op: z.literal("fact"), text: txt, about: ref.optional(), secret: z.boolean().optional(), witnessed: z.boolean().optional() }).strict(),
   z.object({ op: z.literal("reveal"), fact: z.number().int().positive() }).strict(),
   z.object({ op: z.literal("hook"), kind: z.enum(["promessa", "ameaca", "misterio", "gancho"]), text: txt, about: ref.optional() }).strict(),
   z.object({ op: z.literal("hook.update"), hook: z.number().int().positive(), status: z.enum(["aberto", "resolvido", "abandonado"]) }).strict(),
@@ -80,7 +101,7 @@ export type BeatT = z.infer<typeof Beat>
 
 export interface BeatResult { lines: string[]; labels: Record<string, string>; closed: boolean; turn: number; narration?: string }
 
-const ENTITY: Record<string, string> = { p: "characters", n: "characters", m: "characters", l: "places", i: "items", q: "quests" }
+const ENTITY: Record<string, string> = { p: "characters", n: "characters", m: "characters", l: "places", i: "items", q: "quests", g: "factions", k: "clocks" }
 
 export function openTurn(c: Campaign, action: string): number {
   const open = one<{ n: number }>(c.db, "SELECT n FROM turns WHERE ended = 0 ORDER BY n DESC LIMIT 1")
@@ -98,7 +119,7 @@ export function submit(c: Campaign, raw: unknown): BeatResult {
   const r = (v: string): string => {
     if (v.startsWith("$")) return labels[v.slice(1)] ?? (() => { throw new Error(`rótulo ${v} não foi definido antes neste lote`) })()
     const table = ENTITY[v[0]!]
-    if (!table || !one(c.db, `SELECT 1 FROM ${table} WHERE id = ?`, v)) throw new Error(`"${v}" não existe. Ids: pc, n1 (NPC), m1 (monstro), l1 (local), i1 (item), q1 (missão). Crie com create.* antes de citar.`)
+    if (!table || !one(c.db, `SELECT 1 FROM ${table} WHERE id = ?`, v)) throw new Error(`"${v}" não existe. Ids: pc, n1 (NPC), m1 (monstro), l1 (local), i1 (item), q1 (missão), g1 (facção/reino), k1 (agenda). Crie com create.* antes de citar.`)
     return v
   }
   const bind = (as: string | undefined, id: string) => { if (as) labels[as] = id }
@@ -110,7 +131,32 @@ export function submit(c: Campaign, raw: unknown): BeatResult {
     for (const op of beat.ops) {
       switch (op.op) {
         case "create.place": { const id = w.createPlace(c, { ...op, parent: op.parent ? r(op.parent) : undefined, links: op.links?.map((l) => ({ ...l, to: r(l.to) })) }); bind(op.as, id); lines.push(`local ${id} ${op.name}`); break }
-        case "create.npc": { const id = w.createNpc(c, { ...op, place: r(op.place) }); bind(op.as, id); lines.push(`npc ${id} ${op.name}`); break }
+        case "create.npc": {
+          const id = w.createNpc(c, { ...op, place: r(op.place) })
+          bind(op.as, id)
+          if (op.faction) fc.addMember(c, id, r(op.faction), op.rank)
+          lines.push(`npc ${id} ${op.name}`)
+          break
+        }
+        case "create.faction": { const id = fc.createFaction(c, { ...op, parent: op.parent ? r(op.parent) : undefined, ties: op.ties?.map((t) => ({ with: r(t.with), stance: t.stance })) }); bind(op.as, id); lines.push(`facção ${id} ${op.name} (${op.kind})`); break }
+        case "faction.tie": fc.setTie(c, r(op.a), r(op.b), op.stance); break
+        case "faction.reveal": fc.reveal(c, r(op.faction)); break
+        case "faction.standing": lines.push(...fc.adjustStanding(c, r(op.faction), op.delta, op.reason)); break
+        case "faction.join": lines.push(fc.join(c, r(op.faction))); break
+        case "faction.leave": lines.push(fc.leave(c, r(op.faction))); break
+        case "faction.promote": lines.push(fc.promote(c, r(op.faction), op.reason)); break
+        case "faction.betray": lines.push(...fc.betray(c, r(op.faction), op.reason)); break
+        case "npc.member": fc.addMember(c, r(op.npc), r(op.faction), op.rank); break
+        case "place.control": fc.setControl(c, r(op.place), op.faction ? r(op.faction) : null); break
+        case "crime": lines.push(...fc.crime(c, r(op.faction), op.severity, op.witnessed, op.reason)); break
+        case "bounty.pay": lines.push(fc.payBounty(c, r(op.faction))); break
+        case "clock.create": { const id = lv.createClock(c, { name: op.name, owner: op.owner ? r(op.owner) : undefined, segments: op.segments, every_min: op.every_hours ? Math.round(op.every_hours * 60) : undefined, on_complete: op.on_complete, secret: op.secret }); bind(op.as, id); lines.push(`agenda ${id} ${op.name}`); break }
+        case "clock.tick": lines.push(lv.tickClock(c, r(op.clock), op.n)); break
+        case "clock.resolve": lv.resolveClock(c, r(op.clock), op.outcome); break
+        case "event.create": lines.push(`evento #${lv.createEvent(c, { in_minutes: Math.round(op.in_hours * 60), text: op.text, place: op.place ? r(op.place) : undefined })}`); break
+        case "event.resolve": lv.resolveEvent(c, op.event, op.outcome); break
+        case "rumor": lines.push(`rumor #${lv.createRumor(c, { ...op, about: op.about ? r(op.about) : undefined, place: op.place ? r(op.place) : undefined })}`); break
+        case "npc.schedule": lv.setSchedule(c, r(op.npc), op.entries.map((e) => ({ ...e, place: r(e.place) }))); break
         case "create.quest": { const id = w.addQuest(c, { ...op, giver: op.giver ? r(op.giver) : undefined }); bind(op.as, id); lines.push(`missão ${id} ${op.title}`); break }
         case "link": w.link(c, r(op.a), r(op.b), op.minutes, op.via); lines.push(`ligação ${op.a}↔${op.b} ${op.minutes}min`); break
         case "spawn": { const id = sc.spawnChecked(c, op.srd, r(op.place), op); bind(op.as, id); lines.push(`monstro ${id} ${mx.character(c, id).name} (PV ${mx.character(c, id).hp}, CA ${mx.character(c, id).ac})`); break }
