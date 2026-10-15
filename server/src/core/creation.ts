@@ -57,14 +57,16 @@ export interface CreationChoices {
 }
 
 /** Bloco de opções (choose N de uma lista) do SRD → lista simples de índices. */
-function parseChoice(c: any, allSkills: string[]): Choice {
+function parseChoice(c: any, allSkills: string[], tools: { index: string; type: string }[] = []): Choice {
   const opts: string[] = []
   for (const o of c.from?.options ?? []) {
     const idx = o.item?.index as string | undefined
     if (idx) opts.push(idx)
   }
   const skillish = opts.length && opts.every((i) => i.startsWith("skill-"))
-  return { choose: c.choose, desc: c.desc, from: skillish ? opts.map((i) => i.slice(6)) : opts.length ? opts : /skill/i.test(c.desc) ? allSkills : [] }
+  const byType = (t: string) => tools.filter((x) => x.type === t).map((x) => x.index)
+  const anyTool = !opts.length && /artisan|instrument/i.test(c.desc) ? [...(/artisan/i.test(c.desc) ? byType("Artisan's Tools") : []), ...(/instrument/i.test(c.desc) ? byType("Musical Instruments") : [])] : []
+  return { choose: c.choose, desc: c.desc, from: skillish ? opts.map((i) => i.slice(6)) : opts.length ? opts : anyTool.length ? anyTool : /skill/i.test(c.desc) ? allSkills : [] }
 }
 
 export function creationOptions(srd: Srd) {
@@ -80,7 +82,7 @@ export function creationOptions(srd: Srd) {
       ...nm(c), hitDie: c.hit_die, primary: c.primary_ability?.desc,
       saves: c.saving_throws.map((s: any) => s.index),
       skillChoices: c.proficiency_choices.map((p: any) => parseChoice(p, skills)),
-      equipment: c.starting_equipment_options.map((e: any) => ({ desc: e.desc, options: e.from.options.length })),
+      equipment: c.starting_equipment_options[0].from.options.map((o: any) => describeOption(srd, o)),
       spellcasting: c.spellcasting ? { ability: c.spellcasting.spellcasting_ability.index } : null,
       subclasses: (c.subclasses ?? []).map(nm),
     })),
@@ -90,9 +92,9 @@ export function creationOptions(srd: Srd) {
       subspecies: srd.list("subspecies").filter((x) => x.species?.index === s.index).map(nm),
     })),
     backgrounds: srd.list("backgrounds").map((b) => ({
-      ...nm(b), abilities: b.ability_scores.map((a: any) => a.index), feat: b.feat.index,
+      ...nm(b), abilities: b.ability_scores.map((a: any) => a.index), feat: b.feat.index, featName: srd.get("feats", b.feat.index)?.name,
       skills: b.proficiencies.filter((p: any) => p.index.startsWith("skill-")).map((p: any) => p.index.slice(6)),
-      equipment: b.equipment_options.map((e: any) => ({ desc: e.desc, options: e.from.options.length })),
+      equipment: b.equipment_options[0].from.options.map((o: any) => describeOption(srd, o)),
     })),
   }
 }
@@ -152,14 +154,15 @@ export function createPc(srd: Srd, c: CreationChoices, rolled?: number[]): Creat
   // Perícias: antecedente (fixas) + classe (escolha) + espécie
   const skills = new Set<string>(bg.proficiencies.filter((p: any) => p.index.startsWith("skill-")).map((p: any) => p.index.slice(6)))
   const tools: string[] = bg.proficiencies.filter((p: any) => p.index.startsWith("tool-")).map((p: any) => p.index)
-  const [skillChoice, toolChoice] = cls.proficiency_choices.map((p: any) => parseChoice(p, srd.list("skills", "en").map((s) => s.index)))
+  const profList = srd.list("proficiencies", "en").map((p) => ({ index: p.index, type: p.type as string }))
+  const [skillChoice, toolChoice] = cls.proficiency_choices.map((p: any) => parseChoice(p, srd.list("skills", "en").map((s) => s.index), profList))
   const classSkills = pick(c.classSkills, skillChoice!.choose, "perícias da classe")
   for (const s of classSkills) {
     if (!skillChoice!.from.includes(s)) fail(`perícia "${s}" não está na lista da classe`)
     if (skills.has(s)) fail(`perícia "${s}" já vem do antecedente: escolha outra`)
     skills.add(s)
   }
-  if (toolChoice) for (const t of pick(c.classTools, toolChoice.choose, "ferramentas/instrumentos da classe")) { get("proficiencies", t, "proficiência"); tools.push(t) }
+  if (toolChoice) for (const t of pick(c.classTools, toolChoice.choose, "ferramentas/instrumentos da classe")) { get("proficiencies", t, "proficiência"); if (!toolChoice.from.includes(t)) fail(`"${t}" não está nas opções da classe`); tools.push(t) }
 
   // Espécie
   const traits = (species.traits ?? []).map((t: any) => t.index as string)
@@ -326,4 +329,63 @@ function kindOf(e: SrdRecord): string {
 export function moneyCp(n: number, unit: string): number {
   const f: Record<string, number> = { cp: 1, sp: 10, ep: 50, gp: 100, pp: 1000 }
   return n * (f[unit] ?? fail(`moeda desconhecida: ${unit}`))
+}
+
+/** Texto legível de uma opção de equipamento do SRD ("2× Adaga, Túnica, 5 PO"). */
+export function describeOption(srd: Srd, opt: any): string {
+  if (opt.option_type === "money") return `${opt.count} ${({ gp: "PO", sp: "PP", cp: "PC", ep: "PE", pp: "PL" } as Record<string, string>)[opt.unit] ?? opt.unit}`
+  if (opt.option_type === "counted_reference") return `${opt.count > 1 ? `${opt.count}× ` : ""}${srd.byUrl(opt.of.url)?.name ?? opt.of.name}${opt.of.note ? ` (${opt.of.note})` : ""}`
+  if (opt.option_type === "multiple") return opt.items.map((i: any) => describeOption(srd, i)).join(", ")
+  if (opt.option_type === "reference") return srd.byUrl(opt.item.url)?.name ?? opt.item.name
+  if (opt.option_type === "choice") return `um item à escolha (${opt.choice.desc ?? "categoria"})`
+  return "?"
+}
+
+function pickSlots(opt: any, out: { label: string; from: string[] }[], srd: Srd): void {
+  if (opt.option_type === "multiple") for (const i of opt.items) pickSlots(i, out, srd)
+  else if (opt.option_type === "counted_reference" && opt.of.url.includes("/equipment-categories/")) {
+    out.push({ label: opt.of.name, from: srd.byUrl(opt.of.url, "en")!.equipment.map((e: any) => e.index as string) })
+  } else if (opt.option_type === "choice") {
+    const cats: string[] = []
+    const collect = (ch: any) => { const f = ch.from; if (f.option_set_type === "equipment_category") cats.push(f.equipment_category.url); else for (const o of f.options) collect(o.choice) }
+    collect(opt.choice)
+    out.push({ label: opt.choice.desc ?? "Escolha um item", from: cats.flatMap((u) => srd.byUrl(u, "en")!.equipment.map((e: any) => e.index as string)) })
+  }
+}
+
+/** Tudo que falta escolher para uma combinação classe/antecedente/espécie (o cliente monta o formulário a partir disto). */
+export function creationNeeds(srd: Srd, q: { class: string; background: string; species: string; subspecies?: string; classEquipment?: number; backgroundEquipment?: number }) {
+  const cls = srd.get("classes", q.class, "en") ?? fail("classe inexistente")
+  const bg = srd.get("backgrounds", q.background, "en") ?? fail("antecedente inexistente")
+  const species = srd.get("species", q.species, "en") ?? fail("espécie inexistente")
+  const allSkills = srd.list("skills", "en").map((s) => s.index)
+  const profList = srd.list("proficiencies", "en").map((p) => ({ index: p.index, type: p.type as string }))
+  const [skillChoice, toolChoice] = cls.proficiency_choices.map((p: any) => parseChoice(p, allSkills, profList))
+  const bgSkills: string[] = bg.proficiencies.filter((p: any) => p.index.startsWith("skill-")).map((p: any) => p.index.slice(6))
+  const lvl1 = srd.get("levels", `${cls.index}-1`, "en")!
+  const eqSet = (list: any[], i: number | undefined) => list[0].from.options[i ?? 0]
+  const picks: { label: string; from: string[] }[] = []
+  pickSlots(eqSet(cls.starting_equipment_options, q.classEquipment), picks, srd)
+  pickSlots(eqSet(bg.equipment_options, q.backgroundEquipment), picks, srd)
+  const traits = (species.traits ?? []).map((t: any) => t.index as string)
+  const subs = srd.list("subspecies", "en").filter((s) => s.species?.index === species.index)
+  const sp = lvl1.spellcasting
+  const classSpells = (level: number) => srd.list("spells").filter((s) => s.level === level && s.classes.some((c: any) => c.index === cls.index)).map((s) => ({ index: s.index, name: s.name, school: s.school?.name }))
+  const hasMastery = (lvl1.features ?? []).some((f: any) => f.index === `${cls.index}-weapon-mastery`)
+  const wp = cls.proficiencies.map((p: any) => p.index as string)
+  return {
+    skills: { choose: skillChoice!.choose, from: skillChoice!.from.filter((s: string) => !bgSkills.includes(s)) },
+    tools: toolChoice ? { choose: toolChoice.choose, from: toolChoice.from.map((i: string) => ({ index: i, name: srd.get("proficiencies", i)?.name ?? i })) } : null,
+    mastery: hasMastery ? { count: Number((lvl1.class_specific as any)?.weapon_mastery ?? 2), from: srd.list("equipment", "en").filter((e) => e.mastery && wp.some((p: string) => e.equipment_categories.some((c: any) => c.index === p))).map((e) => ({ index: e.index, name: srd.get("equipment", e.index)?.name })) } : null,
+    equipmentPicks: picks,
+    speciesChoices: {
+      subspecies: subs.map((s) => ({ index: s.index, name: s.name })),
+      size: species.size ? null : ["Small", "Medium"],
+      skill: traits.includes("skillful") ? allSkills : traits.includes("keen-senses") ? ["insight", "perception", "survival"] : null,
+      feat: traits.includes("versatile") ? srd.list("feats", "en").filter((f) => f.type === "origin" && f.index !== bg.feat.index).map((f) => ({ index: f.index, name: srd.get("feats", f.index)?.name })) : null,
+    },
+    languages: { choose: 2, from: srd.list("languages").filter((l) => !l.is_rare && l.index !== "common").map((l) => ({ index: l.index, name: l.name })) },
+    spells: sp ? { cantrips: sp.cantrips_known ?? 0, prepared: sp.prepared_spells ?? 0, spellbook: cls.index === "wizard" ? 6 : 0, ability: cls.spellcasting.spellcasting_ability.index, cantripList: classSpells(0), levelOneList: classSpells(1) } : null,
+    bonusAbilities: bg.ability_scores.map((a: any) => a.index),
+  }
 }

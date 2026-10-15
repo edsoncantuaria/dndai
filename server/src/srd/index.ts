@@ -1,6 +1,7 @@
 // Consulta ao srd.db (D&D 2024). Fonte única das regras: nada de tabela hardcoded no motor.
 import { DatabaseSync } from "node:sqlite"
 import { existsSync } from "node:fs"
+import { GLOSSARIO } from "./glossario.ts"
 import { COLLECTIONS, importSrd, SRD_DB } from "./import.ts"
 
 export type Collection = typeof COLLECTIONS[number]
@@ -19,7 +20,10 @@ export class Srd {
   private parse(row: { json: string; pt: string | null } | undefined, lang: Lang): SrdRecord | undefined {
     if (!row) return undefined
     const rec = JSON.parse(row.json)
-    return lang === "pt-BR" && row.pt ? { ...rec, ...JSON.parse(row.pt) } : rec
+    if (lang !== "pt-BR") return rec
+    if (row.pt) return { ...rec, ...JSON.parse(row.pt) }
+    const g = GLOSSARIO[String(rec.url).split("/")[3] ?? ""]?.[rec.index]
+    return g ? { ...rec, name: g } : rec
   }
 
   byUrl(url: string, lang: Lang = "pt-BR"): SrdRecord | undefined {

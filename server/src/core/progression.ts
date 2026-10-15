@@ -118,3 +118,35 @@ export function levelUp(c: Campaign, ch: LevelUpChoices, who = "pc", rng: Rng = 
   c.commit("subir-nivel", ops)
   return s
 }
+
+/** O que o jogador precisa escolher para subir o próximo nível (o cliente monta o formulário). */
+export function levelUpNeeds(c: Campaign, who = "pc") {
+  const v = pcView(c, who)
+  const s = v.sheet
+  if (!canLevelUp(s.level, v.row.xp)) fail("ainda não há XP para subir de nível")
+  const srd = c.srd
+  const next = s.level + 1
+  const cls = srd.require("classes", s.class, "en")
+  const rec = srd.get("levels", `${s.class}-${next}`, "en") ?? fail(`nível ${next} ausente no SRD`)
+  const feats: string[] = rec.features.map((f: any) => f.index)
+  const subRec = s.subclass ? srd.list("levels", "en").find((l) => l.subclass?.index === s.subclass && l.level === next) : undefined
+  const gained = [...feats, ...(subRec?.features ?? []).map((f: any) => f.index as string)]
+  const sp = rec.spellcasting
+  let maxLvl = 0
+  if (sp) for (let i = 1; i <= 9; i++) if (sp[`spell_slots_level_${i}`]) maxLvl = i
+  const list = (level: number) => srd.list("spells").filter((x) => x.level === level && x.classes.some((k: any) => k.index === s.class)).map((x) => ({ index: x.index, name: x.name }))
+  const masteryN = (rec.class_specific as any)?.weapon_mastery
+  return {
+    level: next, hit_die: s.hitDie, con_mod: mod(s.abilities.con), hp_average: s.hitDie / 2 + 1,
+    new_features: gained.map((i) => ({ index: i, name: srd.get("features", i)?.name ?? i })),
+    subclass: feats.includes(`${s.class}-subclass`) ? cls.subclasses.map((x: any) => ({ index: x.index, name: srd.get("subclasses", x.index)?.name ?? x.name })) : null,
+    asi: feats.includes(`${s.class}-ability-score-improvement`) ? { feats: srd.list("feats").filter((f) => f.type === "general" && !s.feats.includes(f.index) && f.index !== "ability-score-improvement").map((f) => ({ index: f.index, name: f.name })), abilities: ABILITIES.filter((a) => s.abilities[a] < 20) } : null,
+    epic_boon: feats.includes(`${s.class}-epic-boon`) ? srd.list("feats").filter((f) => f.type === "epic-boon").map((f) => ({ index: f.index, name: f.name })) : null,
+    spells: sp && s.spell ? {
+      cantrips: sp.cantrips_known ?? 0, prepared: sp.prepared_spells ?? 0, max_level: maxLvl, wizard: s.class === "wizard",
+      cantrip_list: list(0), spell_list: Array.from({ length: maxLvl }, (_, i) => list(i + 1)).flat(),
+      current: { cantrips: s.spell.cantrips, prepared: s.spell.prepared, spellbook: s.spell.spellbook ?? null },
+    } : null,
+    mastery: masteryN !== undefined && masteryN !== (s.classSpecific as any).weapon_mastery ? { count: masteryN } : null,
+  }
+}

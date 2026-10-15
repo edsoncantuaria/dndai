@@ -68,3 +68,17 @@ describe("criação 2024", () => {
     c.close()
   })
 })
+
+describe("necessidades da criação (formulário do cliente)", () => {
+  it("Monge pede ferramenta/instrumento e item de categoria; Mago pede magias", async () => {
+    const { creationNeeds } = await import("../src/core/creation.ts")
+    const { srd } = await import("../src/srd/index.ts")
+    const monk = creationNeeds(srd(), { class: "monk", background: "soldier", species: "human" })
+    assert.equal(monk.tools?.choose, 1); assert.ok(monk.tools!.from.length > 20)
+    assert.ok(monk.equipmentPicks.length >= 1)
+    const wiz = creationNeeds(srd(), { class: "wizard", background: "sage", species: "elf" })
+    assert.equal(wiz.spells?.cantrips, 3); assert.equal(wiz.spells?.spellbook, 6)
+    assert.equal(wiz.speciesChoices.subspecies.length, 3); assert.deepEqual(wiz.speciesChoices.skill, ["insight", "perception", "survival"])
+    assert.ok(creationNeeds(srd(), { class: "fighter", background: "soldier", species: "human" }).mastery!.count >= 3)
+  })
+})

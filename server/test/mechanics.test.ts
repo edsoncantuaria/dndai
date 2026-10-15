@@ -108,3 +108,22 @@ describe("mecânica", () => {
     c.close()
   })
 })
+
+describe("necessidades de subida de nível", () => {
+  it("Guerreiro nível 3 pede subclasse; nível 4 pede aumento de atributo; Mago pede magias", async () => {
+    const { levelUpNeeds } = await import("../src/core/progression.ts")
+    const c = novo("ln1")
+    awardXp(c, 900)
+    levelUp(c, { hp: "average" })
+    const n3 = levelUpNeeds(c)
+    assert.equal(n3.level, 3); assert.ok(n3.subclass!.some((s: { index: string }) => s.index === "champion"))
+    levelUp(c, { hp: "average", subclass: "champion" })
+    awardXp(c, 2700)
+    const n4 = levelUpNeeds(c)
+    assert.ok(n4.asi!.feats.length >= 1 && n4.asi!.abilities.length === 6); assert.equal(n4.subclass, null)
+    assert.throws(() => levelUp(c, { hp: "average" }), /Aumento de Atributo/)
+    levelUp(c, { hp: "average", asi: { plus: { str: 2 } }, mastery: ["greatsword", "flail", "javelin", "longsword"] })
+    assert.equal(pcView(c).sheet.abilities.str, 19)
+    c.close()
+  })
+})

@@ -52,7 +52,7 @@ describe("API do cliente", () => {
       classSkills: ["acrobatics", "history"], classEquipment: 0, backgroundEquipment: 0, equipmentPicks: ["dice"],
       languages: ["dwarvish", "elvish"], speciesChoices: { skill: "perception", feat: "alert" }, mastery: ["greatsword", "flail", "javelin"],
     })
-    assert.equal(made.status, 201); assert.equal(made.json.pc.class, "Fighter")
+    assert.equal(made.status, 201); assert.equal(made.json.pc.class, "Guerreiro")
 
     const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?campaign=aventura&token=segredo`)
     const seen: number[] = []

@@ -7,11 +7,11 @@ import { fileURLToPath } from "node:url"
 import { WebSocketServer } from "ws"
 import { z } from "zod"
 import { CampaignError } from "./core/campaign.ts"
-import { CreationError, creationOptions } from "./core/creation.ts"
+import { CreationError, creationNeeds, creationOptions } from "./core/creation.ts"
 import { one } from "./core/db.ts"
 import * as mx from "./core/mechanics.ts"
 import { createCharacter, rollAbilities } from "./core/pc.ts"
-import { levelUp } from "./core/progression.ts"
+import { levelUp, levelUpNeeds } from "./core/progression.ts"
 import { emit, onChange } from "./events.ts"
 import { srd } from "./srd/index.ts"
 import { campaign, campaignExists, createCampaign, listCampaigns } from "./store.ts"
@@ -100,6 +100,8 @@ export function startApi(opts: ApiOptions) {
     }
     if (m === "GET" && p === "/api/creation/options") return send(res, 200, creationOptions(srd()))
 
+    if (m === "POST" && p === "/api/creation/needs") return send(res, 200, creationNeeds(srd(), (await body(req)) as never))
+
     const srdm = /^\/api\/srd\/([a-z-]+)(?:\/([^/]+))?$/.exec(p)
     if (m === "GET" && srdm) {
       const s = srd()
@@ -116,7 +118,12 @@ export function startApi(opts: ApiOptions) {
       if (m === "GET" && what === "chat") return send(res, 200, chatView(slug))
       if (m === "GET" && what === "connector") return send(res, 200, { path: `/mcp/${campaignSecret(slug)}` })
       if (m === "POST" && what === "roll-abilities") return send(res, 200, rollAbilities(c))
-      if (m === "POST" && what === "character") { createCharacter(c, (await body(req)) as never); opts.master.drain(slug); return send(res, 201, gameView(c, slug)) }
+      if (m === "POST" && what === "character") { createCharacter(c, (await body(req)) as never)
+        // A mesa pede a abertura: o Mestre narra a cena inicial sem o jogador precisar agir.
+        openTurn(c, "(abertura da campanha)")
+        enqueue(slug, "sistema", "O personagem foi criado. Abra a campanha: narre a cena inicial (crie o local e quem estiver nele) e ofereça opções ao jogador.")
+        void opts.master.drain(slug)
+        return send(res, 201, gameView(c, slug)) }
       if (m === "POST" && what === "act") {
         const { text } = Act.parse(await body(req))
         if (!one(c.db, "SELECT 1 FROM characters WHERE kind='pc'")) throw new HttpError(409, "Crie o personagem primeiro.")
@@ -134,6 +141,7 @@ export function startApi(opts: ApiOptions) {
       }
       if (m === "POST" && what === "rest") { const b = Rest.parse(await body(req)); const t = b.kind === "short" ? mx.shortRest(c, "pc", b.dice) : mx.longRest(c); return send(res, 200, { text: t, view: gameView(c, slug) }) }
       if (m === "POST" && what === "death-save") return send(res, 200, { text: mx.deathSave(c), view: gameView(c, slug) })
+      if (m === "GET" && what === "level-up") return send(res, 200, levelUpNeeds(c))
       if (m === "POST" && what === "level-up") { levelUp(c, Level.parse(await body(req)) as never); return send(res, 200, gameView(c, slug)) }
       if (m === "POST" && what === "undo") { const l = c.undo(); return send(res, 200, { undone: l ?? null, view: gameView(c, slug) }) }
       if (m === "GET" && what === "tts") {
