@@ -49,6 +49,17 @@ export function scopeOf(match: { slug?: string }): string[] {
   return file ? file.split("\n").map((s) => s.trim()).filter(Boolean) : []
 }
 
+/** Campanha nova entra no escopo do segredo legado (uma URL só no ChatGPT enxerga todas as campanhas listadas). */
+export function addSlugToScope(slug: string): void {
+  const home = campaignsHome()
+  if (!existsSync(join(home, "conector-secret"))) return
+  const path = join(home, "conector-scope")
+  const current = readSecret(path)?.split("\n").map((x) => x.trim()).filter(Boolean) ?? []
+  if (current.includes(slug)) return
+  writeFileSync(path, `${[...current, slug].join("\n")}\n`, { mode: 0o600 })
+  chmodSync(path, 0o600)
+}
+
 export function assertInScope(slugs: string[], asked: string | undefined): string {
   if (!asked) {
     if (slugs.length === 1) return slugs[0]!

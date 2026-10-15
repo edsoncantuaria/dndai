@@ -1,6 +1,6 @@
 import { after, before, describe, it } from "node:test"
 import assert from "node:assert/strict"
-import { mkdtempSync, rmSync } from "node:fs"
+import { mkdtempSync, readdirSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Campaign } from "../src/core/campaign.ts"
@@ -30,5 +30,19 @@ describe("mundo", () => {
     assert.equal(c.db.prepare("SELECT COUNT(*) n FROM memories WHERE npc_id = ?").get(npc)!.n, 1)
     assert.throws(() => w.move(c, "pc", "l99"), /não existe/)
     c.close()
+  })
+})
+
+describe("backup", () => {
+  it("copia o mundo para DNDAI_BACKUP_DIR sem quebrar o commit", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bkp-"))
+    process.env.DNDAI_BACKUP_DIR = dir
+    try {
+      const c = Campaign.create("bk", { name: "t" }, { home })
+      w.createPlace(c, { name: "Ponte", kind: "ponte", summary: "Velha." })
+      const files = readdirSync(join(dir, "bk"))
+      assert.ok(files.some((f: string) => f.startsWith("world-")))
+      c.close()
+    } finally { delete process.env.DNDAI_BACKUP_DIR; rmSync(dir, { recursive: true }) }
   })
 })

@@ -1,5 +1,8 @@
 // dndai-server: API do cliente + WebSocket + fila do Mestre (Shellby) + conector MCP, num processo só.
 //   node src/main.ts serve [--port 8790] [--host 127.0.0.1] [--connector-port 8794]
+import { existsSync } from "node:fs"
+import { dirname, join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import { campaignsHome, listCampaigns } from "./store.ts"
 import { startApi } from "./api.ts"
 import { startConnector } from "./mestre/connector.ts"
@@ -18,7 +21,8 @@ if (argv[0] !== "serve") {
 const host = flag("host", "127.0.0.1")
 const port = Number(flag("port", "8790"))
 const master = createMaster(process.env.DNDAI_FAKE_MESTRE === "1" ? fakeTransport() : shellbyTransport())
-startApi({ host, port, token: process.env.DNDAI_TOKEN, master })
+const webDir = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "game", "build", "web")
+startApi({ host, port, token: process.env.DNDAI_TOKEN, master, staticDir: existsSync(join(webDir, "index.html")) ? webDir : undefined })
 startConnector({ host: "127.0.0.1", port: Number(flag("connector-port", "8794")) })
 master.recover(listCampaigns().map((c) => c.slug))
 console.log(`[dndai] API http://${host}:${port} · conector http://127.0.0.1:${flag("connector-port", "8794")}/mcp/<segredo> · campanhas em ${campaignsHome()}`)

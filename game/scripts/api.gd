@@ -22,6 +22,13 @@ func _ready() -> void:
 		base = cfg.get_value("server", "base", base)
 		token = cfg.get_value("server", "token", "")
 		last_slug = cfg.get_value("server", "slug", "")
+	# Web: o cliente é servido pelo próprio servidor (mesma origem); o token vem em ?token= na primeira abertura.
+	if OS.has_feature("web"):
+		base = str(JavaScriptBridge.eval("window.location.origin"))
+		var t := str(JavaScriptBridge.eval("new URLSearchParams(location.search).get('token') || ''"))
+		if t != "":
+			token = t
+			save_settings()
 	# Variáveis de ambiente têm prioridade (testes, execução de desenvolvimento).
 	if OS.get_environment("DNDAI_URL") != "":
 		base = OS.get_environment("DNDAI_URL")

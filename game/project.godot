@@ -13,6 +13,7 @@ config_version=5
 config/name="dndai"
 config/description="Cliente do dndai (D&D 2024, Mestre IA)."
 run/main_scene="res://scenes/main.tscn"
+config/icon="res://icon.svg"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
 [autoload]
@@ -35,4 +36,5 @@ theme/default_font_antialiasing=2
 
 [rendering]
 
+textures/vram_compression/import_etc2_astc=true
 anti_aliasing/quality/msaa_3d=2

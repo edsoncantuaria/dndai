@@ -2,3 +2,9 @@
 *.translation
 export_presets.cfg.bak
 build/
+android/build/.gradle/
+android/build/build/
+android/build/.cxx/
+android/build/local.properties
+android/build/assetPackInstallTime/build/
+android/

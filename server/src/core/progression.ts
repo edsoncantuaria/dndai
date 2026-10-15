@@ -18,6 +18,13 @@ export interface LevelUpChoices {
   mastery?: string[]
 }
 
+/** Truques conhecidos nunca diminuem com o nível (o upstream tem um erro no Druida 8: 4→3). */
+export function cantripsKnown(c: Campaign, cls: string, level: number): number {
+  let n = 0
+  for (let l = 1; l <= level; l++) n = Math.max(n, Number(c.srd.get("levels", `${cls}-${l}`, "en")?.spellcasting?.cantrips_known ?? 0))
+  return n
+}
+
 export function xpToNext(level: number): number | null { return level >= 20 ? null : XP_TABLE[level]! }
 export function canLevelUp(level: number, xp: number): boolean { return level < 20 && xp >= XP_TABLE[level]! }
 
@@ -87,7 +94,8 @@ export function levelUp(c: Campaign, ch: LevelUpChoices, who = "pc", rng: Rng = 
   if (rec.spellcasting && s.spell) {
     const sp = rec.spellcasting
     const chosen = ch.spells ?? fail("conjurador: informe spells (listas completas de truques e magias preparadas)")
-    if (chosen.cantrips.length !== (sp.cantrips_known ?? 0)) fail(`truques: exatamente ${sp.cantrips_known ?? 0}`)
+    const cantripN = cantripsKnown(c, s.class, next)
+    if (chosen.cantrips.length !== cantripN) fail(`truques: exatamente ${cantripN}`)
     if (chosen.prepared.length !== (sp.prepared_spells ?? 0)) fail(`magias preparadas: exatamente ${sp.prepared_spells ?? 0}`)
     let maxLvl = 0
     for (let i = 1; i <= 9; i++) if (sp[`spell_slots_level_${i}`]) maxLvl = i
@@ -143,7 +151,7 @@ export function levelUpNeeds(c: Campaign, who = "pc") {
     asi: feats.includes(`${s.class}-ability-score-improvement`) ? { feats: srd.list("feats").filter((f) => f.type === "general" && !s.feats.includes(f.index) && f.index !== "ability-score-improvement").map((f) => ({ index: f.index, name: f.name })), abilities: ABILITIES.filter((a) => s.abilities[a] < 20) } : null,
     epic_boon: feats.includes(`${s.class}-epic-boon`) ? srd.list("feats").filter((f) => f.type === "epic-boon").map((f) => ({ index: f.index, name: f.name })) : null,
     spells: sp && s.spell ? {
-      cantrips: sp.cantrips_known ?? 0, prepared: sp.prepared_spells ?? 0, max_level: maxLvl, wizard: s.class === "wizard",
+      cantrips: cantripsKnown(c, s.class, next), prepared: sp.prepared_spells ?? 0, max_level: maxLvl, wizard: s.class === "wizard",
       cantrip_list: list(0), spell_list: Array.from({ length: maxLvl }, (_, i) => list(i + 1)).flat(),
       current: { cantrips: s.spell.cantrips, prepared: s.spell.prepared, spellbook: s.spell.spellbook ?? null },
     } : null,

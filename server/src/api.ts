@@ -1,7 +1,8 @@
 // API HTTP + WebSocket para o cliente (Godot). O cliente só apresenta; toda regra está no motor.
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http"
 import { spawn } from "node:child_process"
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync, statSync } from "node:fs"
+import { gzipSync } from "node:zlib"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { WebSocketServer } from "ws"
@@ -16,7 +17,7 @@ import { emit, onChange } from "./events.ts"
 import { srd } from "./srd/index.ts"
 import { campaign, campaignExists, createCampaign, listCampaigns } from "./store.ts"
 import { chatView, enqueue, type createMaster } from "./mestre/queue.ts"
-import { campaignSecret } from "./mestre/secrets.ts"
+import { addSlugToScope, campaignSecret } from "./mestre/secrets.ts"
 import { openTurn } from "./mestre/submit.ts"
 import { gameView } from "./view.ts"
 
@@ -28,7 +29,31 @@ class HttpError extends Error {
 const TTS = (process.env.DNDAI_TTS_URL ?? "http://127.0.0.1:8795").replace(/\/+$/, "")
 const TTS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "tts")
 
-export interface ApiOptions { host: string; port: number; token?: string; master: ReturnType<typeof createMaster> }
+export interface ApiOptions { host: string; port: number; token?: string; master: ReturnType<typeof createMaster>; staticDir?: string }
+
+const MIME: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".wasm": "application/wasm", ".pck": "application/octet-stream", ".png": "image/png", ".svg": "image/svg+xml", ".json": "application/json", ".css": "text/css" }
+const gz = new Map<string, { mtime: number; data: Uint8Array }>()
+
+/** Serve o cliente web (build do Godot) na mesma origem da API. */
+function serveStatic(dir: string, req: IncomingMessage, res: ServerResponse, pathname: string): boolean {
+  const rel = pathname === "/" ? "index.html" : decodeURIComponent(pathname).replace(/^\/+/, "")
+  const file = resolve(dir, rel)
+  if (!file.startsWith(resolve(dir)) || !existsSync(file) || !statSync(file).isFile()) return false
+  const ext = file.slice(file.lastIndexOf("."))
+  const type = MIME[ext] ?? "application/octet-stream"
+  const st = statSync(file)
+  let data: Uint8Array = readFileSync(file)
+  const headers: Record<string, string | number> = { "content-type": type, "cache-control": "no-cache" }
+  if (data.length > 1024 && /\bgzip\b/.test(String(req.headers["accept-encoding"] ?? "")) && [".js", ".wasm", ".pck", ".html"].includes(ext)) {
+    const hit = gz.get(file)
+    if (hit?.mtime === st.mtimeMs) data = hit.data
+    else { data = gzipSync(data); gz.set(file, { mtime: st.mtimeMs, data }) }
+    headers["content-encoding"] = "gzip"
+  }
+  headers["content-length"] = data.length
+  res.writeHead(200, headers).end(data)
+  return true
+}
 
 const slugOf = (s: string | undefined): string => {
   if (!s || !campaignExists(s)) throw new HttpError(404, "Campanha não existe.")
@@ -86,6 +111,7 @@ export function startApi(opts: ApiOptions) {
   const handle = async (req: IncomingMessage, res: ServerResponse, url: URL) => {
     const m = req.method ?? "GET"
     const p = url.pathname
+    if (opts.staticDir && (m === "GET" || m === "HEAD") && !p.startsWith("/api/") && p !== "/ws" && serveStatic(opts.staticDir, req, res, p)) return
     if (m === "OPTIONS") return void res.writeHead(204, { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization,content-type", "access-control-allow-methods": "GET,POST,OPTIONS" }).end()
     if (p === "/api/health") return send(res, 200, { ok: true, edition: "2024" })
     if (!authed(req, url)) throw new HttpError(401, "Token inválido.")
@@ -96,6 +122,7 @@ export function startApi(opts: ApiOptions) {
       const slug = b.slug ?? slugify(b.name)
       createCampaign(slug, b)
       campaignSecret(slug)
+      addSlugToScope(slug)
       return send(res, 201, { slug })
     }
     if (m === "GET" && p === "/api/creation/options") return send(res, 200, creationOptions(srd()))

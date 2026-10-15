@@ -1,5 +1,5 @@
 // Campanha: um world.db por slug. Toda mudança entra por commit() (atômico, validado, registrado no ledger).
-import { existsSync, mkdirSync } from "node:fs"
+import { existsSync, mkdirSync, readdirSync, rmSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { all, type DB, getMeta, one, openDb, setMeta } from "./db.ts"
@@ -70,6 +70,7 @@ export class Campaign {
       if (bad.length) throw new CampaignError(`invariante violada: ${bad.join("; ")}`)
       setMeta(this.db, "version", this.version + 1)
       this.db.exec("COMMIT")
+      this.backup()
       return r
     } catch (e) {
       this.db.exec("ROLLBACK")
@@ -79,6 +80,22 @@ export class Campaign {
     }
   }
   private label = ""
+  private lastBackup = 0
+
+  /** Cópia consistente do mundo em DNDAI_BACKUP_DIR (no máx. a cada 5 min, guarda as 30 mais recentes). */
+  private backup(): void {
+    const dir = process.env.DNDAI_BACKUP_DIR
+    if (!dir || Date.now() - this.lastBackup < 5 * 60_000) return
+    this.lastBackup = Date.now()
+    try {
+      const target = join(dir, this.slug)
+      mkdirSync(target, { recursive: true })
+      this.db.exec(`VACUUM INTO '${join(target, `world-${new Date().toISOString().replace(/[:.]/g, "-")}.db`).replace(/'/g, "''")}'`)
+      for (const old of readdirSync(target).filter((f) => f.startsWith("world-")).sort().slice(0, -30)) rmSync(join(target, old))
+    } catch (e) {
+      console.error(`[backup] ${this.slug}: ${(e as Error).message}`)
+    }
+  }
 
   /** Aplica ops de forma atômica. Invariante quebrada = nada é gravado. */
   commit(label: string, ops: Op[]): void {
