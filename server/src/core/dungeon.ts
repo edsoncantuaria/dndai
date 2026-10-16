@@ -152,10 +152,14 @@ export function generateDungeon(c: Campaign, o: DungeonOpts): DungeonPlan {
   for (let i = 0; i < nRooms; i++) {
     const r = role[i]!
     if (r === "combate" || r === "chefe") {
-      const diff: Difficulty = r === "chefe" ? "alta" : depth[i]! <= 1 ? "baixa" : chance(rng, 35) ? "alta" : "moderada"
-      const enc = buildEncounter(c.srd, rng, { level, party, difficulty: diff, types, maxCreatures: r === "chefe" ? 6 : 5 })
+      let diff: Difficulty = r === "chefe" ? "alta" : depth[i]! <= 1 ? "baixa" : chance(rng, 35) ? "alta" : "moderada"
+      // 1 em 10 salas de combate vem um degrau acima do planejado: o dado decide, a masmorra não é previsível.
+      const spike = r === "combate" && chance(rng, 10)
+      let encLevel = level
+      if (spike) { if (diff === "baixa") diff = "moderada"; else if (diff === "moderada") diff = "alta"; else encLevel = Math.min(20, level + 2) }
+      const enc = buildEncounter(c.srd, rng, { level: encLevel, party, difficulty: diff, types, maxCreatures: r === "chefe" ? 6 : 5 })
       const stance = r === "chefe" ? "alerta" : chance(rng, 35) ? "dormindo" : "alerta"
-      feature(i, "monstros", r === "chefe" ? `Chefe: ${pick(rng, th.bosses)}` : `Encontro (${diff})`, { group: enc.group, total_xp: enc.total, budget: enc.budget, difficulty: diff, stance, spawned: false, ids: [], boss: r === "chefe" }, "oculto", 0)
+      feature(i, "monstros", r === "chefe" ? `Chefe: ${pick(rng, th.bosses)}` : `Encontro (${diff})`, { group: enc.group, total_xp: enc.total, budget: enc.budget, difficulty: diff, stance, spawned: false, ids: [], boss: r === "chefe", spike }, "oculto", 0)
       if (r === "combate" && chance(rng, 25)) { const l = lootFor(c, rng, level, 0.25, 0, taken); feature(i, "tesouro", pick(rng, ["Baú pequeno", "Bolsa esquecida", "Cadáver com pertences"]), { ...l, container: "baú" }, "oculto", 10 + b * 2 + rng(4) - 1) }
     } else if (r === "armadilha") {
       const t = pick(rng, th.traps)

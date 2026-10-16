@@ -47,6 +47,18 @@ describe("gerador de masmorras", () => {
     assert.equal(n, THEME_IDS.length * 12)
   })
 
+  it("1 em 10 salas de combate vem acima do planejado (e continua dentro do próprio orçamento)", () => {
+    let spikes = 0, combat = 0
+    for (let k = 0; k < 40; k++) {
+      const c = novoPc(`sp${k}`, home, "fighter")
+      const d = generateDungeon(c, { theme: "caverna", level: 3, rooms: 14, from: "l0", seed: 700 + k })
+      for (const r of d.rooms) for (const f of featuresAt(c, r.id)) if (f.kind === "monstros" && !f.data.boss) { combat++; if (f.data.spike) spikes++; assert.ok(f.data.total_xp <= f.data.budget) }
+      c.close()
+    }
+    assert.ok(combat > 100)
+    assert.ok(spikes / combat > 0.03 && spikes / combat < 0.2, `proporção ${(spikes / combat).toFixed(3)}`)
+  })
+
   it("é reproduzível pela semente", () => {
     const a = novoPc("rp1", home, "fighter"), b = novoPc("rp2", home, "fighter")
     const x = generateDungeon(a, { theme: "cripta", level: 3, rooms: 8, from: "l0", seed: 42 })

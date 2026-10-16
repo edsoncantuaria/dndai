@@ -51,7 +51,7 @@ export function enterRoom(c: Campaign, place: string): string[] {
           for (let i = 1; i <= m.count; i++) ids.push(mx.spawnMonster(c, m.srd, place, m.count > 1 ? `${m.name} ${i}` : m.name))
         }
         setFeature(c, f.id, { state: "visivel", data: { ...f.data, spawned: true, ids } })
-        lines.push(`ENCONTRO (${f.data.difficulty}, ${f.data.total_xp} XP): ${(f.data.group as { count: number; name: string }[]).map((m) => `${m.count}× ${m.name}`).join(", ")} — ${f.data.stance}${f.data.boss ? " — CHEFE" : ""}`)
+        lines.push(`ENCONTRO (${f.data.difficulty}${f.data.spike ? ", acima do planejado" : ""}, ${f.data.total_xp} XP): ${(f.data.group as { count: number; name: string }[]).map((m) => `${m.count}× ${m.name}`).join(", ")} — ${f.data.stance}${f.data.boss ? " — CHEFE" : ""}`)
       } else if (f.state === "oculto" && f.dc_find > 0 && f.dc_find <= passive) lines.push(`você nota: ${reveal(c, f)}`)
       else if (f.kind === "perigo" && f.state === "visivel") lines.push(`perigo visível: ${f.name} — ${f.data.note}`)
     }
