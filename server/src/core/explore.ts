@@ -223,15 +223,18 @@ export function wanderingEncounter(c: Campaign, dest: string, minutes: number, r
   const pct = Math.min(50, row.danger * 10 * Math.floor(minutes / 60))
   if (rng(100) > pct) return []
   const theme = KIND_THEME.find(([re]) => re.test(`${row.kind} ${row.name}`.toLowerCase()))?.[1] ?? "estrada"
-  const diff: Difficulty = row.danger >= 3 ? "alta" : row.danger === 2 ? "moderada" : "baixa"
-  const level = pcView(c).sheet.level
+  let diff: Difficulty = row.danger >= 3 ? "alta" : row.danger === 2 ? "moderada" : "baixa"
+  let level = pcView(c).sheet.level
+  // O mundo não se arruma para o herói: 1 em 10 vezes o encontro vem um degrau acima do esperado.
+  const spike = rng(100) <= 10
+  if (spike) { if (diff === "baixa") diff = "moderada"; else if (diff === "moderada") diff = "alta"; else level = Math.min(20, level + 2) }
   const party = 1 + (one<{ n: number }>(c.db, "SELECT COUNT(*) n FROM characters WHERE companion = 1 AND status = 'vivo'")?.n ?? 0)
   const enc = buildEncounter(c.srd, rng, { level, party, difficulty: diff, types: THEME_TYPES[theme], maxCreatures: 5 })
   return c.atomic("emboscada", () => {
     const ids: string[] = []
     for (const m of enc.group) for (let i = 1; i <= m.count; i++) ids.push(mx.spawnMonster(c, m.srd, dest, m.count > 1 ? `${m.name} ${i}` : m.name))
     c.commit("emboscada", [put("features", { place_id: dest, kind: "monstros", name: `Emboscada (${diff})`, data: { group: enc.group, total_xp: enc.total, budget: enc.budget, difficulty: diff, stance: "emboscada", spawned: true, ids }, state: "visivel", dc_find: 0, created_turn: c.turn })])
-    return [`EMBOSCADA no caminho (${diff}, ${enc.total} XP): ${enc.group.map((m) => `${m.count}× ${m.name}`).join(", ")}`]
+    return [`EMBOSCADA no caminho (${diff}${spike ? ", pior que o lugar prometia" : ""}, ${enc.total} XP): ${enc.group.map((m) => `${m.count}× ${m.name}`).join(", ")}`]
   })
 }
 

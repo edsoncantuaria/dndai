@@ -166,6 +166,11 @@ describe("explorar a masmorra", () => {
     assert.match(lines.join("|"), /EMBOSCADA/)
     assert.ok((c.db.prepare("SELECT COUNT(*) n FROM characters WHERE kind = 'monster' AND place_id = ?").get(mata) as { n: number }).n >= 1)
     assert.deepEqual(ex.wanderingEncounter(c, "l0", 30), []) // curta: nada
+    // 1 em 10: o encontro vem um degrau acima (rng(100) ≤ 10 logo após a chance de emboscada)
+    const spike = ex.wanderingEncounter(c, mata, 180, seq(5, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1))
+    assert.match(spike.join("|"), /pior que o lugar prometia/)
+    const normal = ex.wanderingEncounter(c, mata, 180, seq(5, 90, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1))
+    assert.doesNotMatch(normal.join("|"), /pior que o lugar prometia/)
     c.close()
   })
 })
